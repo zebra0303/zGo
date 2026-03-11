@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --wood-bg: #dcb35c;
+  --board-line: #1a1a1a;
+}
+
+body {
+  margin: 0;
+  background-color: #f3f4f6; /* bg-gray-100 */
+}
