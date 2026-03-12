@@ -152,9 +152,13 @@ const TeacherAdviceWidget = () => {
 
   // Listen for move changes to determine if we should show a critique
   useEffect(() => {
-    if (!isTeacherMode || currentMoveIndex === 0) {
+    // Clear critique when it's the human's turn to move (showing fresh recommendations)
+    if (currentPlayer === humanPlayerColor) {
       setTeacherCritique(null);
       setIgnoredRecommendation(null);
+    }
+
+    if (!isTeacherMode || currentMoveIndex === 0) {
       return;
     }
 
@@ -202,6 +206,7 @@ const TeacherAdviceWidget = () => {
     setTeacherCritique,
     fetchCritique,
     handicap,
+    currentPlayer,
   ]);
 
   if (!isTeacherMode || isGameOver) return null;
@@ -234,13 +239,14 @@ const TeacherAdviceWidget = () => {
                   {t('myMove')}
                 </div>
                 <div className="text-xs font-black text-rose-900">
-                  {moveCoordinates[currentMoveIndex]
-                    ? coordsToGtp(
-                      moveCoordinates[currentMoveIndex]!.x,
-                      moveCoordinates[currentMoveIndex]!.y,
-                      boardSize
-                    )
-                    : t('pass')}
+                  {/* Show the last move made by the human player */}
+                  {(() => {
+                    const lastHumanMoveIndex = handicap > 0 
+                      ? (currentMoveIndex % 2 === 0 ? currentMoveIndex : currentMoveIndex - 1)
+                      : (currentMoveIndex % 2 === 1 ? currentMoveIndex : currentMoveIndex - 1);
+                    const move = moveCoordinates[lastHumanMoveIndex];
+                    return move ? coordsToGtp(move.x, move.y, boardSize) : "-";
+                  })()}
                 </div>
               </div>
               <div className="flex-1 bg-blue-50/50 rounded p-1.5 border border-blue-200/50">

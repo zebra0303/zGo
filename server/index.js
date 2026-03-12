@@ -384,8 +384,8 @@ app.post("/api/ai/move", async (req, res) => {
         const isFollowed = lastRecommendations.some((rec) => rec.x === lastUserMove.x && rec.y === lastUserMove.y);
         if (!isFollowed) {
           const lastBestMove = lastRecommendations[0];
-          const uT = getMoveTactics(lastUserMove.x, lastUserMove.y, board, color === "B" ? "W" : "B", language, boardSize);
-          const bT = getMoveTactics(lastBestMove.x, lastBestMove.y, board, color === "B" ? "W" : "B", language, boardSize);
+          const uT = getMoveTactics(lastUserMove.x, lastUserMove.y, board, color, language, boardSize);
+          const bT = getMoveTactics(lastBestMove.x, lastBestMove.y, board, color, language, boardSize);
           if (bT.urgency < uT.urgency) critique = language === "en" ? `It's a pity you missed a more urgent ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize)}) than your move(${coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize)}).` : `방금 두신 수(${coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize)})보다 더 급한 ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize)}) 자리를 놓치신 것이 아쉽습니다.`;
           else critique = language === "en" ? `Your move(${coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize)}) is good, but AI thinks ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize)}) or around is slightly more efficient.` : `두신 수(${coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize)})도 좋은 자리입니다만, AI는 ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize)})나 주변 지점이 조금 더 효율적이라고 판단했습니다.`;
         }
