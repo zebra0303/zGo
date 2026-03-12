@@ -30,6 +30,7 @@ interface GameState {
   isReviewMode: boolean;
   boardScale: number;
   soundEnabled: boolean;
+  soundVolume: number;
   teacherVisits: number;
   ignoredRecommendation: { x: number; y: number }[] | null;
   teacherCritique: string | null;
@@ -58,6 +59,7 @@ interface GameState {
         | "humanPlayerColor"
         | "boardScale"
         | "soundEnabled"
+        | "soundVolume"
         | "teacherVisits"
         | "language"
         | "boardSize"
@@ -143,6 +145,7 @@ export const useGameStore = create<GameState>()(
       isReviewMode: false,
       boardScale: 1.0,
       soundEnabled: true,
+      soundVolume: 0.6,
       teacherVisits: 330,
       ignoredRecommendation: null,
       teacherCritique: null,

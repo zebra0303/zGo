@@ -38,6 +38,7 @@ const SidebarWidget = () => {
     capturedByWhite,
     boardScale,
     soundEnabled,
+    soundVolume,
     teacherVisits,
     consecutivePasses,
     winRates,
@@ -138,7 +139,7 @@ const SidebarWidget = () => {
           showAlert(t('aiResignedMsg'), t('congrats'));
         } else if (response.move) {
           placeStone(response.move.x, response.move.y);
-          playStoneSound(soundEnabled);
+          playStoneSound(soundEnabled, soundVolume);
         }
         if (response.winRate) {
           const blackWinRate =
@@ -186,6 +187,7 @@ const SidebarWidget = () => {
     passTurn,
     resignGame,
     soundEnabled,
+    soundVolume,
     aiDifficulty,
     moveCoordinates,
     currentMoveIndex,
@@ -647,6 +649,28 @@ const SidebarWidget = () => {
                   />
                 </button>
               </div>
+
+              {soundEnabled && (
+                <div className="space-y-1 pt-1 border-t border-gray-50 mt-1">
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-gray-600">{t('volume', { defaultValue: 'Volume' })}</span>
+                    <span className="font-bold text-blue-600">
+                      {Math.round(soundVolume * 100)}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={soundVolume}
+                    onChange={(e) =>
+                      setGameConfig({ soundVolume: parseFloat(e.target.value) })
+                    }
+                    className="w-full accent-blue-600 h-1"
+                  />
+                </div>
+              )}
 
               <div className="space-y-1 pt-1 border-t border-gray-50 mt-1">
                 <div className="flex justify-between text-[10px]">

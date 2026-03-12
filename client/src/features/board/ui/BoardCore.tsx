@@ -39,6 +39,7 @@ const BoardCore: React.FC = () => {
     isReviewMode,
     boardScale,
     soundEnabled,
+    soundVolume,
     ignoredRecommendation,
     aiDifficulty,
     teacherVisits,
@@ -65,7 +66,7 @@ const BoardCore: React.FC = () => {
 
     if (x >= 0 && x < boardSize && y >= 0 && y < boardSize) {
       placeStone(x, y);
-      playStoneSound(soundEnabled);
+      playStoneSound(soundEnabled, soundVolume);
     }
   };
 
