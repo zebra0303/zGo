@@ -154,14 +154,10 @@ const TeacherAdviceWidget = () => {
 
   // Listen for move changes to determine if we should show a critique
   useEffect(() => {
-    // In PvAI mode, clear critique when human's turn starts (reset for new move)
-    if (gameMode === "PvAI" && currentPlayer === humanPlayerColor) {
+    if (!isTeacherMode || currentMoveIndex === 0) {
       setTeacherCritique(null);
       setIgnoredRecommendation(null);
       setLastCritiquedMove(null);
-    }
-
-    if (!isTeacherMode || currentMoveIndex === 0) {
       return;
     }
 
@@ -173,18 +169,17 @@ const TeacherAdviceWidget = () => {
       ? (currentMoveIndex % 2 === 1 ? "WHITE" : "BLACK")
       : (currentMoveIndex % 2 === 1 ? "BLACK" : "WHITE");
 
-    // In PvP mode, critique EVERY move.
-    // In PvAI mode, ONLY critique human moves.
+    // In PvAI mode, ONLY trigger/clear critique when it's the human's move.
+    // This allows the critique to persist while the AI is moving and after it responds.
     if (gameMode === "PvAI" && moveColor !== humanPlayerColor) {
       return;
     }
 
-    // PvP mode: Clear previous critique before starting new analysis for current player
-    if (gameMode === "PvP") {
-      setTeacherCritique(null);
-      setIgnoredRecommendation(null);
-      setLastCritiquedMove(null);
-    }
+    // If we are here, it's either PvP mode OR PvAI mode with a human move.
+    // Clear PREVIOUS critique before starting new analysis for the current move.
+    setTeacherCritique(null);
+    setIgnoredRecommendation(null);
+    setLastCritiquedMove(null);
 
     const abortController = new AbortController();
 
@@ -197,10 +192,6 @@ const TeacherAdviceWidget = () => {
           currentMoveIndex,
           abortController.signal,
         );
-      } else {
-        setTeacherCritique(null);
-        setIgnoredRecommendation(null);
-        setLastCritiquedMove(null);
       }
     }
 
@@ -217,7 +208,6 @@ const TeacherAdviceWidget = () => {
     setTeacherCritique,
     fetchCritique,
     handicap,
-    currentPlayer,
   ]);
 
   if (!isTeacherMode || isGameOver) return null;
