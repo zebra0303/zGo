@@ -1,7 +1,9 @@
 import { useGameStore } from "@/entities/match/model/store";
 import { useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
 const ReviewControlWidget = () => {
+  const { t } = useTranslation();
   const {
     isReviewMode,
     currentMoveIndex,
@@ -44,10 +46,13 @@ const ReviewControlWidget = () => {
   const winRateWhite = 100 - winRateBlack;
 
   return (
-    <div className="w-full mt-4 bg-white/50 backdrop-blur-sm border border-gray-200/60 rounded-xl p-4 shadow-sm">
-      <div className="flex justify-between text-xs font-bold mb-2">
-        <span className="text-gray-800">흑 {winRateBlack.toFixed(1)}%</span>
-        <span className="text-gray-500">백 {winRateWhite.toFixed(1)}%</span>
+    <div className="w-full mt-4 bg-white/50 backdrop-blur-sm border border-gray-200/60 rounded-xl p-4 shadow-sm text-center">
+      <div className="flex justify-between items-center text-xs font-bold mb-2">
+        <span className="text-gray-800 w-24 text-left">{t('black')} {winRateBlack.toFixed(1)}%</span>
+        <h2 className="font-bold text-gray-700 text-sm flex items-center gap-2">
+          📊 {t('winRate')}
+        </h2>
+        <span className="text-gray-500 w-24 text-right">{t('white')} {winRateWhite.toFixed(1)}%</span>
       </div>
 
       {winRates && winRates.length > 1 && (

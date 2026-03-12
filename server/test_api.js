@@ -9,6 +9,8 @@ async function test() {
       board,
       currentPlayer: "BLACK",
       isHintRequest: false,
+      boardSize: 19,
+      handicap: 0,
     }),
   });
   const data = await response.json();

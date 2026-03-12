@@ -6,12 +6,12 @@ interface Group {
   color: PlayerColor;
 }
 
-const getNeighbors = (x: number, y: number): { x: number; y: number }[] => {
+const getNeighbors = (x: number, y: number, boardSize: number): { x: number; y: number }[] => {
   const neighbors = [];
   if (x > 0) neighbors.push({ x: x - 1, y });
-  if (x < 18) neighbors.push({ x: x + 1, y });
+  if (x < boardSize - 1) neighbors.push({ x: x + 1, y });
   if (y > 0) neighbors.push({ x, y: y - 1 });
-  if (y < 18) neighbors.push({ x, y: y + 1 });
+  if (y < boardSize - 1) neighbors.push({ x, y: y + 1 });
   return neighbors;
 };
 
@@ -22,6 +22,7 @@ const getGroup = (
 ): Group | null => {
   const color = board[startY][startX];
   if (!color) return null;
+  const boardSize = board.length;
 
   const stones: { x: number; y: number }[] = [];
   const liberties = new Set<string>();
@@ -34,7 +35,7 @@ const getGroup = (
     const { x, y } = queue.shift()!;
     stones.push({ x, y });
 
-    for (const { x: nx, y: ny } of getNeighbors(x, y)) {
+    for (const { x: nx, y: ny } of getNeighbors(x, y, boardSize)) {
       const neighborColor = board[ny][nx];
       const key = `${nx},${ny}`;
 
@@ -51,8 +52,10 @@ const getGroup = (
 };
 
 const isBoardsEqual = (b1: BoardState, b2: BoardState): boolean => {
-  for (let y = 0; y < 19; y++) {
-    for (let x = 0; x < 19; x++) {
+  if (b1.length !== b2.length) return false;
+  const boardSize = b1.length;
+  for (let y = 0; y < boardSize; y++) {
+    for (let x = 0; x < boardSize; x++) {
       if (b1[y][x] !== b2[y][x]) return false;
     }
   }
@@ -71,7 +74,8 @@ export const applyMove = (
   isValid: boolean;
   reason?: string;
 } => {
-  if (board[y][x] !== null)
+  const boardSize = board.length;
+  if (x < 0 || x >= boardSize || y < 0 || y >= boardSize || board[y][x] !== null)
     return { newBoard: board, captured: 0, isValid: false, reason: "Occupied" };
 
   const newBoard = board.map((row) => [...row]);
@@ -80,7 +84,7 @@ export const applyMove = (
   const opponentColor = color === "BLACK" ? "WHITE" : "BLACK";
   let capturedStones = 0;
 
-  for (const { x: nx, y: ny } of getNeighbors(x, y)) {
+  for (const { x: nx, y: ny } of getNeighbors(x, y, boardSize)) {
     if (newBoard[ny][nx] === opponentColor) {
       const group = getGroup(newBoard, nx, ny);
       if (group && group.liberties.size === 0) {

@@ -11,7 +11,7 @@
   "resignWin": "{{loser}} resigned ({{winner}} wins)",
   "black": "Black",
   "white": "White",
-  "subtitle": "AI Go Companion",
+  "subtitle": "AI Go Friend",
   "tabGame": "🎮 Game",
   "tabHistory": "📜 History",
   "reviewModeOn": "🔍 Review Mode",
@@ -27,7 +27,7 @@
   "currentTurn": "Current Turn:",
   "capturedBlack": "Black Captures: {{count}}",
   "capturedWhite": "White Captures: {{count}}",
-  "teacherMode": "Teacher Mode",
+  "teacherMode": "Teacher Advice",
   "teacherAnalysis": "⚠️ Teacher's Analysis",
   "myMove": "My Move",
   "recommendedMove": "Recommended",
@@ -44,6 +44,8 @@
   "whiteSecond": "White (2nd)",
   "aiDifficulty": "AI Difficulty",
   "boardSize": "Board Size",
+  "handicap": "Handicap",
+  "boardZoom": "Display Scale",
   "sound": "Sound Effects",
   "teacherLevel": "Teacher Level (Visits)",
   "newGame": "New Game",
@@ -60,5 +62,7 @@
   "deleteFailed": "Failed to delete record.",
   "error": "Error",
   "reviewGo": "Review →",
-  "language": "Language"
+  "language": "Language",
+  "teacherModeActive": "AI Teacher Advice Active...",
+  "winRate": "Win Rate Analysis"
 }

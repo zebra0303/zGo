@@ -27,7 +27,7 @@
   "currentTurn": "현재 차례:",
   "capturedBlack": "흑 따낸 돌: {{count}}",
   "capturedWhite": "백 따낸 돌: {{count}}",
-  "teacherMode": "선생님 모드",
+  "teacherMode": "선생님 조언",
   "teacherAnalysis": "⚠️ 선생님의 분석",
   "myMove": "내 수",
   "recommendedMove": "추천 수",
@@ -44,6 +44,8 @@
   "whiteSecond": "백 (후공)",
   "aiDifficulty": "AI 난이도",
   "boardSize": "바둑판 크기",
+  "handicap": "접바둑 (Handicap)",
+  "boardZoom": "화면 크기",
   "sound": "효과음",
   "teacherLevel": "선생님 수준 (Visits)",
   "newGame": "새 대국",
@@ -60,5 +62,7 @@
   "deleteFailed": "기록 삭제에 실패했습니다.",
   "error": "오류",
   "reviewGo": "복기하기 →",
-  "language": "언어"
+  "language": "언어",
+  "teacherModeActive": "AI 선생님 조언 활성화 중...",
+  "winRate": "승률 분석"
 }

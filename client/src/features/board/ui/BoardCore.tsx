@@ -4,25 +4,29 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchAIHint } from "@/shared/api/gameApi";
 import { playStoneSound } from "@/shared/lib/sound";
 
-const BOARD_SIZE = 19;
 const BASE_CELL_SIZE = 30; // 픽셀 단위 격자 크기
 const BASE_MARGIN = 20; // 바둑판 여백
 
-// 화점 위치
-const STAR_POINTS = [
-  [3, 3],
-  [9, 3],
-  [15, 3],
-  [3, 9],
-  [9, 9],
-  [15, 9],
-  [3, 15],
-  [9, 15],
-  [15, 15],
-];
+// 화점 위치 계산
+const getStarPoints = (size: number) => {
+  if (size < 9) return [];
+  const edge = size >= 13 ? 3 : 2;
+  const mid = Math.floor(size / 2);
+  const far = size - 1 - edge;
+  const points = [
+    [edge, edge], [far, edge], [edge, far], [far, far],
+  ];
+  if (size >= 13) {
+    points.push([mid, edge], [edge, mid], [far, mid], [mid, far], [mid, mid]);
+  } else if (size % 2 === 1) {
+    points.push([mid, mid]);
+  }
+  return points;
+};
 
 const BoardCore: React.FC = () => {
   const {
+    boardSize,
     board,
     placeStone,
     moveCoordinates,
@@ -38,17 +42,17 @@ const BoardCore: React.FC = () => {
     ignoredRecommendation,
     aiDifficulty,
     teacherVisits,
+    language,
+    handicap,
+    deadStones,
   } = useGameStore();
 
   const CELL_SIZE = BASE_CELL_SIZE * boardScale;
   const MARGIN = BASE_MARGIN * boardScale;
-  const BOARD_PIXEL_SIZE = CELL_SIZE * (BOARD_SIZE - 1) + MARGIN * 2;
+  const BOARD_PIXEL_SIZE = CELL_SIZE * (boardSize - 1) + MARGIN * 2;
 
   const handleBoardClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    // AI 모드일 때 사용자의 차례가 아니면 클릭 무시
     if (gameMode === "PvAI" && currentPlayer !== humanPlayerColor) return;
-
-    // 복기 모드일 때도 클릭 무시 (이미 스토어에서 막혀있지만 UX를 위해 추가)
     if (isReviewMode) return;
 
     const svg = e.currentTarget;
@@ -56,11 +60,10 @@ const BoardCore: React.FC = () => {
     const xPixel = e.clientX - rect.left - MARGIN;
     const yPixel = e.clientY - rect.top - MARGIN;
 
-    // 가장 가까운 교차점 계산
     const x = Math.round(xPixel / CELL_SIZE);
     const y = Math.round(yPixel / CELL_SIZE);
 
-    if (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE) {
+    if (x >= 0 && x < boardSize && y >= 0 && y < boardSize) {
       placeStone(x, y);
       playStoneSound(soundEnabled);
     }
@@ -68,7 +71,6 @@ const BoardCore: React.FC = () => {
 
   const lastMove = moveCoordinates[currentMoveIndex];
 
-  // AI 힌트 데이터 공유 (SidebarWidget과 동일한 queryKey 및 queryFn 사용)
   const { data: aiData } = useQuery({
     queryKey: [
       "aiHint",
@@ -77,6 +79,9 @@ const BoardCore: React.FC = () => {
       aiDifficulty,
       teacherVisits,
       moveCoordinates,
+      language,
+      boardSize,
+      handicap,
     ],
     queryFn: ({ signal }) =>
       fetchAIHint(
@@ -86,6 +91,9 @@ const BoardCore: React.FC = () => {
         teacherVisits,
         moveCoordinates.slice(1, currentMoveIndex + 1),
         signal,
+        language,
+        boardSize,
+        handicap,
       ),
     enabled:
       isTeacherMode &&
@@ -105,7 +113,7 @@ const BoardCore: React.FC = () => {
       aria-label="Go Board"
     >
       {/* 격자 선 그리기 */}
-      {Array.from({ length: BOARD_SIZE }).map((_, i) => (
+      {Array.from({ length: boardSize }).map((_, i) => (
         <React.Fragment key={`lines-${i}`}>
           <line
             x1={MARGIN}
@@ -127,7 +135,7 @@ const BoardCore: React.FC = () => {
       ))}
 
       {/* 화점 그리기 */}
-      {STAR_POINTS.map(([x, y]) => (
+      {getStarPoints(boardSize).map(([x, y]) => (
         <circle
           key={`star-${x}-${y}`}
           cx={MARGIN + x * CELL_SIZE}
@@ -158,7 +166,7 @@ const BoardCore: React.FC = () => {
           },
         )}
 
-      {/* 선생님의 지시 흔적 (무시된 추천) */}
+      {/* 선생님의 지시 흔적 */}
       {isTeacherMode &&
         ignoredRecommendation &&
         ignoredRecommendation.map((rec: { x: number; y: number }, idx: number) => {
@@ -172,7 +180,7 @@ const BoardCore: React.FC = () => {
               cy={MARGIN + rec.y * CELL_SIZE}
               r={radius}
               fill="transparent"
-              stroke={`rgba(34, 197, 94, ${strokeOpacity})`} // green color with varying opacity
+              stroke={`rgba(34, 197, 94, ${strokeOpacity})`}
               strokeWidth={strokeWidth}
               strokeDasharray="4 2"
               className="animate-pulse"
@@ -185,11 +193,11 @@ const BoardCore: React.FC = () => {
       {board.map((row, y) =>
         row.map((stone, x) => {
           if (!stone) return null;
-
           const isLastMove = lastMove?.x === x && lastMove?.y === y;
+          const isDead = isGameOver && deadStones?.some((ds) => ds.x === x && ds.y === y);
 
           return (
-            <g key={`stone-group-${x}-${y}`}>
+            <g key={`stone-group-${x}-${y}`} className={isDead ? "opacity-40" : ""}>
               <circle
                 cx={MARGIN + x * CELL_SIZE}
                 cy={MARGIN + y * CELL_SIZE}
@@ -199,23 +207,40 @@ const BoardCore: React.FC = () => {
                 strokeWidth="1"
                 className="drop-shadow-md transition-all duration-200"
               />
-              {/* 마지막 수 표시 */}
-              {isLastMove && (
+              {isLastMove && !isDead && (
                 <circle
                   cx={MARGIN + x * CELL_SIZE}
                   cy={MARGIN + y * CELL_SIZE}
                   r={CELL_SIZE / 6}
-                  fill={
-                    stone === "BLACK"
-                      ? "rgba(255,255,255,0.7)"
-                      : "rgba(0,0,0,0.7)"
-                  }
+                  fill={stone === "BLACK" ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.7)"}
                 />
               )}
             </g>
           );
         }),
       )}
+
+      {/* 사석 표시 레이어 (최상단) */}
+      {isGameOver && deadStones && deadStones.map((ds, idx) => {
+        const stone = board[ds.y] ? board[ds.y][ds.x] : null;
+        if (!stone) return null;
+        return (
+          <g key={`dead-mark-${idx}`} stroke="#ff0000" strokeWidth="3" strokeLinecap="round" style={{ pointerEvents: "none" }}>
+            <line
+              x1={MARGIN + ds.x * CELL_SIZE - CELL_SIZE / 3.5}
+              y1={MARGIN + ds.y * CELL_SIZE - CELL_SIZE / 3.5}
+              x2={MARGIN + ds.x * CELL_SIZE + CELL_SIZE / 3.5}
+              y2={MARGIN + ds.y * CELL_SIZE + CELL_SIZE / 3.5}
+            />
+            <line
+              x1={MARGIN + ds.x * CELL_SIZE + CELL_SIZE / 3.5}
+              y1={MARGIN + ds.y * CELL_SIZE - CELL_SIZE / 3.5}
+              x2={MARGIN + ds.x * CELL_SIZE - CELL_SIZE / 3.5}
+              y2={MARGIN + ds.y * CELL_SIZE + CELL_SIZE / 3.5}
+            />
+          </g>
+        );
+      })}
     </svg>
   );
 };

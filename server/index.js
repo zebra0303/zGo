@@ -102,7 +102,7 @@ const startKataGo = () => {
 
       const rootTreeMatch = output.match(/^:\s*T\s+[-+0-9.a-z]+\s+W\s+([-+]?[0-9.]+)([c]?)/i);
       if (rootTreeMatch) {
-        currentMultiRecommendations = []; // Reset when seeing root tree node
+        currentMultiRecommendations = [];
         let utility = parseFloat(rootTreeMatch[1]);
         if (rootTreeMatch[2] === "c") utility /= 100;
         latestWinRate = Math.min(Math.max(((utility + 1) / 2) * 100, 0), 100);
@@ -156,10 +156,10 @@ const sendCommandToKataGo = (command) => {
         commandQueue.splice(index, 1);
         isProcessingQueue = false;
         console.error(`GTP command timeout: ${command}. Restarting engine...`);
-        startKataGo(); // CRITICAL: Restart on timeout to recover stream sync
+        startKataGo();
         reject(new Error(`GTP command timeout: ${command}`));
       }
-    }, 30000);
+    }, 60000); // 60s timeout
     commandQueue.push({
       command,
       resolve: (val) => {
@@ -176,41 +176,71 @@ const sendCommandToKataGo = (command) => {
   });
 };
 
-const coordsToGtp = (x, y) => `ABCDEFGHJKLMNOPQRST`[x] + (19 - y);
-const gtpToCoords = (gtp) => {
+const coordsToGtp = (x, y, boardSize = 19) => `ABCDEFGHJKLMNOPQRST`[x] + (boardSize - y);
+const gtpToCoords = (gtp, boardSize = 19) => {
   if (!gtp || ["pass", "resign"].includes(gtp.toLowerCase())) return null;
   return {
     x: "ABCDEFGHJKLMNOPQRST".indexOf(gtp[0].toUpperCase()),
-    y: 19 - parseInt(gtp.substring(1), 10),
+    y: boardSize - parseInt(gtp.substring(1), 10),
   };
 };
 
-const getMoveTactics = (x, y, board, color, language = "ko") => {
+const getHandicapStones = (boardSize, handicap) => {
+  let coords = [];
+  if (handicap > 1 && boardSize >= 9) {
+    const min = boardSize >= 13 ? 3 : 2;
+    const max = boardSize - 1 - min;
+    const mid = Math.floor(boardSize / 2);
+
+    const corners = [
+      { x: max, y: min },
+      { x: min, y: max },
+      { x: max, y: max },
+      { x: min, y: min },
+    ];
+    const sides = [
+      { x: min, y: mid },
+      { x: max, y: mid },
+      { x: mid, y: min },
+      { x: mid, y: max },
+    ];
+    const center = { x: mid, y: mid };
+
+    if (handicap === 2) coords = [corners[0], corners[1]];
+    else if (handicap === 3) coords = [corners[0], corners[1], corners[2]];
+    else if (handicap === 4) coords = corners;
+    else if (handicap === 5) coords = [...corners, center];
+    else if (handicap === 6) coords = [...corners, sides[0], sides[1]];
+    else if (handicap === 7) coords = [...corners, sides[0], sides[1], center];
+    else if (handicap === 8) coords = [...corners, ...sides];
+    else if (handicap >= 9) coords = [...corners, ...sides, center];
+  }
+  return coords;
+};
+
+const getMoveTactics = (x, y, board, color, language = "ko", boardSize = 19) => {
   const opponent = color === "B" ? "WHITE" : "BLACK";
   const myColor = color === "B" ? "BLACK" : "WHITE";
+  const actualBoardSize = board && board.length ? board.length : boardSize;
+
   const getLiberties = (tx, ty) => {
     let libs = 0;
     const visited = new Set(),
-      stack = [[tx, ty]],
-      targetColor = board[ty][tx];
+      stack = [[tx, ty]];
+    if (!board[ty] || board[ty][tx] === undefined) return 0;
+    const targetColor = board[ty][tx];
     visited.add(`${tx},${ty}`);
     while (stack.length > 0) {
       const [cx, cy] = stack.pop();
-      for (const [dx, dy] of [
-        [0, 1],
-        [0, -1],
-        [1, 0],
-        [-1, 0],
-      ]) {
-        const nx = cx + dx,
-          ny = cy + dy;
-        if (nx >= 0 && nx < 19 && ny >= 0 && ny < 19) {
+      for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+        const nx = cx + dx, ny = cy + dy;
+        if (nx >= 0 && nx < actualBoardSize && ny >= 0 && ny < actualBoardSize) {
           const key = `${nx},${ny}`;
           if (!visited.has(key)) {
-            if (board[ny][nx] === null) {
+            if (board[ny] && board[ny][nx] === null) {
               libs++;
               visited.add(key);
-            } else if (board[ny][nx] === targetColor) {
+            } else if (board[ny] && board[ny][nx] === targetColor) {
               visited.add(key);
               stack.push([nx, ny]);
             }
@@ -220,20 +250,11 @@ const getMoveTactics = (x, y, board, color, language = "ko") => {
     }
     return libs;
   };
-  let isCapture = false,
-    isAtari = false,
-    isSaving = false,
-    isConnection = false,
-    isCut = false;
-  for (const [dx, dy] of [
-    [0, 1],
-    [0, -1],
-    [1, 0],
-    [-1, 0],
-  ]) {
-    const nx = x + dx,
-      ny = y + dy;
-    if (nx >= 0 && nx < 19 && ny >= 0 && ny < 19) {
+  let isCapture = false, isAtari = false, isSaving = false, isConnection = false, isCut = false;
+  for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+    const nx = x + dx, ny = y + dy;
+    if (nx >= 0 && nx < actualBoardSize && ny >= 0 && ny < actualBoardSize) {
+      if (!board[ny]) continue;
       const stone = board[ny][nx];
       if (stone === opponent) {
         const libs = getLiberties(nx, ny);
@@ -246,41 +267,29 @@ const getMoveTactics = (x, y, board, color, language = "ko") => {
     }
   }
   let oppCount = 0;
-  for (const [dx, dy] of [
-    [0, 1],
-    [0, -1],
-    [1, 0],
-    [-1, 0],
-  ]) {
-    const nx = x + dx,
-      ny = y + dy;
-    if (nx >= 0 && nx < 19 && ny >= 0 && ny < 19 && board[ny][nx] === opponent)
+  for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+    const nx = x + dx, ny = y + dy;
+    if (nx >= 0 && nx < actualBoardSize && ny >= 0 && ny < actualBoardSize && board[ny] && board[ny][nx] === opponent)
       oppCount++;
   }
   if (oppCount >= 2) isCut = true;
-  const isCorner = (x <= 3 || x >= 15) && (y <= 3 || y >= 15);
-  const isSide = (x <= 2 || x >= 16 || y <= 2 || y >= 16) && !isCorner;
-  if (isCapture)
-    return { type: "capture", urgency: 1, label: language === "en" ? "Move to capture opponent's stones" : "상대 돌을 따내는 수" };
-  if (isSaving)
-    return { type: "saving", urgency: 2, label: language === "en" ? "Move to save endangered stones" : "위험한 내 돌을 살리는 수" };
-  if (isAtari)
-    return { type: "atari", urgency: 3, label: language === "en" ? "Move to put opponent in Atari" : "상대를 단수로 모는 수" };
+  const cornerLimit = actualBoardSize >= 13 ? 3 : 2;
+  const isCorner = (x <= cornerLimit || x >= actualBoardSize - 1 - cornerLimit) && (y <= cornerLimit || y >= actualBoardSize - 1 - cornerLimit);
+  const sideLimit = actualBoardSize >= 13 ? 2 : 1;
+  const isSide = (x <= sideLimit || x >= actualBoardSize - 1 - sideLimit || y <= sideLimit || y >= actualBoardSize - 1 - sideLimit) && !isCorner;
+  
+  if (isCapture) return { type: "capture", urgency: 1, label: language === "en" ? "Move to capture opponent's stones" : "상대 돌을 따내는 수" };
+  if (isSaving) return { type: "saving", urgency: 2, label: language === "en" ? "Move to save endangered stones" : "위험한 내 돌을 살리는 수" };
+  if (isAtari) return { type: "atari", urgency: 3, label: language === "en" ? "Move to put opponent in Atari" : "상대를 단수로 모는 수" };
   if (isCut) return { type: "cut", urgency: 4, label: language === "en" ? "Move to cut opponent's connection" : "상대의 연결을 끊는 수" };
-  if (isConnection)
-    return {
-      type: "connection",
-      urgency: 5,
-      label: language === "en" ? "Solid move to connect stones" : "내 돌을 연결하는 두터운 수",
-    };
-  if (isCorner)
-    return { type: "corner", urgency: 6, label: language === "en" ? "Move to secure corner territory" : "귀의 실리를 챙기는 수" };
+  if (isConnection) return { type: "connection", urgency: 5, label: language === "en" ? "Solid move to connect stones" : "내 돌을 연결하는 두터운 수" };
+  if (isCorner) return { type: "corner", urgency: 6, label: language === "en" ? "Move to secure corner territory" : "귀의 실리를 챙기는 수" };
   if (isSide) return { type: "side", urgency: 7, label: language === "en" ? "Move to expand along the side" : "변을 확장하는 수" };
   return { type: "center", urgency: 8, label: language === "en" ? "Move towards the center" : "중앙으로 나아가는 수" };
 };
 
-const getDetailedExplanation = (x, y, board, color, language = "ko") => {
-  const tactics = getMoveTactics(x, y, board, color, language);
+const getDetailedExplanation = (x, y, board, color, language = "ko", boardSize = 19) => {
+  const tactics = getMoveTactics(x, y, board, color, language, boardSize);
   const reasons = {
     ko: {
       capture: "상대의 돌을 따낼 수 있는 아주 좋은 찬스입니다! 수읽기의 승리이며 국면의 주도권을 확실히 가져올 수 있습니다.",
@@ -308,7 +317,6 @@ const getDetailedExplanation = (x, y, board, color, language = "ko") => {
   return reasons[language][tactics.type] || reasons[language].default;
 };
 
-// Task Queue Structure to prevent Promise chain memory leaks
 const apiRequestQueue = [];
 let isProcessingApiQueue = false;
 let processedApiCount = 0;
@@ -317,9 +325,8 @@ const MAX_API_CALLS_BEFORE_RESTART = 10000;
 const processApiQueue = async () => {
   if (isProcessingApiQueue) return;
   isProcessingApiQueue = true;
-
   while (apiRequestQueue.length > 0) {
-    const task = apiRequestQueue.shift(); // take the first
+    const task = apiRequestQueue.shift();
     try {
       await task.execute();
       processedApiCount++;
@@ -327,10 +334,7 @@ const processApiQueue = async () => {
       console.error("Task failed in queue:", err);
     }
   }
-
   isProcessingApiQueue = false;
-
-  // Graceful KataGo Restart to cleanup memory fragmentation after heavily loaded sessions
   if (processedApiCount > MAX_API_CALLS_BEFORE_RESTART && !isProcessingQueue) {
     console.log(`Processed ${processedApiCount} AI requests. Restarting KataGo to free memory...`);
     processedApiCount = 0;
@@ -339,31 +343,13 @@ const processApiQueue = async () => {
 };
 
 app.post("/api/ai/move", async (req, res) => {
-  const {
-    board,
-    currentPlayer,
-    isHintRequest,
-    aiDifficulty,
-    teacherVisits,
-    lastUserMove,
-    lastRecommendations,
-    moves,
-    language = "ko",
-  } = req.body;
-  if (!isKatagoReady)
-    return res.status(503).json({ error: "AI Engine not ready yet" });
+  const { board, currentPlayer, isHintRequest, aiDifficulty, teacherVisits, lastUserMove, lastRecommendations, moves, language = "ko", boardSize = 19, handicap = 0 } = req.body;
+  if (!isKatagoReady) return res.status(503).json({ error: "AI Engine not ready yet" });
 
   const executeKataGoTask = async () => {
     try {
-      const visitsMap = {
-        1: 1, 2: 2, 3: 5, 4: 10, 5: 20, 6: 30, 7: 50, 8: 75, 9: 100, 10: 150,
-        11: 200, 12: 250, 13: 300, 14: 400, 15: 500, 16: 600, 17: 700, 18: 800, 19: 1000, 20: 1500
-      };
-      const targetVisits = isHintRequest
-        ? teacherVisits || 330
-        : aiDifficulty
-          ? visitsMap[aiDifficulty] || 100
-          : 100;
+      const visitsMap = { 1: 1, 2: 2, 3: 5, 4: 10, 5: 20, 6: 30, 7: 50, 8: 75, 9: 100, 10: 150, 11: 200, 12: 250, 13: 300, 14: 400, 15: 500, 16: 600, 17: 700, 18: 800, 19: 1000, 20: 1500 };
+      const targetVisits = isHintRequest ? teacherVisits || 330 : aiDifficulty ? visitsMap[aiDifficulty] || 100 : 100;
       if (currentMaxVisits !== targetVisits) {
         try {
           await sendCommandToKataGo(`kata-set-param maxVisits ${targetVisits}`);
@@ -372,33 +358,25 @@ app.post("/api/ai/move", async (req, res) => {
           console.warn("Failed to set maxVisits:", e.message);
         }
       }
-
+      await sendCommandToKataGo(`boardsize ${boardSize}`);
+      await sendCommandToKataGo(`komi 6.5`);
       await sendCommandToKataGo("clear_board");
+      if (handicap > 0) {
+        const stones = getHandicapStones(boardSize, handicap);
+        const handicapGtp = stones.map(s => coordsToGtp(s.x, s.y, boardSize)).join(" ");
+        if (handicapGtp) await sendCommandToKataGo(`set_free_handicap ${handicapGtp}`);
+      }
       const playCommands = [];
       if (moves && Array.isArray(moves)) {
         for (let i = 0; i < moves.length; i++) {
           const move = moves[i];
-          const moveColor = i % 2 === 0 ? "B" : "W";
-          if (move) {
-            playCommands.push(`play ${moveColor} ${coordsToGtp(move.x, move.y)}`);
-          } else {
-            playCommands.push(`play ${moveColor} pass`);
-          }
-        }
-      } else {
-        for (let y = 0; y < 19; y++) {
-          for (let x = 0; x < 19; x++) {
-            if (board[y][x] === "BLACK")
-              playCommands.push(`play B ${coordsToGtp(x, y)}`);
-            else if (board[y][x] === "WHITE")
-              playCommands.push(`play W ${coordsToGtp(x, y)}`);
-          }
+          const moveColor = handicap > 0 ? (i % 2 === 0 ? "W" : "B") : (i % 2 === 0 ? "B" : "W");
+          if (move) playCommands.push(`play ${moveColor} ${coordsToGtp(move.x, move.y, boardSize)}`);
+          else playCommands.push(`play ${moveColor} pass`);
         }
       }
-
-      // Fire all play commands in a quick sequence without waiting sequentially
       for (const cmd of playCommands) {
-        await sendCommandToKataGo(cmd);
+        try { await sendCommandToKataGo(cmd); } catch (e) { console.warn(`Ignoring illegal move: ${cmd}`, e.message); }
       }
       const color = currentPlayer === "BLACK" ? "B" : "W";
       let critique = null;
@@ -406,156 +384,109 @@ app.post("/api/ai/move", async (req, res) => {
         const isFollowed = lastRecommendations.some((rec) => rec.x === lastUserMove.x && rec.y === lastUserMove.y);
         if (!isFollowed) {
           const lastBestMove = lastRecommendations[0];
-          const uT = getMoveTactics(
-            lastUserMove.x,
-            lastUserMove.y,
-            board,
-            color === "B" ? "W" : "B",
-            language
-          );
-          const bT = getMoveTactics(
-            lastBestMove.x,
-            lastBestMove.y,
-            board,
-            color === "B" ? "W" : "B",
-            language
-          );
-          if (bT.urgency < uT.urgency)
-            critique = language === "en" ? `It's a pity you missed a more urgent ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y)}) than your move(${coordsToGtp(lastUserMove.x, lastUserMove.y)}).` : `방금 두신 수(${coordsToGtp(lastUserMove.x, lastUserMove.y)})보다 더 급한 ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y)}) 자리를 놓치신 것이 아쉽습니다.`;
-          else
-            critique = language === "en" ? `Your move(${coordsToGtp(lastUserMove.x, lastUserMove.y)}) is good, but AI thinks ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y)}) or around is slightly more efficient.` : `두신 수(${coordsToGtp(lastUserMove.x, lastUserMove.y)})도 좋은 자리입니다만, AI는 ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y)})나 주변 지점이 조금 더 효율적이라고 판단했습니다.`;
+          const uT = getMoveTactics(lastUserMove.x, lastUserMove.y, board, color === "B" ? "W" : "B", language, boardSize);
+          const bT = getMoveTactics(lastBestMove.x, lastBestMove.y, board, color === "B" ? "W" : "B", language, boardSize);
+          if (bT.urgency < uT.urgency) critique = language === "en" ? `It's a pity you missed a more urgent ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize)}) than your move(${coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize)}).` : `방금 두신 수(${coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize)})보다 더 급한 ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize)}) 자리를 놓치신 것이 아쉽습니다.`;
+          else critique = language === "en" ? `Your move(${coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize)}) is good, but AI thinks ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize)}) or around is slightly more efficient.` : `두신 수(${coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize)})도 좋은 자리입니다만, AI는 ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize)})나 주변 지점이 조금 더 효율적이라고 판단했습니다.`;
         }
       }
-
       if (isHintRequest) {
         currentMultiRecommendations = [];
         const response = await sendCommandToKataGo(`genmove ${color}`);
-        const coords = gtpToCoords(response);
-        if (!coords)
-          return res.json({
-            pass: true,
-            explanation: language === "en" ? "AI considers there's nowhere else to play." : "AI가 더 이상 둘 곳이 없다고 판단했습니다.",
-            critique,
-          });
-
-        let recs = currentMultiRecommendations
-          .sort((a, b) => b.visits - a.visits)
-          .slice(0, 3)
-          .map((r) => {
-            const loc = gtpToCoords(r.move);
-            return {
-              ...loc,
-              gtpMove: r.move,
-              winRate: r.winrate,
-              visits: r.visits,
-              explanation: getDetailedExplanation(loc.x, loc.y, board, color, language),
-            };
-          });
-
-        if (recs.length === 0) {
-          recs.push({
-            ...coords,
-            gtpMove: response,
-            winRate: latestWinRate,
-            visits: 100,
-            explanation: getDetailedExplanation(coords.x, coords.y, board, color, language),
-          });
-        }
-
-        await sendCommandToKataGo("undo");
-        // Always return array
-        return res.json({
-          recommendations: recs,
-          winRate: latestWinRate,
-          critique,
+        const coords = gtpToCoords(response, boardSize);
+        if (!coords) return res.json({ pass: true, explanation: language === "en" ? "AI considers there's nowhere else to play." : "AI가 더 이상 둘 곳이 없다고 판단했습니다.", critique });
+        let recs = currentMultiRecommendations.sort((a, b) => b.visits - a.visits).slice(0, 3).map((r) => {
+          const loc = gtpToCoords(r.move, boardSize);
+          return { ...loc, gtpMove: r.move, winRate: r.winrate, visits: r.visits, explanation: getDetailedExplanation(loc.x, loc.y, board, color, language, boardSize) };
         });
+        if (recs.length === 0) recs.push({ ...coords, gtpMove: response, winRate: latestWinRate, visits: 100, explanation: getDetailedExplanation(coords.x, coords.y, board, color, language, boardSize) });
+        const lowRes = response.toLowerCase();
+        if (lowRes !== "pass" && lowRes !== "resign") {
+          try { await sendCommandToKataGo("undo"); } catch (e) { console.warn("Undo failed:", e.message); }
+        }
+        return res.json({ recommendations: recs, winRate: latestWinRate, critique });
       } else {
         const response = await sendCommandToKataGo(`genmove ${color}`);
         const lowRes = response.toLowerCase();
         if (lowRes === "pass") return res.json({ pass: true });
         if (lowRes === "resign") return res.json({ resign: true });
-        return res.json({
-          move: gtpToCoords(response),
-          winRate: latestWinRate,
-        });
+        return res.json({ move: gtpToCoords(response, boardSize), winRate: latestWinRate });
       }
     } catch (err) {
       console.error("API Error in /api/ai/move:", err);
-      if (!res.headersSent)
-        res
-          .status(500)
-          .json({ error: "GTP command failed", details: err.message });
+      if (!res.headersSent) res.status(500).json({ error: "GTP command failed", details: err.message });
     }
   };
-
   apiRequestQueue.push({ execute: executeKataGoTask });
   processApiQueue();
 });
 
 app.post("/api/ai/score", async (req, res) => {
-  const { moves } = req.body;
-  if (!isKatagoReady)
-    return res.status(503).json({ error: "AI Engine not ready yet" });
-
-  const executeKataGoTask = async () => {
+  const { moves, boardSize = 19, handicap = 0 } = req.body;
+  if (!isKatagoReady) return res.status(503).json({ error: "AI Engine not ready yet" });
+  const executeScoreTask = async () => {
     try {
+      await sendCommandToKataGo(`boardsize ${boardSize}`);
+      await sendCommandToKataGo(`komi 6.5`);
       await sendCommandToKataGo("clear_board");
+      if (handicap > 0) {
+        const stones = getHandicapStones(boardSize, handicap);
+        const handicapGtp = stones.map(s => coordsToGtp(s.x, s.y, boardSize)).join(" ");
+        if (handicapGtp) await sendCommandToKataGo(`set_free_handicap ${handicapGtp}`);
+      }
       const scoreCommands = [];
       if (moves && Array.isArray(moves)) {
         for (let i = 0; i < moves.length; i++) {
           const move = moves[i];
-          const moveColor = i % 2 === 0 ? "B" : "W";
-          if (move) {
-            scoreCommands.push(`play ${moveColor} ${coordsToGtp(move.x, move.y)}`);
-          } else {
-            scoreCommands.push(`play ${moveColor} pass`);
-          }
+          const moveColor = handicap > 0 ? (i % 2 === 0 ? "W" : "B") : (i % 2 === 0 ? "B" : "W");
+          if (move) scoreCommands.push(`play ${moveColor} ${coordsToGtp(move.x, move.y, boardSize)}`);
+          else scoreCommands.push(`play ${moveColor} pass`);
         }
       }
-
       for (const cmd of scoreCommands) {
-        await sendCommandToKataGo(cmd);
+        try { await sendCommandToKataGo(cmd); } catch (e) { console.warn(`Ignoring illegal move: ${cmd}`, e.message); }
       }
-
-      const response = await sendCommandToKataGo("final_score");
-      return res.json({ score: response.trim() });
+      let scoreResponse, scoreUnavailable = false;
+      try {
+        const rawScore = await sendCommandToKataGo("final_score");
+        scoreResponse = rawScore.trim();
+      } catch (e) {
+        console.warn("final_score failed:", e.message);
+        scoreResponse = "Score unavailable (game may not be finished)";
+        scoreUnavailable = true;
+      }
+      let deadStones = [];
+      try {
+        const deadStonesResponse = await sendCommandToKataGo("final_status_list dead");
+        if (deadStonesResponse && deadStonesResponse.trim()) {
+          deadStones = deadStonesResponse.trim().split(/\s+/).filter(gtp => gtp.length >= 2).map(gtp => gtpToCoords(gtp, boardSize)).filter(coord => coord !== null);
+        }
+      } catch (e) { console.warn("final_status_list dead failed:", e.message); }
+      return res.json({ score: scoreResponse, deadStones: deadStones, error: scoreUnavailable ? "NOT_FINISHED" : null });
     } catch (err) {
       console.error("API Error in /api/ai/score:", err);
-      if (!res.headersSent)
-        res
-          .status(500)
-          .json({ error: "GTP command failed", details: err.message });
+      if (!res.headersSent) res.status(500).json({ error: "GTP command failed", details: err.message });
     }
   };
-
   apiRequestQueue.push({ execute: executeScoreTask });
   processApiQueue();
 });
 
 app.post("/api/matches", (req, res) => {
   const { mode, aiDifficulty, humanColor, winner, sgfData } = req.body;
-  const stmt = db.prepare(
-    `INSERT INTO matches (mode, aiDifficulty, humanColor, winner, date, sgfData) VALUES (?, ?, ?, ?, ?, ?)`,
-  );
-  stmt.run(
-    [mode, aiDifficulty, humanColor, winner, new Date().toISOString(), sgfData],
-    function (err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ id: this.lastID, message: "Match saved successfully" });
-    },
-  );
+  const stmt = db.prepare(`INSERT INTO matches (mode, aiDifficulty, humanColor, winner, date, sgfData) VALUES (?, ?, ?, ?, ?, ?)`);
+  stmt.run([mode, aiDifficulty, humanColor, winner, new Date().toISOString(), sgfData], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ id: this.lastID, message: "Match saved successfully" });
+  });
   stmt.finalize();
 });
 
 app.get("/api/matches", (req, res) => {
-  db.all(
-    `SELECT id, mode, aiDifficulty, humanColor, winner, date FROM matches ORDER BY id DESC`,
-    [],
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ matches: rows });
-    },
-  );
+  db.all(`SELECT id, mode, aiDifficulty, humanColor, winner, date FROM matches ORDER BY id DESC`, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ matches: rows });
+  });
 });
 
 app.get("/api/matches/:id", (req, res) => {
@@ -576,11 +507,8 @@ app.delete("/api/matches/:id", (req, res) => {
   stmt.finalize();
 });
 
-// Catch-all route to serve the React index.html for client-side routing
-app.get("*", (req, res) => {
+app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, "../client/dist/index.html"));
 });
 
-app.listen(PORT, () =>
-  console.log(`Server is running on http://localhost:${PORT}`),
-);
+app.listen(PORT, () => console.log(`Server is running on http://localhost:${PORT}`));

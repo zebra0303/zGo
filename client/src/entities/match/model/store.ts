@@ -21,6 +21,8 @@ interface GameState {
   aiDifficulty: number;
   humanPlayerColor: PlayerColor;
   language: "ko" | "en";
+  boardSize: number;
+  handicap: number;
 
   // Game Status
   consecutivePasses: number;
@@ -30,11 +32,15 @@ interface GameState {
   soundEnabled: boolean;
   teacherVisits: number;
   ignoredRecommendation: { x: number; y: number }[] | null;
+  teacherCritique: string | null;
+  deadStones: { x: number; y: number }[] | null;
 
   placeStone: (x: number, y: number) => void;
   passTurn: () => void;
   resignGame: () => void;
   toggleTeacherMode: () => void;
+  setTeacherCritique: (c: string | null) => void;
+  setDeadStones: (stones: { x: number; y: number }[] | null) => void;
   goToPreviousMove: () => void;
   goToNextMove: () => void;
   setMoveIndex: (index: number) => void;
@@ -54,6 +60,8 @@ interface GameState {
         | "soundEnabled"
         | "teacherVisits"
         | "language"
+        | "boardSize"
+        | "handicap"
       >
     >,
   ) => void;
@@ -61,19 +69,62 @@ interface GameState {
   resetGame: () => void;
 }
 
-const createEmptyBoard = (): BoardState => {
-  return Array(19)
+const createEmptyBoard = (size: number = 19): BoardState => {
+  return Array(size)
     .fill(null)
-    .map(() => Array(19).fill(null));
+    .map(() => Array(size).fill(null));
+};
+
+const getHandicapStones = (boardSize: number, handicap: number) => {
+  let coords: {x: number, y: number}[] = [];
+  if (handicap > 1 && boardSize >= 9) {
+    const min = boardSize >= 13 ? 3 : 2;
+    const max = boardSize - 1 - min;
+    const mid = Math.floor(boardSize / 2);
+
+    const corners = [
+      { x: max, y: min },
+      { x: min, y: max },
+      { x: max, y: max },
+      { x: min, y: min },
+    ];
+    const sides = [
+      { x: min, y: mid },
+      { x: max, y: mid },
+      { x: mid, y: min },
+      { x: mid, y: max },
+    ];
+    const center = { x: mid, y: mid };
+
+    if (handicap === 2) coords = [corners[0], corners[1]];
+    else if (handicap === 3) coords = [corners[0], corners[1], corners[2]];
+    else if (handicap === 4) coords = corners;
+    else if (handicap === 5) coords = [...corners, center];
+    else if (handicap === 6) coords = [...corners, sides[0], sides[1]];
+    else if (handicap === 7) coords = [...corners, sides[0], sides[1], center];
+    else if (handicap === 8) coords = [...corners, ...sides];
+    else if (handicap >= 9) coords = [...corners, ...sides, center];
+  }
+  return coords;
+};
+const setupInitialBoard = (boardSize: number, handicap: number): BoardState => {
+  const board = createEmptyBoard(boardSize);
+  const stones = getHandicapStones(boardSize, handicap);
+  stones.forEach(({ x, y }) => {
+    if (board[y] && board[y][x] === null) {
+      board[y][x] = "BLACK";
+    }
+  });
+  return board;
 };
 
 export const useGameStore = create<GameState>()(
   persist(
     (set, get) => ({
-      board: createEmptyBoard(),
+      board: createEmptyBoard(19),
       currentPlayer: "BLACK",
       isTeacherMode: false,
-      history: [createEmptyBoard()],
+      history: [createEmptyBoard(19)],
       moveCoordinates: [null], // index 0 has no move
       winRates: [50],
       currentMoveIndex: 0,
@@ -84,6 +135,8 @@ export const useGameStore = create<GameState>()(
       aiDifficulty: 5,
       humanPlayerColor: "BLACK",
       language: "ko",
+      boardSize: 19,
+      handicap: 0,
 
       consecutivePasses: 0,
       isGameOver: false,
@@ -92,6 +145,8 @@ export const useGameStore = create<GameState>()(
       soundEnabled: true,
       teacherVisits: 330,
       ignoredRecommendation: null,
+      teacherCritique: null,
+      deadStones: null,
 
       placeStone: (x: number, y: number) => {
         const {
@@ -160,6 +215,7 @@ export const useGameStore = create<GameState>()(
                 ? capturedByWhite + captured
                 : capturedByWhite;
             draft.ignoredRecommendation = nextIgnoredRecommendation;
+            draft.deadStones = null;
           })
         );
       },
@@ -210,50 +266,67 @@ export const useGameStore = create<GameState>()(
             draft.consecutivePasses = newPasses;
             draft.isGameOver = newGameOver;
             draft.ignoredRecommendation = nextIgnoredRecommendation;
+            draft.deadStones = null;
           })
         );
       },
 
-      resignGame: () => set({ isGameOver: true, ignoredRecommendation: null }),
+      resignGame: () => set({ isGameOver: true, ignoredRecommendation: null, deadStones: null }),
 
       toggleTeacherMode: () =>
         set((state) => ({
           isTeacherMode: !state.isTeacherMode,
           ignoredRecommendation: null,
+          teacherCritique: null,
         })),
 
+      setTeacherCritique: (c: string | null) => set({ teacherCritique: c }),
+
+      setDeadStones: (stones: { x: number; y: number }[] | null) => set({ deadStones: stones }),
+
       goToPreviousMove: () => {
-        const { currentMoveIndex, history } = get();
+        const { currentMoveIndex, history, handicap } = get();
         if (currentMoveIndex > 0) {
+          const index = currentMoveIndex - 1;
           set({
-            currentMoveIndex: currentMoveIndex - 1,
-            board: history[currentMoveIndex - 1],
-            currentPlayer: (currentMoveIndex - 1) % 2 === 0 ? "BLACK" : "WHITE",
+            currentMoveIndex: index,
+            board: history[index],
+            currentPlayer: handicap > 0 
+              ? (index % 2 === 0 ? "WHITE" : "BLACK") 
+              : (index % 2 === 0 ? "BLACK" : "WHITE"),
             ignoredRecommendation: null,
+            deadStones: null,
           });
         }
       },
 
       goToNextMove: () => {
-        const { currentMoveIndex, history } = get();
+        const { currentMoveIndex, history, handicap } = get();
         if (currentMoveIndex < history.length - 1) {
+          const index = currentMoveIndex + 1;
           set({
-            currentMoveIndex: currentMoveIndex + 1,
-            board: history[currentMoveIndex + 1],
-            currentPlayer: (currentMoveIndex + 1) % 2 === 0 ? "BLACK" : "WHITE",
+            currentMoveIndex: index,
+            board: history[index],
+            currentPlayer: handicap > 0 
+              ? (index % 2 === 0 ? "WHITE" : "BLACK") 
+              : (index % 2 === 0 ? "BLACK" : "WHITE"),
             ignoredRecommendation: null,
+            deadStones: null,
           });
         }
       },
 
       setMoveIndex: (index: number) => {
-        const { history } = get();
+        const { history, handicap } = get();
         if (index >= 0 && index < history.length) {
           set({
             currentMoveIndex: index,
             board: history[index],
-            currentPlayer: index % 2 === 0 ? "BLACK" : "WHITE",
+            currentPlayer: handicap > 0 
+              ? (index % 2 === 0 ? "WHITE" : "BLACK") 
+              : (index % 2 === 0 ? "BLACK" : "WHITE"),
             ignoredRecommendation: null,
+            deadStones: null,
           });
         }
       },
@@ -272,14 +345,17 @@ export const useGameStore = create<GameState>()(
         moves: ({ x: number; y: number } | null)[],
         winRates?: number[],
       ) => {
-        let tempBoard = createEmptyBoard();
+        const { boardSize, handicap } = get();
+        let tempBoard = setupInitialBoard(boardSize || 19, handicap || 0);
         const newHistory = [tempBoard];
         const newMoveCoords: ({ x: number; y: number } | null)[] = [null];
         const newWinRates: number[] = [50];
 
         // Re-simulate all moves to populate history with BoardStates
         moves.slice(1).forEach((move, i) => {
-          const color = i % 2 === 0 ? "BLACK" : "WHITE";
+          const color = handicap > 0 
+            ? (i % 2 === 0 ? "WHITE" : "BLACK") 
+            : (i % 2 === 0 ? "BLACK" : "WHITE");
           const prevBoard = i > 0 ? newHistory[newHistory.length - 1] : null;
 
           if (move) {
@@ -308,24 +384,41 @@ export const useGameStore = create<GameState>()(
           moveCoordinates: newMoveCoords,
           winRates: newWinRates,
           currentMoveIndex: newHistory.length - 1,
-          currentPlayer: (newHistory.length - 1) % 2 === 0 ? "BLACK" : "WHITE",
+          currentPlayer: handicap > 0 
+            ? ((newHistory.length - 1) % 2 === 0 ? "WHITE" : "BLACK") 
+            : ((newHistory.length - 1) % 2 === 0 ? "BLACK" : "WHITE"),
           isReviewMode: true,
           isGameOver: false,
           ignoredRecommendation: null,
+          deadStones: null,
         });
       },
 
-      setGameConfig: (config) => set((state) => ({ ...state, ...config })),
+      setGameConfig: (config) => set((state) => {
+        const newState = { ...state, ...config };
+        // If board size is 9x9 or smaller, handicap must be 0
+        if (newState.boardSize <= 9) {
+          newState.handicap = 0;
+        } else if (newState.handicap > Math.min(9, newState.boardSize - 9)) {
+          newState.handicap = Math.min(9, newState.boardSize - 9);
+        }
+        return newState;
+      }),
 
       setIgnoredRecommendation: (coords) =>
         set({ ignoredRecommendation: coords }),
 
       resetGame: () => {
         queryClient.removeQueries({ queryKey: ["aiHint"] });
+        
+        const { boardSize, handicap } = get();
+        const newBoard = setupInitialBoard(boardSize, handicap);
+        const startingPlayer: PlayerColor = handicap > 0 ? "WHITE" : "BLACK";
+
         set({
-          board: createEmptyBoard(),
-          currentPlayer: "BLACK",
-          history: [createEmptyBoard()],
+          board: newBoard,
+          currentPlayer: startingPlayer,
+          history: [newBoard],
           moveCoordinates: [null],
           winRates: [50],
           currentMoveIndex: 0,
@@ -336,6 +429,7 @@ export const useGameStore = create<GameState>()(
           capturedByWhite: 0,
           ignoredRecommendation: null,
           teacherVisits: 330,
+          deadStones: null,
         });
       },
     }),

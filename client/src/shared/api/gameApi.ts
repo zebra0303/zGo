@@ -11,6 +11,8 @@ export const fetchAIHint = async (
   moves?: ({ x: number; y: number } | null)[],
   signal?: AbortSignal,
   language?: string,
+  boardSize?: number,
+  handicap?: number,
 ) => {
   const response = await fetch(`${API_BASE_URL}/ai/move`, {
     method: "POST",
@@ -23,6 +25,8 @@ export const fetchAIHint = async (
       teacherVisits,
       moves,
       language,
+      boardSize,
+      handicap,
     }),
     signal,
   });
@@ -38,6 +42,8 @@ export const fetchAIMove = async (
   moves?: ({ x: number; y: number } | null)[],
   signal?: AbortSignal,
   language?: string,
+  boardSize?: number,
+  handicap?: number,
 ) => {
   const response = await fetch(`${API_BASE_URL}/ai/move`, {
     method: "POST",
@@ -49,6 +55,8 @@ export const fetchAIMove = async (
       aiDifficulty,
       moves,
       language,
+      boardSize,
+      handicap,
     }),
     signal,
   });
@@ -59,11 +67,13 @@ export const fetchAIMove = async (
 
 export const fetchAIScore = async (
   moves: ({ x: number; y: number } | null)[],
+  boardSize?: number,
+  handicap?: number,
 ) => {
   const response = await fetch(`${API_BASE_URL}/ai/score`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ moves }),
+    body: JSON.stringify({ moves, boardSize, handicap }),
   });
   if (!response.ok) throw new Error("Failed to fetch AI score");
   return response.json();

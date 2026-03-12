@@ -9,8 +9,9 @@ Whether you are a complete beginner or a seasoned professional, zGo provides an 
 ## 🚀 Features
 
 - **Beautiful UI**: A sleek, responsive, and gorgeous Go board experience.
+- **Multi-language Support (i18n)**: Fully supports English and Korean. Instantly switch the UI and AI Teacher's explanations.
 - **Play vs AI**: Challenge KataGo directly in your browser with adjustable difficulty levels.
-- **Teacher Mode**: The AI will actively suggest the best moves and critique your mistakes with detailed explanations in real-time.
+- **Teacher Mode**: The AI will actively suggest the best moves and critique your mistakes with detailed explanations in real-time (Available in EN/KR).
 - **Review Mode**: Effortlessly browse through your game history with Win Rate graphs and interactive AI visualizer zones.
 - **Local History**: Your matches are automatically saved and stored safely in a local SQLite database.
 
