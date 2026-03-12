@@ -161,7 +161,11 @@ const TeacherAdviceWidget = () => {
     const lastMove = moveCoordinates[currentMoveIndex];
     const rec = lastRecommendationRef.current;
 
-    const moveColor = currentMoveIndex % 2 === 1 ? "BLACK" : "WHITE";    
+    // Determine the color of the move JUST made at currentMoveIndex
+    const moveColor = handicap > 0
+      ? (currentMoveIndex % 2 === 1 ? "WHITE" : "BLACK")
+      : (currentMoveIndex % 2 === 1 ? "BLACK" : "WHITE");
+
     // Evaluate human move immediately, AI moves don't need human critique
     if (gameMode === "PvAI" && moveColor !== humanPlayerColor) {
       return;
@@ -197,6 +201,7 @@ const TeacherAdviceWidget = () => {
     setIgnoredRecommendation,
     setTeacherCritique,
     fetchCritique,
+    handicap,
   ]);
 
   if (!isTeacherMode || isGameOver) return null;
