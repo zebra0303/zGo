@@ -15,10 +15,16 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "../client/dist")));
 
 // 1. SQLite Database Setup
-const dbPath = path.resolve(__dirname, "database", "zgo.db");
+const fs = require("fs");
+const dbDir = path.resolve(__dirname, "database");
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
+const dbPath = path.join(dbDir, "zgo.db");
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) console.error("DB Connection Error:", err.message);
-  else console.log("Connected to the SQLite database.");
+  else console.log("Connected to the SQLite database at", dbPath);
 });
 
 db.serialize(() => {
