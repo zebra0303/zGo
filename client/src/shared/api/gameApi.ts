@@ -1,7 +1,12 @@
 import { BoardState } from "@/entities/board/model/types";
 
 export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/api";
+  import.meta.env.VITE_API_BASE_URL ||
+  (typeof window !== "undefined" &&
+  (window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1")
+    ? "http://localhost:3001/api"
+    : "/api");
 
 export const fetchAIHint = async (
   board: BoardState,

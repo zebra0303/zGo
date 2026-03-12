@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useGameStore } from "@/entities/match/model/store";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAIHint } from "@/shared/api/gameApi";
+import { fetchAIHint, API_BASE_URL } from "@/shared/api/gameApi";
 
 const coordsToGtp = (x: number, y: number, boardSize: number) =>
   "ABCDEFGHJKLMNOPQRST"[x] + (boardSize - y);
@@ -98,7 +98,7 @@ const TeacherAdviceWidget = () => {
 
       try {
         const response = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/api"}/ai/move`,
+          `${API_BASE_URL}/ai/move`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
