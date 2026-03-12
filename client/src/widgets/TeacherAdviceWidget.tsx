@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useGameStore } from "@/entities/match/model/store";
 import { useQuery } from "@tanstack/react-query";
@@ -31,6 +31,7 @@ const TeacherAdviceWidget = () => {
     handicap,
   } = useGameStore();
 
+  const [lastCritiquedMove, setLastCritiquedMove] = useState<string | null>(null);
   const lastRecommendationRef = useRef<{
     recommendations?: { x: number; y: number; winRate?: number; visits?: number; gtpMove: string; explanation: string }[];
   } | null>(null);
@@ -122,9 +123,10 @@ const TeacherAdviceWidget = () => {
         const data = await response.json();
 
         const currentStoreState = useGameStore.getState();
-        if (currentStoreState.currentMoveIndex === moveIndex && data.critique) {
+        if (currentStoreState.currentMoveIndex >= moveIndex && data.critique) {
           setTeacherCritique(data.critique);
           setIgnoredRecommendation(bestMoves);
+          setLastCritiquedMove(coordsToGtp(userMove.x, userMove.y, boardSize));
         }
       } catch (err) {
         const e = err as Error;
@@ -152,10 +154,11 @@ const TeacherAdviceWidget = () => {
 
   // Listen for move changes to determine if we should show a critique
   useEffect(() => {
-    // Clear critique when it's the human's turn to move (showing fresh recommendations)
-    if (currentPlayer === humanPlayerColor) {
+    // In PvAI mode, clear critique when human's turn starts (reset for new move)
+    if (gameMode === "PvAI" && currentPlayer === humanPlayerColor) {
       setTeacherCritique(null);
       setIgnoredRecommendation(null);
+      setLastCritiquedMove(null);
     }
 
     if (!isTeacherMode || currentMoveIndex === 0) {
@@ -165,17 +168,24 @@ const TeacherAdviceWidget = () => {
     const lastMove = moveCoordinates[currentMoveIndex];
     const rec = lastRecommendationRef.current;
 
-    // Determine the color of the move JUST made at currentMoveIndex
+    // Determine move color of the JUST played move
     const moveColor = handicap > 0
       ? (currentMoveIndex % 2 === 1 ? "WHITE" : "BLACK")
       : (currentMoveIndex % 2 === 1 ? "BLACK" : "WHITE");
 
-    // Evaluate human move immediately, AI moves don't need human critique
+    // In PvP mode, critique EVERY move.
+    // In PvAI mode, ONLY critique human moves.
     if (gameMode === "PvAI" && moveColor !== humanPlayerColor) {
       return;
     }
 
-    // if gameMode is PvP or gameMode is PvAI and human moved
+    // PvP mode: Clear previous critique before starting new analysis for current player
+    if (gameMode === "PvP") {
+      setTeacherCritique(null);
+      setIgnoredRecommendation(null);
+      setLastCritiquedMove(null);
+    }
+
     const abortController = new AbortController();
 
     if (lastMove && rec?.recommendations && rec.recommendations.length > 0) {
@@ -190,6 +200,7 @@ const TeacherAdviceWidget = () => {
       } else {
         setTeacherCritique(null);
         setIgnoredRecommendation(null);
+        setLastCritiquedMove(null);
       }
     }
 
@@ -239,14 +250,7 @@ const TeacherAdviceWidget = () => {
                   {t('myMove')}
                 </div>
                 <div className="text-xs font-black text-rose-900">
-                  {/* Show the last move made by the human player */}
-                  {(() => {
-                    const lastHumanMoveIndex = handicap > 0 
-                      ? (currentMoveIndex % 2 === 0 ? currentMoveIndex : currentMoveIndex - 1)
-                      : (currentMoveIndex % 2 === 1 ? currentMoveIndex : currentMoveIndex - 1);
-                    const move = moveCoordinates[lastHumanMoveIndex];
-                    return move ? coordsToGtp(move.x, move.y, boardSize) : "-";
-                  })()}
+                  {lastCritiquedMove || "-"}
                 </div>
               </div>
               <div className="flex-1 bg-blue-50/50 rounded p-1.5 border border-blue-200/50">
