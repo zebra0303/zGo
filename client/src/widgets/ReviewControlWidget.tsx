@@ -1,16 +1,13 @@
 import { useGameStore } from "@/entities/match/model/store";
 import { useEffect, useCallback } from "react";
-import { useTranslation } from "react-i18next";
 
 const ReviewControlWidget = () => {
-  const { t } = useTranslation();
   const {
     isReviewMode,
     currentMoveIndex,
     history: gameHistory,
     goToPreviousMove,
     goToNextMove,
-    winRates,
     setMoveIndex,
   } = useGameStore();
 
@@ -38,72 +35,9 @@ const ReviewControlWidget = () => {
   if (!isReviewMode) return null;
 
   const totalMoves = Math.max(1, gameHistory.length - 1);
-  const currentAiWinRate =
-    winRates && winRates[currentMoveIndex] !== undefined
-      ? winRates[currentMoveIndex]
-      : 50;
-  const winRateBlack = currentAiWinRate;
-  const winRateWhite = 100 - winRateBlack;
 
   return (
-    <div className="w-full mt-4 bg-white/50 backdrop-blur-sm border border-gray-200/60 rounded-xl p-4 shadow-sm text-center">
-      <div className="flex justify-between items-center text-xs font-bold mb-2">
-        <span className="text-gray-800 w-24 text-left">{t('black')} {winRateBlack.toFixed(1)}%</span>
-        <h2 className="font-bold text-gray-700 text-sm flex items-center gap-2">
-          📊 {t('winRate')}
-        </h2>
-        <span className="text-gray-500 w-24 text-right">{t('white')} {winRateWhite.toFixed(1)}%</span>
-      </div>
-
-      {winRates && winRates.length > 1 && (
-        <div
-          className="w-full h-12 bg-gray-100 rounded border border-gray-200 relative overflow-hidden mb-4 cursor-pointer"
-          onClick={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const ratio = x / rect.width;
-            const targetIndex = Math.round(ratio * totalMoves);
-            setMoveIndex(Math.max(0, Math.min(targetIndex, totalMoves)));
-          }}
-        >
-          <svg
-            width="100%"
-            height="100%"
-            preserveAspectRatio="none"
-            viewBox={`0 0 ${winRates.length - 1} 100`}
-          >
-            <path
-              d={`M 0,50 L ${winRates
-                .map((rate, i) => `${i},${100 - rate}`)
-                .join(" L ")}`}
-              fill="none"
-              stroke="#3b82f6"
-              strokeWidth="2"
-              vectorEffect="non-scaling-stroke"
-            />
-            <line
-              x1="0"
-              y1="50"
-              x2={winRates.length - 1}
-              y2="50"
-              stroke="#9ca3af"
-              strokeWidth="1"
-              strokeDasharray="4"
-              vectorEffect="non-scaling-stroke"
-            />
-            <line
-              x1={currentMoveIndex}
-              y1="0"
-              x2={currentMoveIndex}
-              y2="100"
-              stroke="#ef4444"
-              strokeWidth="2"
-              vectorEffect="non-scaling-stroke"
-            />
-          </svg>
-        </div>
-      )}
-
+    <div className="w-full bg-white/50 backdrop-blur-sm border border-gray-200/60 rounded-xl p-4 shadow-sm text-center">
       <div className="flex flex-col gap-3">
         <input
           type="range"

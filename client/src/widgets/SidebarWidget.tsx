@@ -672,25 +672,27 @@ const SidebarWidget = () => {
                 </button>
               </div>
 
-              <div className="space-y-1 pt-1 border-t border-gray-50 mt-1">
-                <div className="flex justify-between text-[10px]">
-                  <span className="text-gray-600">{t('teacherLevel')}</span>
-                  <span className="font-bold text-blue-600">
-                    {teacherVisits}
-                  </span>
+              {isTeacherMode && (
+                <div className="space-y-1 pt-1 border-t border-gray-50 mt-1">
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-gray-600">{t('teacherLevel')}</span>
+                    <span className="font-bold text-blue-600">
+                      {teacherVisits}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="100"
+                    max="1000"
+                    step="10"
+                    value={teacherVisits}
+                    onChange={(e) =>
+                      setGameConfig({ teacherVisits: Number(e.target.value) })
+                    }
+                    className="w-full accent-blue-600 h-1"
+                  />
                 </div>
-                <input
-                  type="range"
-                  min="100"
-                  max="1000"
-                  step="10"
-                  value={teacherVisits}
-                  onChange={(e) =>
-                    setGameConfig({ teacherVisits: Number(e.target.value) })
-                  }
-                  className="w-full accent-blue-600 h-1"
-                />
-              </div>
+              )}
 
               <div className="flex gap-2 pt-2 border-t border-gray-50">
                 <button

@@ -17,7 +17,7 @@ const WinRateGraphWidget = () => {
   const winRateWhite = 100 - winRateBlack;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm w-full mb-4">
+    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm w-full">
       <div className="flex justify-between items-center mb-2">
         <h2 className="font-bold text-gray-700 text-sm flex items-center gap-2">
           📊 {t('winRate')}
