@@ -518,18 +518,6 @@ const SidebarWidget = () => {
               </div>
 
               <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-50">
-                <span className="font-medium text-gray-600">{t('teacherMode')}</span>
-                <button
-                  onClick={toggleTeacherMode}
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isTeacherMode ? "bg-blue-600" : "bg-gray-300"}`}
-                >
-                  <span
-                    className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${isTeacherMode ? "translate-x-5" : "translate-x-1"}`}
-                  />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-50">
                 <span className="font-medium text-gray-600">{t('boardSize')}</span>
                 <select
                   value={boardSize}
@@ -671,6 +659,18 @@ const SidebarWidget = () => {
                   />
                 </div>
               )}
+
+              <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-50 mt-1">
+                <span className="font-medium text-gray-600">{t('teacherMode')}</span>
+                <button
+                  onClick={toggleTeacherMode}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isTeacherMode ? "bg-blue-600" : "bg-gray-300"}`}
+                >
+                  <span
+                    className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${isTeacherMode ? "translate-x-5" : "translate-x-1"}`}
+                  />
+                </button>
+              </div>
 
               <div className="space-y-1 pt-1 border-t border-gray-50 mt-1">
                 <div className="flex justify-between text-[10px]">
