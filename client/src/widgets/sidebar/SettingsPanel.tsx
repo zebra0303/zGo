@@ -55,6 +55,7 @@ const SettingsPanel = ({
       <div className="flex items-center justify-between text-sm">
         <span className="font-medium text-gray-600">{t("language")}</span>
         <select
+          id="setting-language"
           value={i18n.language}
           onChange={(e) => changeLanguage(e.target.value)}
           className="bg-gray-50 border border-gray-200 rounded p-1 text-xs"
@@ -67,6 +68,7 @@ const SettingsPanel = ({
       <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-50">
         <span className="font-medium text-gray-600">{t("mode")}</span>
         <select
+          id="setting-mode"
           value={gameMode}
           onChange={(e) => {
             setGameConfig({ gameMode: e.target.value as "PvP" | "PvAI" });
@@ -82,6 +84,7 @@ const SettingsPanel = ({
       <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-50">
         <span className="font-medium text-gray-600">{t("boardSize")}</span>
         <select
+          id="setting-board-size"
           value={boardSize}
           onChange={(e) => {
             const newSize = Number(e.target.value);
@@ -115,6 +118,7 @@ const SettingsPanel = ({
       <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-50">
         <span className="font-medium text-gray-600">{t("handicap")}</span>
         <select
+          id="setting-handicap"
           value={handicap}
           onChange={(e) => {
             setGameConfig({ handicap: Number(e.target.value) });
@@ -141,6 +145,7 @@ const SettingsPanel = ({
           <div className="flex items-center justify-between text-sm">
             <span className="font-medium text-gray-600">{t("myStone")}</span>
             <select
+              id="setting-player-color"
               value={humanPlayerColor}
               onChange={(e) => {
                 setGameConfig({

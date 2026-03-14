@@ -48,6 +48,7 @@ const ReviewControlWidget = () => {
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <input
+            id="review-move-slider"
             type="range"
             min="0"
             max={totalMoves}

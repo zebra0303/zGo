@@ -393,7 +393,9 @@ const SidebarWidget = () => {
             }
           })
           .catch((err) => {
-            if (err?.name !== "AbortError") console.error(err);
+            // Ignore AbortError from cleanup (e.g. React StrictMode double-mount)
+            if (err?.name === "AbortError") return;
+            console.error(err);
             setGameResultText(t("calcFail"));
           })
           .finally(() => setIsScoring(false));

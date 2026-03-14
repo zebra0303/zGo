@@ -21,12 +21,21 @@ export class AppError extends ApiError {
   }
 }
 
+export const isAbortError = (err: unknown): boolean =>
+  (err instanceof DOMException && err.name === "AbortError") ||
+  (err instanceof Error && err.name === "AbortError");
+
 export const createMaskedError = (
   err: unknown,
   defaultMessage: string = "An unexpected error occurred.",
-): AppError => {
+): AppError | DOMException => {
   if (err instanceof AppError) {
     return err;
+  }
+
+  // Re-throw AbortError as-is so callers can filter it without unwrapping
+  if (isAbortError(err)) {
+    return err as DOMException;
   }
 
   // Log the original error internally for debugging, but don't expose it to the UI
