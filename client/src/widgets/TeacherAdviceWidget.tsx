@@ -11,7 +11,11 @@ import { fetchAIHint, API_BASE_URL } from "@/shared/api/gameApi";
 const coordsToGtp = (x: number, y: number, boardSize: number) =>
   "ABCDEFGHJKLMNOPQRST"[x] + (boardSize - y);
 
-const TeacherAdviceWidget = () => {
+const TeacherAdviceWidget = ({
+  sideBySide = false,
+}: {
+  sideBySide?: boolean;
+}) => {
   const { t } = useTranslation();
   const {
     board,
@@ -288,8 +292,12 @@ const TeacherAdviceWidget = () => {
   if (!isTeacherMode || isGameOver) return null;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm w-full flex flex-col mb-4 overflow-hidden text-center">
-      <div className="flex justify-center items-center mb-3 shrink-0 relative">
+    <div
+      className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-col mb-4 overflow-hidden text-center ${
+        sideBySide ? "w-72 sticky top-4 mt-6 shrink-0 -ml-3.5" : "w-full"
+      }`}
+    >
+      <div className="flex justify-center items-center mb-3 shrink-0">
         <h2 className="font-bold text-gray-700 flex items-center gap-2">
           <img
             src="/igo_logo.png"
@@ -298,9 +306,6 @@ const TeacherAdviceWidget = () => {
           />
           {t("teacherMode")}
         </h2>
-        <div className="text-[10px] text-blue-600 font-semibold animate-pulse absolute right-0">
-          {t("teacherModeActive")}
-        </div>
       </div>
       <div className="space-y-3 flex-1">
         {teacherCritique && (

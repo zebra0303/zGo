@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { useGameStore } from "@/entities/match/model/store";
+import { useGameStore, getPathToNode } from "@/entities/match/model/store";
 
 describe("Game Store (Zustand)", () => {
   it("should initialize with empty board and BLACK as first player", () => {
@@ -55,7 +55,7 @@ describe("Game Store (Zustand)", () => {
 
   it("should navigate through history correctly", () => {
     useGameStore.getState().resetGame();
-    
+
     // 수순 진행: (3, 3) -> (16, 16) -> (3, 16)
     useGameStore.getState().placeStone(3, 3);
     useGameStore.getState().placeStone(16, 16);
@@ -72,20 +72,82 @@ describe("Game Store (Zustand)", () => {
     useGameStore.getState().goToNextMove(0);
     expect(useGameStore.getState().currentNode.moveIndex).toBe(3);
     expect(useGameStore.getState().board[16][3]).toBe("BLACK");
-    });
+  });
 
-    it("should restore winner and result text via loadMatch", () => {
+  it("should restore winner and result text via loadMatch", () => {
     const moves = [null, { x: 3, y: 3 }];
     const winRates = [50, 60];
     const resultText = "Black wins by resignation";
     const winner = "BLACK";
 
-    useGameStore.getState().loadMatch(moves, winRates, resultText, 19, 0, winner);
+    useGameStore
+      .getState()
+      .loadMatch(moves, winRates, resultText, 19, 0, winner);
 
     const state = useGameStore.getState();
     expect(state.isReviewMode).toBe(true);
     expect(state.gameResultText).toBe(resultText);
     expect(state.winner).toBe("BLACK");
     expect(state.board[3][3]).toBe("BLACK");
-    });
-    });
+  });
+
+  it("should compute branch points from path with variations", () => {
+    useGameStore.getState().resetGame();
+
+    // Build a tree: root -> (3,3) -> (4,4) -> (5,5)
+    useGameStore.getState().placeStone(3, 3);
+    useGameStore.getState().placeStone(4, 4);
+    useGameStore.getState().placeStone(5, 5);
+
+    // Go back to move 1 (3,3) and create a variation
+    useGameStore.getState().goToPreviousMove(); // at (4,4)
+    useGameStore.getState().goToPreviousMove(); // at (3,3)
+    useGameStore.getState().placeStone(10, 10); // variation at move 1
+
+    // Now root's child (3,3) should have 2 children: (4,4) and (10,10)
+    const tree = useGameStore.getState().gameTree;
+    const moveOneNode = tree.children[0]; // (3,3)
+    expect(moveOneNode.children.length).toBe(2);
+
+    // Navigate to the variation branch: (3,3) -> (10,10)
+    const currentNode = useGameStore.getState().currentNode;
+    expect(currentNode.x).toBe(10);
+    expect(currentNode.y).toBe(10);
+
+    // getPathToNode should return [root, (3,3), (10,10)]
+    const path = getPathToNode(tree, currentNode.id);
+    expect(path).not.toBeNull();
+    expect(path!.length).toBe(3);
+
+    // Identify branch points: only (3,3) has children.length > 1
+    const branchPoints = path!
+      .slice(0, -1)
+      .filter((node) => node.children.length > 1);
+    expect(branchPoints.length).toBe(1);
+    expect(branchPoints[0].moveIndex).toBe(1);
+
+    // The active child index should be 1 (second child = (10,10))
+    const nextInPath = path![path!.indexOf(branchPoints[0]) + 1];
+    const activeIdx = branchPoints[0].children.findIndex(
+      (c) => c.id === nextInPath.id,
+    );
+    expect(activeIdx).toBe(1);
+  });
+
+  it("should return no branch points for linear path", () => {
+    useGameStore.getState().resetGame();
+    useGameStore.getState().placeStone(3, 3);
+    useGameStore.getState().placeStone(4, 4);
+    useGameStore.getState().placeStone(5, 5);
+
+    const tree = useGameStore.getState().gameTree;
+    const currentNode = useGameStore.getState().currentNode;
+    const path = getPathToNode(tree, currentNode.id);
+    expect(path).not.toBeNull();
+
+    const branchPoints = path!
+      .slice(0, -1)
+      .filter((node) => node.children.length > 1);
+    expect(branchPoints.length).toBe(0);
+  });
+});

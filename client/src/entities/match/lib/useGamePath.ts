@@ -7,7 +7,7 @@ import {
 
 /**
  * Shared hook: builds the full main-branch path (ancestor + continuation)
- * from the current node. Used by ReviewControlWidget and WinRateGraphWidget.
+ * from the current node. Used by ReviewPanelWidget.
  */
 export const useGamePath = () => {
   const { currentNode, gameTree } = useGameStore();

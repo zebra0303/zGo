@@ -72,5 +72,9 @@
   "analyzingProgress": "Analyzing {{current}}/{{total}}...",
   "analysisComplete": "Analysis Complete",
   "blackWins": "Black wins",
-  "whiteWins": "White wins"
+  "whiteWins": "White wins",
+  "branchPoints": "Branches",
+  "branchChipAriaLabel": "Move {{move}}, variation {{letter}} of {{total}}",
+  "prevMove": "Previous move",
+  "nextMove": "Next move"
 }

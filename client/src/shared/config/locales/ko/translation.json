@@ -72,5 +72,9 @@
   "analyzingProgress": "AI 분석 중 {{current}}/{{total}}...",
   "analysisComplete": "분석 완료",
   "blackWins": "흑 승",
-  "whiteWins": "백 승"
+  "whiteWins": "백 승",
+  "branchPoints": "갈림길",
+  "branchChipAriaLabel": "{{move}}수, {{total}}개 중 {{letter}} 변화",
+  "prevMove": "이전 수",
+  "nextMove": "다음 수"
 }

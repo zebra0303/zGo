@@ -208,6 +208,26 @@ const SidebarWidget = () => {
   });
 
   // AI 자동 착수 로직
+  // Uses a ref to avoid re-triggering the effect when gameTree changes
+  // (e.g., from updateWinRate in TeacherAdvice), which would abort the fetch.
+  const aiTurnRef = useRef<{
+    getMoveHistory: typeof getMoveHistory;
+    updateWinRate: typeof updateWinRate;
+    showAlert: typeof showAlert;
+    currentNodeId: string;
+  }>({
+    getMoveHistory,
+    updateWinRate,
+    showAlert,
+    currentNodeId: currentNode.id,
+  });
+  aiTurnRef.current = {
+    getMoveHistory,
+    updateWinRate,
+    showAlert,
+    currentNodeId: currentNode.id,
+  };
+
   useEffect(() => {
     let isActive = true;
     const abortController = new AbortController();
@@ -221,7 +241,7 @@ const SidebarWidget = () => {
       )
         return;
 
-      const moveHistory = getMoveHistory();
+      const moveHistory = aiTurnRef.current.getMoveHistory();
 
       try {
         const response = await fetchAIMove(
@@ -241,15 +261,18 @@ const SidebarWidget = () => {
             currentPlayer === "BLACK"
               ? response.winRate
               : 100 - response.winRate;
-          updateWinRate(currentNode.id, blackWinRate);
+          aiTurnRef.current.updateWinRate(
+            aiTurnRef.current.currentNodeId,
+            blackWinRate,
+          );
         }
 
         if (response.pass) {
           passTurn();
-          showAlert(t("aiPassed"));
+          aiTurnRef.current.showAlert(t("aiPassed"));
         } else if (response.resign) {
           resignGame();
-          showAlert(t("aiResignedMsg"), t("congrats"));
+          aiTurnRef.current.showAlert(t("aiResignedMsg"), t("congrats"));
         } else if (response.move) {
           placeStone(response.move.x, response.move.y);
           playStoneSound(soundEnabled, soundVolume);
@@ -282,6 +305,9 @@ const SidebarWidget = () => {
       isActive = false;
       abortController.abort();
     };
+    // Intentionally excludes getMoveHistory, updateWinRate, showAlert, currentNode.id
+    // to prevent gameTree changes (from updateWinRate) from aborting in-flight AI requests.
+    // These are accessed via aiTurnRef instead.
   }, [
     gameMode,
     currentPlayer,
@@ -295,14 +321,10 @@ const SidebarWidget = () => {
     soundEnabled,
     soundVolume,
     aiDifficulty,
-    getMoveHistory,
-    updateWinRate,
-    showAlert,
     t,
     language,
     boardSize,
     handicap,
-    currentNode.id,
   ]);
 
   const saveMutation = useMutation({
