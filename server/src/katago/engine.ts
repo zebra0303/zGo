@@ -66,8 +66,9 @@ export const startKataGo = () => {
     isKatagoReady = false;
   }
 
-  const modelPath = path.join(__dirname, "../katago/katago-model.bin.gz");
-  const configPath = path.join(__dirname, "../katago/gtp_config.cfg");
+  // __dirname = src/katago/ (dev) or dist/katago/ (prod), so ../../katago/ = server/katago/
+  const modelPath = path.join(__dirname, "../../katago/katago-model.bin.gz");
+  const configPath = path.join(__dirname, "../../katago/gtp_config.cfg");
 
   console.log("Starting KataGo Engine...");
   katagoProcess = spawn("katago", [
@@ -124,10 +125,7 @@ export const startKataGo = () => {
         currentMultiRecommendations = [];
         let utility = parseFloat(rootTreeMatch[1]);
         if (rootTreeMatch[2] === "c") utility /= 100;
-        latestWinRate = Math.min(
-          Math.max(((utility + 1) / 2) * 100, 0),
-          100,
-        );
+        latestWinRate = Math.min(Math.max(((utility + 1) / 2) * 100, 0), 100);
       } else {
         const treeMatch = output.match(
           /:\s*T\s+[-+0-9.a-z]+\s+W\s+([-+]?[0-9.]+)([c]?)/i,
@@ -135,10 +133,7 @@ export const startKataGo = () => {
         if (treeMatch) {
           let utility = parseFloat(treeMatch[1]);
           if (treeMatch[2] === "c") utility /= 100;
-          latestWinRate = Math.min(
-            Math.max(((utility + 1) / 2) * 100, 0),
-            100,
-          );
+          latestWinRate = Math.min(Math.max(((utility + 1) / 2) * 100, 0), 100);
         }
       }
 
@@ -148,10 +143,7 @@ export const startKataGo = () => {
       if (moveTreeMatch) {
         let utility = parseFloat(moveTreeMatch[2]);
         if (moveTreeMatch[3] === "c") utility /= 100;
-        const winrate = Math.min(
-          Math.max(((utility + 1) / 2) * 100, 0),
-          100,
-        );
+        const winrate = Math.min(Math.max(((utility + 1) / 2) * 100, 0), 100);
         currentMultiRecommendations.push({
           move: moveTreeMatch[1],
           winrate,
@@ -174,9 +166,7 @@ export const sendCommand = (command: string): Promise<string> => {
       if (index !== -1) {
         commandQueue.splice(index, 1);
         isProcessingQueue = false;
-        console.error(
-          `GTP command timeout: ${command}. Restarting engine...`,
-        );
+        console.error(`GTP command timeout: ${command}. Restarting engine...`);
         startKataGo();
         reject(new Error(`GTP command timeout: ${command}`));
       }
@@ -215,10 +205,7 @@ const processApiQueue = async () => {
     }
   }
   isProcessingApiQueue = false;
-  if (
-    processedApiCount > MAX_API_CALLS_BEFORE_RESTART &&
-    !isProcessingQueue
-  ) {
+  if (processedApiCount > MAX_API_CALLS_BEFORE_RESTART && !isProcessingQueue) {
     console.log(
       `Processed ${processedApiCount} AI requests. Restarting KataGo to free memory...`,
     );
