@@ -82,28 +82,40 @@ export const applyMove = (
   newBoard[y][x] = color;
 
   const opponentColor = color === "BLACK" ? "WHITE" : "BLACK";
-  let capturedStones = 0;
+  let totalCaptured = 0;
+  const processedGroups = new Set<string>();
 
+  // 1. Check for opponent captures
   for (const { x: nx, y: ny } of getNeighbors(x, y, boardSize)) {
     if (newBoard[ny][nx] === opponentColor) {
+      const key = `${nx},${ny}`;
+      if (processedGroups.has(key)) continue;
+
       const group = getGroup(newBoard, nx, ny);
       if (group && group.liberties.size === 0) {
         for (const stone of group.stones) {
           newBoard[stone.y][stone.x] = null;
-          capturedStones++;
+          processedGroups.add(`${stone.x},${stone.y}`);
+          totalCaptured++;
         }
       }
     }
   }
 
-  const myGroup = getGroup(newBoard, x, y);
-  if (myGroup && myGroup.liberties.size === 0) {
-    return { newBoard: board, captured: 0, isValid: false, reason: "Suicide" };
+  // 2. Check for suicide (self-capture)
+  // According to Go rules: A move is suicide ONLY if it captures 0 opponent stones 
+  // AND the resulting group has 0 liberties.
+  if (totalCaptured === 0) {
+    const myGroup = getGroup(newBoard, x, y);
+    if (myGroup && myGroup.liberties.size === 0) {
+      return { newBoard: board, captured: 0, isValid: false, reason: "Suicide" };
+    }
   }
 
+  // 3. Check for Ko rule
   if (previousBoard && isBoardsEqual(newBoard, previousBoard)) {
     return { newBoard: board, captured: 0, isValid: false, reason: "Ko" };
   }
 
-  return { newBoard, captured: capturedStones, isValid: true };
+  return { newBoard, captured: totalCaptured, isValid: true };
 };

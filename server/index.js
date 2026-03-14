@@ -596,3 +596,13 @@ app.get(/.*/, (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`Server is running on http://localhost:${PORT}`));
+
+// Export for testing
+module.exports = {
+  coordsToGtp,
+  gtpToCoords,
+  getHandicapStones,
+  getMoveTactics,
+  getDetailedExplanation,
+};
+

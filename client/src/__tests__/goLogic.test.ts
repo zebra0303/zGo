@@ -54,6 +54,59 @@ describe("Go Logic (applyMove)", () => {
     expect(result.reason).toBe("Suicide");
   });
 
+  it("should capture multiple groups of stones simultaneously", () => {
+    const board = createEmptyBoard();
+    // (1,1) Black stone surrounded by White except for (2,1)
+    board[0][1] = "WHITE"; // (x=1, y=0)
+    board[2][1] = "WHITE"; // (x=1, y=2)
+    board[1][0] = "WHITE"; // (x=0, y=1)
+    board[1][1] = "BLACK";
+
+    // (3,1) Black stone surrounded by White except for (2,1)
+    board[0][3] = "WHITE"; // (x=3, y=0)
+    board[2][3] = "WHITE"; // (x=3, y=2)
+    board[1][4] = "WHITE"; // (x=4, y=1)
+    board[1][3] = "BLACK";
+
+    // Now (1,1) and (3,1) share the last liberty at (2,1)
+    // White plays at (2,1) capturing both
+    const result = applyMove(board, 2, 1, "WHITE");
+
+    expect(result.isValid).toBe(true);
+    expect(result.captured).toBe(2); // 2 individual groups of 1 stone each
+    expect(result.newBoard[1][1]).toBe(null);
+    expect(result.newBoard[1][3]).toBe(null);
+  });
+
+  it("should allow a move that would be suicide but captures opponent stones", () => {
+    const board = createEmptyBoard();
+    // Target White stone at (1,1)
+    board[1][1] = "WHITE";
+    
+    // Surround (1,1) with Black stones except for (1,0)
+    board[0][1] = "BLACK"; // (x=1, y=0)
+    board[2][1] = "BLACK"; // (x=1, y=2)
+    board[1][2] = "BLACK"; // (x=2, y=1)
+    
+    // Now (1,1) White has only one liberty at (0,1) [x=0, y=1]
+    // Black plays at (0,1) to capture (1,1).
+    // BUT (0,1) is a suicide spot for Black because it's surrounded by White?
+    // Let's make (0,1) a suicide spot for Black:
+    board[0][0] = "WHITE"; // (x=0, y=0)
+    board[2][0] = "WHITE"; // (x=0, y=2) (Wait, y=2, x=0 is neighbor of x=0, y=1)
+    // Correcting neighbors of (x=0, y=1): (0,0), (0,2), (1,1)
+    board[0][0] = "WHITE"; 
+    board[2][0] = "WHITE";
+    // (1,1) is already WHITE.
+    
+    // Black plays at (0,1). It captures (1,1), so it's NOT suicide.
+    const result = applyMove(board, 0, 1, "BLACK");
+
+    expect(result.isValid).toBe(true);
+    expect(result.captured).toBeGreaterThanOrEqual(1);
+    expect(result.newBoard[1][1]).toBe(null);
+  });
+
   it("should enforce the Ko rule", () => {
     const board1 = createEmptyBoard();
     // 패(Ko) 모양 만들기

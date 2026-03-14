@@ -50,6 +50,7 @@ interface GameState {
   teacherCritique: string | null;
   deadStones: { x: number; y: number }[] | null;
   gameResultText: string | null;
+  winner: PlayerColor | "DRAW" | null;
   isScoring: boolean;
   isAnalyzing: boolean;
   analysisProgress: { current: number; total: number } | null;
@@ -62,6 +63,7 @@ interface GameState {
   setTeacherCritique: (c: string | null) => void;
   setDeadStones: (stones: { x: number; y: number }[] | null) => void;
   setGameResultText: (text: string | null) => void;
+  setWinner: (winner: PlayerColor | "DRAW" | null) => void;
   setIsScoring: (isScoring: boolean) => void;
   setIsAnalyzing: (isAnalyzing: boolean) => void;
   setAnalysisProgress: (progress: { current: number; total: number } | null) => void;
@@ -76,6 +78,7 @@ interface GameState {
     resultText?: string,
     savedBoardSize?: number,
     savedHandicap?: number,
+    winner?: PlayerColor | "DRAW" | null,
   ) => void;
   setGameConfig: (
     config: Partial<
@@ -372,6 +375,8 @@ export const useGameStore = create<GameState>()(
 
       setGameResultText: (text: string | null) => set({ gameResultText: text }),
 
+      setWinner: (winner: PlayerColor | "DRAW" | null) => set({ winner }),
+
       setIsScoring: (isScoring: boolean) => set({ isScoring }),
 
       setIsAnalyzing: (isAnalyzing: boolean) => set({ isAnalyzing }),
@@ -484,6 +489,7 @@ export const useGameStore = create<GameState>()(
         resultText?: string,
         savedBoardSize?: number,
         savedHandicap?: number,
+        winner?: PlayerColor | "DRAW" | null,
       ) => {
         const boardSize = savedBoardSize || get().boardSize;
         const handicap = savedHandicap ?? get().handicap;
@@ -536,6 +542,7 @@ export const useGameStore = create<GameState>()(
           deadStones: null,
           showDeadStones: true, // Auto-enable when entering review
           gameResultText: resultText || null, // Clear on load or set loaded text
+          winner: winner || null,
           isScoring: false,
           isAnalyzing: false,
           analysisProgress: null,
@@ -575,6 +582,7 @@ export const useGameStore = create<GameState>()(
           teacherVisits: 330,
           deadStones: null,
           gameResultText: null,
+          winner: null,
           isScoring: false,
           isAnalyzing: false,
           analysisProgress: null,
@@ -583,9 +591,25 @@ export const useGameStore = create<GameState>()(
     }),
     {
       name: "zgo-game-storage",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => {
+        try {
+          return localStorage;
+        } catch (e) {
+          // If localStorage is unavailable (e.g. in SSR or some test environments)
+          // return a dummy storage to prevent warnings
+          return {
+            getItem: () => null,
+            setItem: () => {},
+            removeItem: () => {},
+          };
+        }
+      }),
       partialize: (state) => {
-        const { gameTree, currentNode, isAnalyzing, analysisProgress, ...rest } = state;
+        const { gameTree, currentNode, ...rest } = state;
+        // Exclude transient state like isAnalyzing
+        delete (rest as any).isAnalyzing;
+        delete (rest as any).analysisProgress;
+        
         return {
           ...rest,
           flatTree: flattenTree(gameTree),

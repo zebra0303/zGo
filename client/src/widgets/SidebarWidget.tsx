@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { useGameStore, getPathToNode } from "@/entities/match/model/store";
+import { useGameStore, getPathToNode, PlayerColor } from "@/entities/match/model/store";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   fetchAIMove,
@@ -45,8 +45,10 @@ const SidebarWidget = () => {
     setDeadStones,
     deadStones,
     gameResultText,
+    winner,
     isScoring,
     setGameResultText,
+    setWinner,
     setIsScoring,
     gameTree,
   } = useGameStore();
@@ -310,11 +312,14 @@ const SidebarWidget = () => {
 
       if (!gameResultText && !isScoring) {
         if (!isNaturalEnd) {
-          const loserColor = currentPlayer === "BLACK" ? t('black') : t('white');
-          const winnerColor = currentPlayer === "BLACK" ? t('white') : t('black');
-          // It's a resignation.
-          setGameResultText(t('resignWin', { loser: loserColor, winner: winnerColor }));
-          
+          const loserColor = currentPlayer === "BLACK" ? "BLACK" : "WHITE";
+          const winnerColor = currentPlayer === "BLACK" ? "WHITE" : "BLACK";
+          const loserName = loserColor === "BLACK" ? t('black') : t('white');
+          const winnerName = winnerColor === "BLACK" ? t('black') : t('white');
+
+          setWinner(winnerColor);
+          setGameResultText(t('resignWin', { loser: loserName, winner: winnerName }));
+
           // Even on resignation, try to fetch dead stones for display
           fetchAIScore(
             moveHistory,
@@ -336,18 +341,13 @@ const SidebarWidget = () => {
               if (data.error === "NOT_FINISHED") {
                 setGameResultText(t('calcError') + ": " + t('scoringNotReady', { defaultValue: "대국이 아직 종료되지 않았습니다" }));
               } else if (data.score) {
-                const winner = data.score.startsWith("B")
-                  ? t('black')
-                  : data.score.startsWith("W")
-                    ? t('white')
-                    : null;
-                if (winner) {
-                  const diffMatch = data.score.match(/\+([0-9.]+)/);
-                  const diff = diffMatch ? diffMatch[1] : "";
-                  setGameResultText(t('winByScore', { winner, diff }));
-                } else {
-                  setGameResultText(t('draw'));
-                }
+                const winnerColor = data.score.startsWith("B") ? "BLACK" : "WHITE";
+                const winnerName = winnerColor === "BLACK" ? t('black') : t('white');
+
+                setWinner(winnerColor);
+                const diffMatch = data.score.match(/\+([0-9.]+)/);
+                const diff = diffMatch ? diffMatch[1] : "";
+                setGameResultText(t('winByScore', { winner: winnerName, diff }));
               } else {
                 setGameResultText(t('calcError'));
               }
@@ -363,7 +363,8 @@ const SidebarWidget = () => {
             })
             .finally(() => setIsScoring(false));
         }
-      } else if (gameResultText && !deadStones && !isScoring) {
+      }
+ else if (gameResultText && !deadStones && !isScoring) {
         // Text is already loaded (e.g. from history), but we still need dead stones
         setIsScoring(true);
         fetchAIScore(
@@ -410,24 +411,21 @@ const SidebarWidget = () => {
   }, [currentNode.id, isGameOver, isReviewMode]);
 
   const handleSaveMatch = () => {
-    let winnerColor: "BLACK" | "WHITE" = "BLACK";
+    let winnerColor: "BLACK" | "WHITE" = winner === "DRAW" || !winner ? "BLACK" : winner;
 
-    // Determine winner based on result text
-    if (gameResultText) {
-      // For resign: format is "{{loser}} resigned ({{winner}} wins)"
-      // The winner's name appears after "(" in resignWin pattern
+    // Determine winner based on result text only if winner state is not set (backup)
+    if (!winner && gameResultText) {
       const blackName = t('black');
       const whiteName = t('white');
       const resignBlackWin = t('resignWin', { loser: whiteName, winner: blackName });
-      const resignWhiteWin = t('resignWin', { loser: blackName, winner: whiteName });
-      const scoreBlackWin = gameResultText.startsWith(blackName);
+      const scoreBlackWin = gameResultText.startsWith(blackName) && !gameResultText.includes(t('resign'));
 
       if (gameResultText === resignBlackWin || scoreBlackWin) {
         winnerColor = "BLACK";
-      } else if (gameResultText === resignWhiteWin || gameResultText.startsWith(whiteName)) {
+      } else {
         winnerColor = "WHITE";
       }
-    } else {
+    } else if (!winner) {
       winnerColor = currentNode.winRate > 50 ? "BLACK" : "WHITE";
     }
 
@@ -886,8 +884,9 @@ const SidebarWidget = () => {
                       const parsedData = JSON.parse(f.match.sgfData);
                       // Regenerate result text in current language from structured data
                       let resultText = parsedData.resultText;
+                      let winnerColor: PlayerColor | "DRAW" | null = null;
                       if (parsedData.resultWinner || match.winner) {
-                        const winner = parsedData.resultWinner || match.winner;
+                        const winner = parsedData.resultWinner || (match.winner as PlayerColor);
                         // Check if stored resultText contains score info (e.g., "3.5집승")
                         const scoreMatch = parsedData.resultText?.match(/([0-9.]+)/);
                         if (scoreMatch && !parsedData.resultText?.includes(t('resign') || '기권')) {
@@ -898,8 +897,9 @@ const SidebarWidget = () => {
                           const winnerName = winner === "BLACK" ? t('black') : t('white');
                           resultText = t('resignWin', { loser, winner: winnerName });
                         }
+                        winnerColor = winner;
                       }
-                      loadMatch(parsedData.moves, parsedData.winRates, resultText, parsedData.boardSize, parsedData.handicap);
+                      loadMatch(parsedData.moves, parsedData.winRates, resultText, parsedData.boardSize, parsedData.handicap, winnerColor);
                       startReviewAnalysis(parsedData.moves, parsedData.winRates);
                       setActiveTab("game");
                     }}
