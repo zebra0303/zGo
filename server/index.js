@@ -106,7 +106,9 @@ const startKataGo = () => {
       const winrateMatch = output.match(/winrate\s*[:=]?\s*([0-9.]+)/i);
       if (winrateMatch) latestWinRate = parseFloat(winrateMatch[1]) * 100;
 
-      const rootTreeMatch = output.match(/^:\s*T\s+[-+0-9.a-z]+\s+W\s+([-+]?[0-9.]+)([c]?)/i);
+      const rootTreeMatch = output.match(
+        /^:\s*T\s+[-+0-9.a-z]+\s+W\s+([-+]?[0-9.]+)([c]?)/i,
+      );
       if (rootTreeMatch) {
         currentMultiRecommendations = [];
         let utility = parseFloat(rootTreeMatch[1]);
@@ -123,7 +125,9 @@ const startKataGo = () => {
         }
       }
 
-      const moveTreeMatch = output.match(/^([A-Z][0-9]{1,2})\s*:\s*T\s+.*?\s+W\s+([-+]?[0-9.]+)([c]?).*?\sN\s+(\d+)/i);
+      const moveTreeMatch = output.match(
+        /^([A-Z][0-9]{1,2})\s*:\s*T\s+.*?\s+W\s+([-+]?[0-9.]+)([c]?).*?\sN\s+(\d+)/i,
+      );
       if (moveTreeMatch) {
         let utility = parseFloat(moveTreeMatch[2]);
         if (moveTreeMatch[3] === "c") utility /= 100;
@@ -182,7 +186,8 @@ const sendCommandToKataGo = (command) => {
   });
 };
 
-const coordsToGtp = (x, y, boardSize = 19) => `ABCDEFGHJKLMNOPQRST`[x] + (boardSize - y);
+const coordsToGtp = (x, y, boardSize = 19) =>
+  `ABCDEFGHJKLMNOPQRST`[x] + (boardSize - y);
 const gtpToCoords = (gtp, boardSize = 19) => {
   if (!gtp || ["pass", "resign"].includes(gtp.toLowerCase())) return null;
   return {
@@ -224,7 +229,14 @@ const getHandicapStones = (boardSize, handicap) => {
   return coords;
 };
 
-const getMoveTactics = (x, y, board, color, language = "ko", boardSize = 19) => {
+const getMoveTactics = (
+  x,
+  y,
+  board,
+  color,
+  language = "ko",
+  boardSize = 19,
+) => {
   const opponent = color === "B" ? "WHITE" : "BLACK";
   const myColor = color === "B" ? "BLACK" : "WHITE";
   const actualBoardSize = board && board.length ? board.length : boardSize;
@@ -238,9 +250,20 @@ const getMoveTactics = (x, y, board, color, language = "ko", boardSize = 19) => 
     visited.add(`${tx},${ty}`);
     while (stack.length > 0) {
       const [cx, cy] = stack.pop();
-      for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
-        const nx = cx + dx, ny = cy + dy;
-        if (nx >= 0 && nx < actualBoardSize && ny >= 0 && ny < actualBoardSize) {
+      for (const [dx, dy] of [
+        [0, 1],
+        [0, -1],
+        [1, 0],
+        [-1, 0],
+      ]) {
+        const nx = cx + dx,
+          ny = cy + dy;
+        if (
+          nx >= 0 &&
+          nx < actualBoardSize &&
+          ny >= 0 &&
+          ny < actualBoardSize
+        ) {
           const key = `${nx},${ny}`;
           if (!visited.has(key)) {
             if (board[ny] && board[ny][nx] === null) {
@@ -256,9 +279,19 @@ const getMoveTactics = (x, y, board, color, language = "ko", boardSize = 19) => 
     }
     return libs;
   };
-  let isCapture = false, isAtari = false, isSaving = false, isConnection = false, isCut = false;
-  for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
-    const nx = x + dx, ny = y + dy;
+  let isCapture = false,
+    isAtari = false,
+    isSaving = false,
+    isConnection = false,
+    isCut = false;
+  for (const [dx, dy] of [
+    [0, 1],
+    [0, -1],
+    [1, 0],
+    [-1, 0],
+  ]) {
+    const nx = x + dx,
+      ny = y + dy;
     if (nx >= 0 && nx < actualBoardSize && ny >= 0 && ny < actualBoardSize) {
       if (!board[ny]) continue;
       const stone = board[ny][nx];
@@ -273,50 +306,150 @@ const getMoveTactics = (x, y, board, color, language = "ko", boardSize = 19) => 
     }
   }
   let oppCount = 0;
-  for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
-    const nx = x + dx, ny = y + dy;
-    if (nx >= 0 && nx < actualBoardSize && ny >= 0 && ny < actualBoardSize && board[ny] && board[ny][nx] === opponent)
+  for (const [dx, dy] of [
+    [0, 1],
+    [0, -1],
+    [1, 0],
+    [-1, 0],
+  ]) {
+    const nx = x + dx,
+      ny = y + dy;
+    if (
+      nx >= 0 &&
+      nx < actualBoardSize &&
+      ny >= 0 &&
+      ny < actualBoardSize &&
+      board[ny] &&
+      board[ny][nx] === opponent
+    )
       oppCount++;
   }
   if (oppCount >= 2) isCut = true;
   const cornerLimit = actualBoardSize >= 13 ? 3 : 2;
-  const isCorner = (x <= cornerLimit || x >= actualBoardSize - 1 - cornerLimit) && (y <= cornerLimit || y >= actualBoardSize - 1 - cornerLimit);
+  const isCorner =
+    (x <= cornerLimit || x >= actualBoardSize - 1 - cornerLimit) &&
+    (y <= cornerLimit || y >= actualBoardSize - 1 - cornerLimit);
   const sideLimit = actualBoardSize >= 13 ? 2 : 1;
-  const isSide = (x <= sideLimit || x >= actualBoardSize - 1 - sideLimit || y <= sideLimit || y >= actualBoardSize - 1 - sideLimit) && !isCorner;
-  
-  if (isCapture) return { type: "capture", urgency: 1, label: language === "en" ? "Move to capture opponent's stones" : "상대 돌을 따내는 수" };
-  if (isSaving) return { type: "saving", urgency: 2, label: language === "en" ? "Move to save endangered stones" : "위험한 내 돌을 살리는 수" };
-  if (isAtari) return { type: "atari", urgency: 3, label: language === "en" ? "Move to put opponent in Atari" : "상대를 단수로 모는 수" };
-  if (isCut) return { type: "cut", urgency: 4, label: language === "en" ? "Move to cut opponent's connection" : "상대의 연결을 끊는 수" };
-  if (isConnection) return { type: "connection", urgency: 5, label: language === "en" ? "Solid move to connect stones" : "내 돌을 연결하는 두터운 수" };
-  if (isCorner) return { type: "corner", urgency: 6, label: language === "en" ? "Move to secure corner territory" : "귀의 실리를 챙기는 수" };
-  if (isSide) return { type: "side", urgency: 7, label: language === "en" ? "Move to expand along the side" : "변을 확장하는 수" };
-  return { type: "center", urgency: 8, label: language === "en" ? "Move towards the center" : "중앙으로 나아가는 수" };
+  const isSide =
+    (x <= sideLimit ||
+      x >= actualBoardSize - 1 - sideLimit ||
+      y <= sideLimit ||
+      y >= actualBoardSize - 1 - sideLimit) &&
+    !isCorner;
+
+  if (isCapture)
+    return {
+      type: "capture",
+      urgency: 1,
+      label:
+        language === "en"
+          ? "Move to capture opponent's stones"
+          : "상대 돌을 따내는 수",
+    };
+  if (isSaving)
+    return {
+      type: "saving",
+      urgency: 2,
+      label:
+        language === "en"
+          ? "Move to save endangered stones"
+          : "위험한 내 돌을 살리는 수",
+    };
+  if (isAtari)
+    return {
+      type: "atari",
+      urgency: 3,
+      label:
+        language === "en"
+          ? "Move to put opponent in Atari"
+          : "상대를 단수로 모는 수",
+    };
+  if (isCut)
+    return {
+      type: "cut",
+      urgency: 4,
+      label:
+        language === "en"
+          ? "Move to cut opponent's connection"
+          : "상대의 연결을 끊는 수",
+    };
+  if (isConnection)
+    return {
+      type: "connection",
+      urgency: 5,
+      label:
+        language === "en"
+          ? "Solid move to connect stones"
+          : "내 돌을 연결하는 두터운 수",
+    };
+  if (isCorner)
+    return {
+      type: "corner",
+      urgency: 6,
+      label:
+        language === "en"
+          ? "Move to secure corner territory"
+          : "귀의 실리를 챙기는 수",
+    };
+  if (isSide)
+    return {
+      type: "side",
+      urgency: 7,
+      label:
+        language === "en"
+          ? "Move to expand along the side"
+          : "변을 확장하는 수",
+    };
+  return {
+    type: "center",
+    urgency: 8,
+    label:
+      language === "en" ? "Move towards the center" : "중앙으로 나아가는 수",
+  };
 };
 
-const getDetailedExplanation = (x, y, board, color, language = "ko", boardSize = 19) => {
+const getDetailedExplanation = (
+  x,
+  y,
+  board,
+  color,
+  language = "ko",
+  boardSize = 19,
+) => {
   const tactics = getMoveTactics(x, y, board, color, language, boardSize);
   const reasons = {
     ko: {
-      capture: "상대의 돌을 따낼 수 있는 아주 좋은 찬스입니다! 수읽기의 승리이며 국면의 주도권을 확실히 가져올 수 있습니다.",
-      saving: "자신의 돌이 단수 상태이거나 위험에 처해 있습니다. 이 돌을 살려내어 큰 손실을 막아야 하는 긴급한 상황입니다.",
-      atari: "상대의 돌을 단수(Atari)로 몰아 압박하는 수입니다. 상대의 응수를 강요하며 주도적으로 국면을 이끌 수 있습니다.",
+      capture:
+        "상대의 돌을 따낼 수 있는 아주 좋은 찬스입니다! 수읽기의 승리이며 국면의 주도권을 확실히 가져올 수 있습니다.",
+      saving:
+        "자신의 돌이 단수 상태이거나 위험에 처해 있습니다. 이 돌을 살려내어 큰 손실을 막아야 하는 긴급한 상황입니다.",
+      atari:
+        "상대의 돌을 단수(Atari)로 몰아 압박하는 수입니다. 상대의 응수를 강요하며 주도적으로 국면을 이끌 수 있습니다.",
       cut: "상대 진영의 약점을 찔러 돌을 끊어가는 날카로운 수입니다. 상대의 연결을 방해하고 혼란을 줄 수 있습니다.",
-      connection: "자신의 돌들을 튼튼하게 연결하는 두터운 수입니다. 약점을 보강하여 상대의 역습을 원천 봉쇄합니다.",
-      corner: "귀의 실리를 차지하거나 굳히는 포석의 급소입니다. 초반 주도권과 확실한 집을 확보하기 위해 가장 먼저 두어야 할 자리입니다.",
+      connection:
+        "자신의 돌들을 튼튼하게 연결하는 두터운 수입니다. 약점을 보강하여 상대의 역습을 원천 봉쇄합니다.",
+      corner:
+        "귀의 실리를 차지하거나 굳히는 포석의 급소입니다. 초반 주도권과 확실한 집을 확보하기 위해 가장 먼저 두어야 할 자리입니다.",
       side: "변으로 전개하여 세력을 넓히는 효율적인 수입니다. 상대의 침입을 방어하면서 동시에 자신의 집 모양을 키울 수 있습니다.",
-      center: "중앙의 두터움을 쌓아 전체적인 국면의 흐름을 조율하는 수입니다. 장기적인 안목에서 판을 넓게 보는 선택입니다.",
+      center:
+        "중앙의 두터움을 쌓아 전체적인 국면의 흐름을 조율하는 수입니다. 장기적인 안목에서 판을 넓게 보는 선택입니다.",
       default: "AI 엔진이 분석한 현재 국면의 급소입니다.",
     },
     en: {
-      capture: "Great chance to capture opponent stones! A tactical win that takes control.",
-      saving: "Your stones are in danger. It's urgent to save them to prevent huge loss.",
-      atari: "Puts the opponent in Atari to pressure them. Forces a response and takes the lead.",
+      capture:
+        "Great chance to capture opponent stones! A tactical win that takes control.",
+      saving:
+        "Your stones are in danger. It's urgent to save them to prevent huge loss.",
+      atari:
+        "Puts the opponent in Atari to pressure them. Forces a response and takes the lead.",
       cut: "A sharp move that cuts the opponent's weak points. Disrupts connection and causes chaos.",
-      connection: "A thick move that solidly connects your stones. Prevents opponent's counterattack.",
-      corner: "Crucial opening move to secure corner territory. Takes early initiative.",
+      connection:
+        "A thick move that solidly connects your stones. Prevents opponent's counterattack.",
+      corner:
+        "Crucial opening move to secure corner territory. Takes early initiative.",
       side: "Efficient move to expand along the side. Defends while growing your framework.",
-      center: "Builds thickness in the center to control the game flow. A long-term strategic choice.",
+      center:
+        "Builds thickness in the center to control the game flow. A long-term strategic choice.",
       default: "A key point analyzed by the AI engine.",
     },
   };
@@ -342,20 +475,71 @@ const processApiQueue = async () => {
   }
   isProcessingApiQueue = false;
   if (processedApiCount > MAX_API_CALLS_BEFORE_RESTART && !isProcessingQueue) {
-    console.log(`Processed ${processedApiCount} AI requests. Restarting KataGo to free memory...`);
+    console.log(
+      `Processed ${processedApiCount} AI requests. Restarting KataGo to free memory...`,
+    );
     processedApiCount = 0;
     startKataGo();
   }
 };
 
 app.post("/api/ai/move", async (req, res) => {
-  const { board, currentPlayer, isHintRequest, aiDifficulty, teacherVisits, lastUserMove, lastRecommendations, moves, language = "ko", boardSize = 19, handicap = 0 } = req.body;
-  if (!isKatagoReady) return res.status(503).json({ error: "AI Engine not ready yet" });
+  const {
+    board,
+    currentPlayer,
+    isHintRequest,
+    aiDifficulty,
+    teacherVisits,
+    lastUserMove,
+    lastRecommendations,
+    moves,
+    language = "ko",
+    boardSize = 19,
+    handicap = 0,
+  } = req.body;
+  if (!isKatagoReady)
+    return res.status(503).json({ error: "AI Engine not ready yet" });
 
   const executeKataGoTask = async () => {
     try {
-      const visitsMap = { 1: 1, 2: 2, 3: 5, 4: 10, 5: 20, 6: 30, 7: 50, 8: 75, 9: 100, 10: 150, 11: 200, 12: 250, 13: 300, 14: 400, 15: 500, 16: 600, 17: 700, 18: 800, 19: 1000, 20: 1500 };
-      const targetVisits = isHintRequest ? teacherVisits || 330 : aiDifficulty ? visitsMap[aiDifficulty] || 100 : 100;
+      const visitsMap = {
+        1: 1,
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1, // Super beginner: visits 1 + heavy random
+        6: 2,
+        7: 2,
+        8: 3,
+        9: 3,
+        10: 5, // Beginner: slightly better
+        11: 10,
+        12: 20,
+        13: 30,
+        14: 50,
+        15: 75, // Intermediate
+        16: 100,
+        17: 150,
+        18: 200,
+        19: 250,
+        20: 300, // Advanced
+        21: 400,
+        22: 500,
+        23: 600,
+        24: 700,
+        25: 800, // Expert
+        26: 1000,
+        27: 1200,
+        28: 1500,
+        29: 2000,
+        30: 2500, // Professional
+      };
+      const targetVisits = isHintRequest
+        ? teacherVisits || 330
+        : aiDifficulty
+          ? visitsMap[aiDifficulty] || 100
+          : 100;
+
       if (currentMaxVisits !== targetVisits) {
         try {
           await sendCommandToKataGo(`kata-set-param maxVisits ${targetVisits}`);
@@ -364,63 +548,191 @@ app.post("/api/ai/move", async (req, res) => {
           console.warn("Failed to set maxVisits:", e.message);
         }
       }
+
+      // Adjust parameters for amateur levels
+      if (!isHintRequest && aiDifficulty) {
+        try {
+          let temperature = 0.1; // Default
+          let playoutAdvantage = 0.0; // Default
+
+          if (aiDifficulty <= 5) {
+            temperature = 1.5; // Very random
+            playoutAdvantage = -2.0; // Self-handicap
+          } else if (aiDifficulty <= 10) {
+            temperature = 1.0;
+            playoutAdvantage = -1.0;
+          } else if (aiDifficulty <= 15) {
+            temperature = 0.5;
+            playoutAdvantage = -0.5;
+          }
+
+          await sendCommandToKataGo(
+            `kata-set-param chosenMoveTemperature ${temperature}`,
+          );
+          await sendCommandToKataGo(
+            `kata-set-param playoutDoublingAdvantage ${playoutAdvantage}`,
+          );
+        } catch (e) {
+          console.warn("Failed to set amateur params:", e.message);
+        }
+      } else {
+        // Reset to default for hints or high difficulty
+        try {
+          await sendCommandToKataGo(`kata-set-param chosenMoveTemperature 0.1`);
+          await sendCommandToKataGo(
+            `kata-set-param playoutDoublingAdvantage 0.0`,
+          );
+        } catch (e) {}
+      }
+
       await sendCommandToKataGo(`boardsize ${boardSize}`);
       await sendCommandToKataGo(`komi 6.5`);
       await sendCommandToKataGo("clear_board");
       if (handicap > 0) {
         const stones = getHandicapStones(boardSize, handicap);
-        const handicapGtp = stones.map(s => coordsToGtp(s.x, s.y, boardSize)).join(" ");
-        if (handicapGtp) await sendCommandToKataGo(`set_free_handicap ${handicapGtp}`);
+        const handicapGtp = stones
+          .map((s) => coordsToGtp(s.x, s.y, boardSize))
+          .join(" ");
+        if (handicapGtp)
+          await sendCommandToKataGo(`set_free_handicap ${handicapGtp}`);
       }
       const playCommands = [];
       if (moves && Array.isArray(moves)) {
         for (let i = 0; i < moves.length; i++) {
           const move = moves[i];
-          const moveColor = handicap > 0 ? (i % 2 === 0 ? "W" : "B") : (i % 2 === 0 ? "B" : "W");
-          if (move) playCommands.push(`play ${moveColor} ${coordsToGtp(move.x, move.y, boardSize)}`);
+          const moveColor =
+            handicap > 0 ? (i % 2 === 0 ? "W" : "B") : i % 2 === 0 ? "B" : "W";
+          if (move)
+            playCommands.push(
+              `play ${moveColor} ${coordsToGtp(move.x, move.y, boardSize)}`,
+            );
           else playCommands.push(`play ${moveColor} pass`);
         }
       }
       for (const cmd of playCommands) {
-        try { await sendCommandToKataGo(cmd); } catch (e) { console.warn(`Ignoring illegal move: ${cmd}`, e.message); }
+        try {
+          await sendCommandToKataGo(cmd);
+        } catch (e) {
+          console.warn(`Ignoring illegal move: ${cmd}`, e.message);
+        }
       }
       const color = currentPlayer === "BLACK" ? "B" : "W";
       let critique = null;
-      if (lastUserMove && lastRecommendations && lastRecommendations.length > 0) {
-        const isFollowed = lastRecommendations.some((rec) => rec.x === lastUserMove.x && rec.y === lastUserMove.y);
+      if (
+        lastUserMove &&
+        lastRecommendations &&
+        lastRecommendations.length > 0
+      ) {
+        const isFollowed = lastRecommendations.some(
+          (rec) => rec.x === lastUserMove.x && rec.y === lastUserMove.y,
+        );
         if (!isFollowed) {
           const lastBestMove = lastRecommendations[0];
-          const uT = getMoveTactics(lastUserMove.x, lastUserMove.y, board, color, language, boardSize);
-          const bT = getMoveTactics(lastBestMove.x, lastBestMove.y, board, color, language, boardSize);
-          if (bT.urgency < uT.urgency) critique = language === "en" ? `It's a pity you missed a more urgent ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize)}) than your move(${coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize)}).` : `방금 두신 수(${coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize)})보다 더 급한 ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize)}) 자리를 놓치신 것이 아쉽습니다.`;
-          else critique = language === "en" ? `Your move(${coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize)}) is good, but AI thinks ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize)}) or around is slightly more efficient.` : `두신 수(${coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize)})도 좋은 자리입니다만, AI는 ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize)})나 주변 지점이 조금 더 효율적이라고 판단했습니다.`;
+          const uT = getMoveTactics(
+            lastUserMove.x,
+            lastUserMove.y,
+            board,
+            color,
+            language,
+            boardSize,
+          );
+          const bT = getMoveTactics(
+            lastBestMove.x,
+            lastBestMove.y,
+            board,
+            color,
+            language,
+            boardSize,
+          );
+          if (bT.urgency < uT.urgency)
+            critique =
+              language === "en"
+                ? `It's a pity you missed a more urgent ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize)}) than your move(${coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize)}).`
+                : `방금 두신 수(${coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize)})보다 더 급한 ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize)}) 자리를 놓치신 것이 아쉽습니다.`;
+          else
+            critique =
+              language === "en"
+                ? `Your move(${coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize)}) is good, but AI thinks ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize)}) or around is slightly more efficient.`
+                : `두신 수(${coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize)})도 좋은 자리입니다만, AI는 ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize)})나 주변 지점이 조금 더 효율적이라고 판단했습니다.`;
         }
       }
       if (isHintRequest) {
         currentMultiRecommendations = [];
         const response = await sendCommandToKataGo(`genmove ${color}`);
         const coords = gtpToCoords(response, boardSize);
-        if (!coords) return res.json({ pass: true, explanation: language === "en" ? "AI considers there's nowhere else to play." : "AI가 더 이상 둘 곳이 없다고 판단했습니다.", critique });
-        let recs = currentMultiRecommendations.sort((a, b) => b.visits - a.visits).slice(0, 3).map((r) => {
-          const loc = gtpToCoords(r.move, boardSize);
-          return { ...loc, gtpMove: r.move, winRate: r.winrate, visits: r.visits, explanation: getDetailedExplanation(loc.x, loc.y, board, color, language, boardSize) };
-        });
-        if (recs.length === 0) recs.push({ ...coords, gtpMove: response, winRate: latestWinRate, visits: 100, explanation: getDetailedExplanation(coords.x, coords.y, board, color, language, boardSize) });
+        if (!coords)
+          return res.json({
+            pass: true,
+            explanation:
+              language === "en"
+                ? "AI considers there's nowhere else to play."
+                : "AI가 더 이상 둘 곳이 없다고 판단했습니다.",
+            critique,
+          });
+        let recs = currentMultiRecommendations
+          .sort((a, b) => b.visits - a.visits)
+          .slice(0, 3)
+          .map((r) => {
+            const loc = gtpToCoords(r.move, boardSize);
+            return {
+              ...loc,
+              gtpMove: r.move,
+              winRate: r.winrate,
+              visits: r.visits,
+              explanation: getDetailedExplanation(
+                loc.x,
+                loc.y,
+                board,
+                color,
+                language,
+                boardSize,
+              ),
+            };
+          });
+        if (recs.length === 0)
+          recs.push({
+            ...coords,
+            gtpMove: response,
+            winRate: latestWinRate,
+            visits: 100,
+            explanation: getDetailedExplanation(
+              coords.x,
+              coords.y,
+              board,
+              color,
+              language,
+              boardSize,
+            ),
+          });
         const lowRes = response.toLowerCase();
         if (lowRes !== "pass" && lowRes !== "resign") {
-          try { await sendCommandToKataGo("undo"); } catch (e) { console.warn("Undo failed:", e.message); }
+          try {
+            await sendCommandToKataGo("undo");
+          } catch (e) {
+            console.warn("Undo failed:", e.message);
+          }
         }
-        return res.json({ recommendations: recs, winRate: latestWinRate, critique });
+        return res.json({
+          recommendations: recs,
+          winRate: latestWinRate,
+          critique,
+        });
       } else {
         const response = await sendCommandToKataGo(`genmove ${color}`);
         const lowRes = response.toLowerCase();
         if (lowRes === "pass") return res.json({ pass: true });
         if (lowRes === "resign") return res.json({ resign: true });
-        return res.json({ move: gtpToCoords(response, boardSize), winRate: latestWinRate });
+        return res.json({
+          move: gtpToCoords(response, boardSize),
+          winRate: latestWinRate,
+        });
       }
     } catch (err) {
       console.error("API Error in /api/ai/move:", err);
-      if (!res.headersSent) res.status(500).json({ error: "GTP command failed", details: err.message });
+      if (!res.headersSent)
+        res
+          .status(500)
+          .json({ error: "GTP command failed", details: err.message });
     }
   };
   apiRequestQueue.push({ execute: executeKataGoTask });
@@ -429,85 +741,126 @@ app.post("/api/ai/move", async (req, res) => {
 
 app.post("/api/ai/analyze-game", (req, res) => {
   const { moves, boardSize = 19, handicap = 0 } = req.body;
-  if (!isKatagoReady) return res.status(503).json({ error: "AI Engine not ready yet" });
+  if (!isKatagoReady)
+    return res.status(503).json({ error: "AI Engine not ready yet" });
 
   res.writeHead(200, {
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache",
-    "Connection": "keep-alive",
+    Connection: "keep-alive",
   });
 
   let aborted = false;
-  res.on("close", () => { aborted = true; });
+  res.on("close", () => {
+    aborted = true;
+  });
 
   (async () => {
-  try {
-    // Wait for any current queue task to finish
-    while (isProcessingApiQueue) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    isProcessingApiQueue = true;
-
-    const prevMaxVisits = currentMaxVisits;
-    try { await sendCommandToKataGo(`kata-set-param maxVisits 50`); currentMaxVisits = 50; } catch (e) { console.warn("Failed to set maxVisits:", e.message); }
-
-    await sendCommandToKataGo(`boardsize ${boardSize}`);
-    await sendCommandToKataGo(`komi 6.5`);
-    await sendCommandToKataGo("clear_board");
-    if (handicap > 0) {
-      const stones = getHandicapStones(boardSize, handicap);
-      const handicapGtp = stones.map(s => coordsToGtp(s.x, s.y, boardSize)).join(" ");
-      if (handicapGtp) await sendCommandToKataGo(`set_free_handicap ${handicapGtp}`);
-    }
-
-    if (!aborted) res.write(`data: ${JSON.stringify({ moveIndex: 0, winRate: 50 })}\n\n`);
-
-    for (let i = 1; i < moves.length; i++) {
-      if (aborted) break;
-      const move = moves[i];
-      const color = handicap > 0 ? (((i - 1) % 2 === 0) ? "W" : "B") : (((i - 1) % 2 === 0) ? "B" : "W");
-
-      if (move) {
-        try { await sendCommandToKataGo(`play ${color} ${coordsToGtp(move.x, move.y, boardSize)}`); }
-        catch (e) { res.write(`data: ${JSON.stringify({ moveIndex: i, winRate: 50 })}\n\n`); continue; }
-      } else {
-        await sendCommandToKataGo(`play ${color} pass`);
+    try {
+      // Wait for any current queue task to finish
+      while (isProcessingApiQueue) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
+      isProcessingApiQueue = true;
 
-      if (aborted) break;
-
-      const nextColor = color === "B" ? "W" : "B";
+      const prevMaxVisits = currentMaxVisits;
       try {
-        await sendCommandToKataGo(`genmove ${nextColor}`);
-        await new Promise(resolve => setTimeout(resolve, 50));
-        await sendCommandToKataGo("undo");
+        await sendCommandToKataGo(`kata-set-param maxVisits 50`);
+        currentMaxVisits = 50;
       } catch (e) {
-        res.write(`data: ${JSON.stringify({ moveIndex: i, winRate: 50 })}\n\n`);
-        continue;
+        console.warn("Failed to set maxVisits:", e.message);
       }
 
-      const blackWinRate = nextColor === "B" ? latestWinRate : 100 - latestWinRate;
-      res.write(`data: ${JSON.stringify({ moveIndex: i, winRate: Math.round(blackWinRate * 100) / 100 })}\n\n`);
-    }
+      await sendCommandToKataGo(`boardsize ${boardSize}`);
+      await sendCommandToKataGo(`komi 6.5`);
+      await sendCommandToKataGo("clear_board");
+      if (handicap > 0) {
+        const stones = getHandicapStones(boardSize, handicap);
+        const handicapGtp = stones
+          .map((s) => coordsToGtp(s.x, s.y, boardSize))
+          .join(" ");
+        if (handicapGtp)
+          await sendCommandToKataGo(`set_free_handicap ${handicapGtp}`);
+      }
 
-    if (!aborted) res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-    if (prevMaxVisits && prevMaxVisits !== 50) {
-      try { await sendCommandToKataGo(`kata-set-param maxVisits ${prevMaxVisits}`); currentMaxVisits = prevMaxVisits; } catch (e) {}
+      if (!aborted)
+        res.write(`data: ${JSON.stringify({ moveIndex: 0, winRate: 50 })}\n\n`);
+
+      for (let i = 1; i < moves.length; i++) {
+        if (aborted) break;
+        const move = moves[i];
+        const color =
+          handicap > 0
+            ? (i - 1) % 2 === 0
+              ? "W"
+              : "B"
+            : (i - 1) % 2 === 0
+              ? "B"
+              : "W";
+
+        if (move) {
+          try {
+            await sendCommandToKataGo(
+              `play ${color} ${coordsToGtp(move.x, move.y, boardSize)}`,
+            );
+          } catch (e) {
+            res.write(
+              `data: ${JSON.stringify({ moveIndex: i, winRate: 50 })}\n\n`,
+            );
+            continue;
+          }
+        } else {
+          await sendCommandToKataGo(`play ${color} pass`);
+        }
+
+        if (aborted) break;
+
+        const nextColor = color === "B" ? "W" : "B";
+        try {
+          await sendCommandToKataGo(`genmove ${nextColor}`);
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          await sendCommandToKataGo("undo");
+        } catch (e) {
+          res.write(
+            `data: ${JSON.stringify({ moveIndex: i, winRate: 50 })}\n\n`,
+          );
+          continue;
+        }
+
+        const blackWinRate =
+          nextColor === "B" ? latestWinRate : 100 - latestWinRate;
+        res.write(
+          `data: ${JSON.stringify({ moveIndex: i, winRate: Math.round(blackWinRate * 100) / 100 })}\n\n`,
+        );
+      }
+
+      if (!aborted) res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      if (prevMaxVisits && prevMaxVisits !== 50) {
+        try {
+          await sendCommandToKataGo(
+            `kata-set-param maxVisits ${prevMaxVisits}`,
+          );
+          currentMaxVisits = prevMaxVisits;
+        } catch (e) {}
+      }
+      res.end();
+    } catch (err) {
+      console.error("[Analysis] Error:", err);
+      if (!res.writableEnded) {
+        res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+        res.end();
+      }
+    } finally {
+      isProcessingApiQueue = false;
+      processApiQueue();
     }
-    res.end();
-  } catch (err) {
-    console.error("[Analysis] Error:", err);
-    if (!res.writableEnded) { res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`); res.end(); }
-  } finally {
-    isProcessingApiQueue = false;
-    processApiQueue();
-  }
   })();
 });
 
 app.post("/api/ai/score", async (req, res) => {
   const { moves, boardSize = 19, handicap = 0 } = req.body;
-  if (!isKatagoReady) return res.status(503).json({ error: "AI Engine not ready yet" });
+  if (!isKatagoReady)
+    return res.status(503).json({ error: "AI Engine not ready yet" });
   const executeScoreTask = async () => {
     try {
       await sendCommandToKataGo(`boardsize ${boardSize}`);
@@ -515,22 +868,34 @@ app.post("/api/ai/score", async (req, res) => {
       await sendCommandToKataGo("clear_board");
       if (handicap > 0) {
         const stones = getHandicapStones(boardSize, handicap);
-        const handicapGtp = stones.map(s => coordsToGtp(s.x, s.y, boardSize)).join(" ");
-        if (handicapGtp) await sendCommandToKataGo(`set_free_handicap ${handicapGtp}`);
+        const handicapGtp = stones
+          .map((s) => coordsToGtp(s.x, s.y, boardSize))
+          .join(" ");
+        if (handicapGtp)
+          await sendCommandToKataGo(`set_free_handicap ${handicapGtp}`);
       }
       const scoreCommands = [];
       if (moves && Array.isArray(moves)) {
         for (let i = 0; i < moves.length; i++) {
           const move = moves[i];
-          const moveColor = handicap > 0 ? (i % 2 === 0 ? "W" : "B") : (i % 2 === 0 ? "B" : "W");
-          if (move) scoreCommands.push(`play ${moveColor} ${coordsToGtp(move.x, move.y, boardSize)}`);
+          const moveColor =
+            handicap > 0 ? (i % 2 === 0 ? "W" : "B") : i % 2 === 0 ? "B" : "W";
+          if (move)
+            scoreCommands.push(
+              `play ${moveColor} ${coordsToGtp(move.x, move.y, boardSize)}`,
+            );
           else scoreCommands.push(`play ${moveColor} pass`);
         }
       }
       for (const cmd of scoreCommands) {
-        try { await sendCommandToKataGo(cmd); } catch (e) { console.warn(`Ignoring illegal move: ${cmd}`, e.message); }
+        try {
+          await sendCommandToKataGo(cmd);
+        } catch (e) {
+          console.warn(`Ignoring illegal move: ${cmd}`, e.message);
+        }
       }
-      let scoreResponse, scoreUnavailable = false;
+      let scoreResponse,
+        scoreUnavailable = false;
       try {
         const rawScore = await sendCommandToKataGo("final_score");
         scoreResponse = rawScore.trim();
@@ -541,15 +906,31 @@ app.post("/api/ai/score", async (req, res) => {
       }
       let deadStones = [];
       try {
-        const deadStonesResponse = await sendCommandToKataGo("final_status_list dead");
+        const deadStonesResponse = await sendCommandToKataGo(
+          "final_status_list dead",
+        );
         if (deadStonesResponse && deadStonesResponse.trim()) {
-          deadStones = deadStonesResponse.trim().split(/\s+/).filter(gtp => gtp.length >= 2).map(gtp => gtpToCoords(gtp, boardSize)).filter(coord => coord !== null);
+          deadStones = deadStonesResponse
+            .trim()
+            .split(/\s+/)
+            .filter((gtp) => gtp.length >= 2)
+            .map((gtp) => gtpToCoords(gtp, boardSize))
+            .filter((coord) => coord !== null);
         }
-      } catch (e) { console.warn("final_status_list dead failed:", e.message); }
-      return res.json({ score: scoreResponse, deadStones: deadStones, error: scoreUnavailable ? "NOT_FINISHED" : null });
+      } catch (e) {
+        console.warn("final_status_list dead failed:", e.message);
+      }
+      return res.json({
+        score: scoreResponse,
+        deadStones: deadStones,
+        error: scoreUnavailable ? "NOT_FINISHED" : null,
+      });
     } catch (err) {
       console.error("API Error in /api/ai/score:", err);
-      if (!res.headersSent) res.status(500).json({ error: "GTP command failed", details: err.message });
+      if (!res.headersSent)
+        res
+          .status(500)
+          .json({ error: "GTP command failed", details: err.message });
     }
   };
   apiRequestQueue.push({ execute: executeScoreTask });
@@ -558,19 +939,28 @@ app.post("/api/ai/score", async (req, res) => {
 
 app.post("/api/matches", (req, res) => {
   const { mode, aiDifficulty, humanColor, winner, sgfData } = req.body;
-  const stmt = db.prepare(`INSERT INTO matches (mode, aiDifficulty, humanColor, winner, date, sgfData) VALUES (?, ?, ?, ?, ?, ?)`);
-  stmt.run([mode, aiDifficulty, humanColor, winner, new Date().toISOString(), sgfData], function (err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ id: this.lastID, message: "Match saved successfully" });
-  });
+  const stmt = db.prepare(
+    `INSERT INTO matches (mode, aiDifficulty, humanColor, winner, date, sgfData) VALUES (?, ?, ?, ?, ?, ?)`,
+  );
+  stmt.run(
+    [mode, aiDifficulty, humanColor, winner, new Date().toISOString(), sgfData],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ id: this.lastID, message: "Match saved successfully" });
+    },
+  );
   stmt.finalize();
 });
 
 app.get("/api/matches", (req, res) => {
-  db.all(`SELECT id, mode, aiDifficulty, humanColor, winner, date FROM matches ORDER BY id DESC`, [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ matches: rows });
-  });
+  db.all(
+    `SELECT id, mode, aiDifficulty, humanColor, winner, date FROM matches ORDER BY id DESC`,
+    [],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ matches: rows });
+    },
+  );
 });
 
 app.get("/api/matches/:id", (req, res) => {
@@ -585,7 +975,8 @@ app.delete("/api/matches/:id", (req, res) => {
   const stmt = db.prepare(`DELETE FROM matches WHERE id = ?`);
   stmt.run([req.params.id], function (err) {
     if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0) return res.status(404).json({ error: "Match not found" });
+    if (this.changes === 0)
+      return res.status(404).json({ error: "Match not found" });
     res.json({ message: "Match deleted successfully" });
   });
   stmt.finalize();
@@ -595,7 +986,9 @@ app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, "../client/dist/index.html"));
 });
 
-app.listen(PORT, () => console.log(`Server is running on http://localhost:${PORT}`));
+app.listen(PORT, () =>
+  console.log(`Server is running on http://localhost:${PORT}`),
+);
 
 // Export for testing
 module.exports = {
@@ -605,4 +998,3 @@ module.exports = {
   getMoveTactics,
   getDetailedExplanation,
 };
-
