@@ -12,14 +12,15 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.0.0",
+    "@zebra/core": "github:zebra0303/zCore#main",
     "i18next": "^25.8.17",
     "immer": "^11.1.4",
-    "lucide-react": "^0.300.0",
+    "lucide-react": "^0.400.0",
     "node-fetch": "^3.3.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-i18next": "^16.5.7",
-    "zustand": "^4.4.0"
+    "zustand": "^5.0.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.1.0",

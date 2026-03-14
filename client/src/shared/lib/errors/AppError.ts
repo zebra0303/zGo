@@ -1,23 +1,23 @@
-export class AppError extends Error {
-  public statusCode?: number;
+import { ApiError } from "@zebra/core";
+
+export class AppError extends ApiError {
   public code?: string;
   public isOperational: boolean;
 
   constructor(
     message: string,
-    statusCode?: number,
+    statusCode: number = 500,
     code?: string,
     isOperational = true,
   ) {
-    super(message);
+    super(message, statusCode, { code, isOperational });
     this.name = this.constructor.name;
-    this.statusCode = statusCode;
     this.code = code;
     this.isOperational = isOperational;
+  }
 
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, this.constructor);
-    }
+  get statusCode() {
+    return this.status;
   }
 }
 
