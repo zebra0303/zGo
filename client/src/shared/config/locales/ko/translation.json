@@ -65,5 +65,12 @@
   "reviewGo": "복기하기 →",
   "language": "언어",
   "teacherModeActive": "AI 선생님 조언 활성화 중...",
-  "winRate": "승률 분석"
+  "winRate": "승률 분석",
+  "showDeadStones": "사석 보기",
+  "toggleDeadStonesTitle": "최종 수에서만 사석을 볼 수 있습니다",
+  "variations": "갈림길",
+  "analyzingProgress": "AI 분석 중 {{current}}/{{total}}...",
+  "analysisComplete": "분석 완료",
+  "blackWins": "흑 승",
+  "whiteWins": "백 승"
 }

@@ -1,5 +1,5 @@
 import React from "react";
-import { useGameStore } from "@/entities/match/model/store";
+import { useGameStore, getPathToNode } from "@/entities/match/model/store";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAIHint } from "@/shared/api/gameApi";
 import { playStoneSound } from "@/shared/lib/sound";
@@ -29,14 +29,14 @@ const BoardCore: React.FC = () => {
     boardSize,
     board,
     placeStone,
-    moveCoordinates,
-    currentMoveIndex,
+    currentNode,
     isTeacherMode,
     currentPlayer,
     isGameOver,
     gameMode,
     humanPlayerColor,
     isReviewMode,
+    showDeadStones,
     boardScale,
     soundEnabled,
     soundVolume,
@@ -46,6 +46,8 @@ const BoardCore: React.FC = () => {
     language,
     handicap,
     deadStones,
+    goToNextMove,
+    gameTree,
   } = useGameStore();
 
   const CELL_SIZE = BASE_CELL_SIZE * boardScale;
@@ -53,8 +55,9 @@ const BoardCore: React.FC = () => {
   const BOARD_PIXEL_SIZE = CELL_SIZE * (boardSize - 1) + MARGIN * 2;
 
   const handleBoardClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (gameMode === "PvAI" && currentPlayer !== humanPlayerColor) return;
-    if (isReviewMode) return;
+    // In game mode, prevent clicking if it's AI's turn. 
+    // In review mode, allow clicking freely to explore variations.
+    if (!isReviewMode && gameMode === "PvAI" && currentPlayer !== humanPlayerColor) return;
 
     const svg = e.currentTarget;
     const rect = svg.getBoundingClientRect();
@@ -70,32 +73,43 @@ const BoardCore: React.FC = () => {
     }
   };
 
-  const lastMove = moveCoordinates[currentMoveIndex];
+  const lastMove = { x: currentNode.x, y: currentNode.y };
 
   const { data: aiData } = useQuery({
     queryKey: [
       "aiHint",
-      currentMoveIndex,
+      currentNode.id, // Only depend on ID
       currentPlayer,
       aiDifficulty,
       teacherVisits,
-      moveCoordinates,
       language,
       boardSize,
       handicap,
     ],
-    queryFn: ({ signal }) =>
-      fetchAIHint(
+    queryFn: ({ signal }) => {
+      // Get history ONLY inside queryFn to keep queryKey stable
+      const getMoveHistory = () => {
+        const path = getPathToNode(gameTree, currentNode.id) || [currentNode];
+        const moves: ({ x: number; y: number } | null)[] = [];
+        for (let i = 1; i < path.length; i++) {
+          const node = path[i];
+          moves.push(node.x !== null && node.y !== null ? { x: node.x, y: node.y } : null);
+        }
+        return moves;
+      };
+      
+      return fetchAIHint(
         board,
         currentPlayer,
         aiDifficulty,
         teacherVisits,
-        moveCoordinates.slice(1, currentMoveIndex + 1),
+        getMoveHistory(),
         signal,
         language,
         boardSize,
         handicap,
-      ),
+      );
+    },
     enabled:
       isTeacherMode &&
       !isGameOver &&
@@ -103,6 +117,9 @@ const BoardCore: React.FC = () => {
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   });
+
+  const isFinalMove = currentNode.children.length === 0;
+  const shouldShowDeadStones = (isGameOver || isReviewMode) && showDeadStones && isFinalMove;
 
   return (
     <svg
@@ -145,6 +162,44 @@ const BoardCore: React.FC = () => {
           fill="var(--board-line)"
         />
       ))}
+
+      {/* Variation Markers (A, B, C...) */}
+      {isReviewMode && currentNode.children.map((child, idx) => {
+        if (child.x === null || child.y === null) return null;
+        const label = String.fromCharCode(65 + idx); // A, B, C...
+        return (
+          <g 
+            key={`var-${child.id}`} 
+            onClick={(e) => {
+              e.stopPropagation();
+              goToNextMove(idx);
+            }}
+            className="cursor-pointer group"
+          >
+            <rect
+              x={MARGIN + child.x * CELL_SIZE - CELL_SIZE/3}
+              y={MARGIN + child.y * CELL_SIZE - CELL_SIZE/3}
+              width={CELL_SIZE/1.5}
+              height={CELL_SIZE/1.5}
+              rx="2"
+              fill="rgba(59, 130, 246, 0.8)"
+              className="group-hover:fill-blue-600 transition-colors"
+            />
+            <text
+              x={MARGIN + child.x * CELL_SIZE}
+              y={MARGIN + child.y * CELL_SIZE}
+              dominantBaseline="central"
+              textAnchor="middle"
+              fill="white"
+              fontSize={CELL_SIZE/2}
+              fontWeight="bold"
+              style={{ pointerEvents: "none" }}
+            >
+              {label}
+            </text>
+          </g>
+        );
+      })}
 
       {/* AI 힌트 하이라이트 */}
       {isTeacherMode &&
@@ -195,7 +250,7 @@ const BoardCore: React.FC = () => {
         row.map((stone, x) => {
           if (!stone) return null;
           const isLastMove = lastMove?.x === x && lastMove?.y === y;
-          const isDead = isGameOver && deadStones?.some((ds) => ds.x === x && ds.y === y);
+          const isDead = shouldShowDeadStones && deadStones?.some((ds) => ds.x === x && ds.y === y);
 
           return (
             <g key={`stone-group-${x}-${y}`} className={isDead ? "opacity-40" : ""}>
@@ -222,7 +277,7 @@ const BoardCore: React.FC = () => {
       )}
 
       {/* 사석 표시 레이어 (최상단) */}
-      {isGameOver && deadStones && deadStones.map((ds, idx) => {
+      {shouldShowDeadStones && deadStones && deadStones.map((ds, idx) => {
         const stone = board[ds.y] ? board[ds.y][ds.x] : null;
         if (!stone) return null;
         return (

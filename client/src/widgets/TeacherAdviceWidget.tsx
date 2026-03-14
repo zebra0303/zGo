@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useGameStore } from "@/entities/match/model/store";
+import { useGameStore, getPathToNode } from "@/entities/match/model/store";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAIHint, API_BASE_URL } from "@/shared/api/gameApi";
 
@@ -13,55 +13,59 @@ const TeacherAdviceWidget = () => {
     board,
     currentPlayer,
     isTeacherMode,
-    currentMoveIndex,
-    history: gameHistory,
+    currentNode,
     gameMode,
     aiDifficulty,
     humanPlayerColor,
     isGameOver,
-    moveCoordinates,
     teacherVisits,
     ignoredRecommendation,
-    setIgnoredRecommendation,
     teacherCritique,
-    setTeacherCritique,
     updateWinRate,
     language,
     boardSize,
     handicap,
+    gameTree,
   } = useGameStore();
 
   const [lastCritiquedMove, setLastCritiquedMove] = useState<string | null>(null);
-  const lastRecommendationRef = useRef<{
-    recommendations?: { x: number; y: number; winRate?: number; visits?: number; gtpMove: string; explanation: string }[];
-  } | null>(null);
-  const fetchingCritiqueForIndex = useRef<number | null>(null);
+  const recommendationsByNodeId = useRef<Record<string, { x: number; y: number; winRate?: number; visits?: number; gtpMove: string; explanation: string }[]>>({});
+  const fetchingCritiqueForNodeId = useRef<string | null>(null);
 
   // API 호출을 통한 힌트 요청
   const { data: aiData, isFetching: isFetchingHint } = useQuery({
     queryKey: [
       "aiHint",
-      currentMoveIndex,
+      currentNode.id,
       currentPlayer,
       aiDifficulty,
       teacherVisits,
-      moveCoordinates,
       language,
       boardSize,
       handicap,
     ],
-    queryFn: ({ signal }) =>
-      fetchAIHint(
+    queryFn: async ({ signal }) => {
+      // Get history ONLY inside queryFn to keep queryKey stable
+      const path = getPathToNode(gameTree, currentNode.id) || [currentNode];
+      const moves: ({ x: number; y: number } | null)[] = [];
+      for (let i = 1; i < path.length; i++) {
+        const node = path[i];
+        moves.push(node.x !== null && node.y !== null ? { x: node.x, y: node.y } : null);
+      }
+      
+      const data = await fetchAIHint(
         board,
         currentPlayer,
         aiDifficulty,
         teacherVisits,
-        moveCoordinates.slice(1, currentMoveIndex + 1),
+        moves,
         signal,
         language,
         boardSize,
         handicap,
-      ),
+      );
+      return { ...data, nodeId: currentNode.id };
+    },
     enabled:
       isTeacherMode &&
       !isGameOver &&
@@ -72,47 +76,62 @@ const TeacherAdviceWidget = () => {
 
   // Update win rate in store when AI data is received
   useEffect(() => {
-    if (aiData && aiData.winRate) {
+    if (aiData && typeof aiData.winRate === "number" && aiData.nodeId === currentNode.id) {
       const blackWinRate =
         currentPlayer === "BLACK" ? aiData.winRate : 100 - aiData.winRate;
-      updateWinRate(currentMoveIndex, blackWinRate);
+      console.log(`[TeacherAdvice] Fetched winrate for node ${currentNode.id}: aiData.winRate=${aiData.winRate}, blackWinRate=${blackWinRate}`);
+      // Only update if current store winRate is different to avoid redundant renders
+      if (currentNode.winRate !== blackWinRate) {
+        console.log(`[TeacherAdvice] Updating store winRate from ${currentNode.winRate} to ${blackWinRate}`);
+        updateWinRate(currentNode.id, blackWinRate);
+      }
     }
-  }, [aiData, currentMoveIndex, updateWinRate, currentPlayer]);
+  }, [aiData, currentNode.id, currentNode.winRate, updateWinRate, currentPlayer]);
 
   // Track the recommendation to contrast it later
   useEffect(() => {
-    if (aiData?.recommendations) {
-      lastRecommendationRef.current = aiData;
+    if (aiData?.recommendations && aiData.nodeId === currentNode.id) {
+      recommendationsByNodeId.current[currentNode.id] = aiData.recommendations;
     }
-  }, [aiData]);
+  }, [aiData, currentNode.id]);
 
   const fetchCritique = useCallback(
     async (
       userMove: { x: number; y: number },
       bestMoves: { x: number; y: number }[],
-      moveIndex: number,
+      targetNode: any,
       signal: AbortSignal,
     ) => {
-      if (fetchingCritiqueForIndex.current === moveIndex) return;
-      fetchingCritiqueForIndex.current = moveIndex;
+      if (fetchingCritiqueForNodeId.current === targetNode.id) return;
+      fetchingCritiqueForNodeId.current = targetNode.id;
 
       try {
+        const path = getPathToNode(useGameStore.getState().gameTree, targetNode.id);
+        if (!path || path.length < 2) return;
+        
+        const parentNode = path[path.length - 2];
+        const moves: ({ x: number; y: number } | null)[] = [];
+        for (let i = 1; i < path.length - 1; i++) {
+          const node = path[i];
+          moves.push(node.x !== null && node.y !== null ? { x: node.x, y: node.y } : null);
+        }
+
         const response = await fetch(
           `${API_BASE_URL}/ai/move`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              board: gameHistory[moveIndex - 1],
+              board: parentNode.board,
               currentPlayer: handicap > 0
-                ? ((moveIndex - 1) % 2 === 0 ? "WHITE" : "BLACK")
-                : ((moveIndex - 1) % 2 === 0 ? "BLACK" : "WHITE"),
+                ? (parentNode.moveIndex % 2 === 0 ? "WHITE" : "BLACK")
+                : (parentNode.moveIndex % 2 === 0 ? "BLACK" : "WHITE"),
               isHintRequest: true,
               aiDifficulty,
               teacherVisits,
               lastUserMove: userMove,
               lastRecommendations: bestMoves,
-              moves: moveCoordinates.slice(1, moveIndex),
+              moves: moves,
               language,
               boardSize,
               handicap,
@@ -123,9 +142,11 @@ const TeacherAdviceWidget = () => {
         const data = await response.json();
 
         const currentStoreState = useGameStore.getState();
-        if (currentStoreState.currentMoveIndex >= moveIndex && data.critique) {
-          setTeacherCritique(data.critique);
-          setIgnoredRecommendation(bestMoves);
+        if (currentStoreState.currentNode.id === targetNode.id && data.critique) {
+          useGameStore.setState({ 
+            teacherCritique: data.critique, 
+            ignoredRecommendation: bestMoves 
+          });
           setLastCritiquedMove(coordsToGtp(userMove.x, userMove.y, boardSize));
         }
       } catch (err) {
@@ -134,18 +155,14 @@ const TeacherAdviceWidget = () => {
           console.error("Critique fetch failed", e);
         }
       } finally {
-        if (fetchingCritiqueForIndex.current === moveIndex) {
-          fetchingCritiqueForIndex.current = null;
+        if (fetchingCritiqueForNodeId.current === targetNode.id) {
+          fetchingCritiqueForNodeId.current = null;
         }
       }
     },
     [
       aiDifficulty,
-      gameHistory,
       teacherVisits,
-      setIgnoredRecommendation,
-      setTeacherCritique,
-      moveCoordinates,
       language,
       boardSize,
       handicap,
@@ -154,42 +171,44 @@ const TeacherAdviceWidget = () => {
 
   // Listen for move changes to determine if we should show a critique
   useEffect(() => {
-    if (!isTeacherMode || currentMoveIndex === 0) {
-      setTeacherCritique(null);
-      setIgnoredRecommendation(null);
+    const currentState = useGameStore.getState();
+    
+    if (!isTeacherMode || currentNode.id === "root") {
+      if (currentState.teacherCritique !== null || currentState.ignoredRecommendation !== null) {
+        useGameStore.setState({ teacherCritique: null, ignoredRecommendation: null });
+      }
       setLastCritiquedMove(null);
       return;
     }
 
-    const lastMove = moveCoordinates[currentMoveIndex];
-    const rec = lastRecommendationRef.current;
+    const lastMove = (currentNode.x !== null && currentNode.y !== null) ? { x: currentNode.x, y: currentNode.y } : null;
+    
+    const path = getPathToNode(currentState.gameTree, currentNode.id);
+    const parentNode = path && path.length > 1 ? path[path.length - 2] : null;
+    const rec = parentNode ? recommendationsByNodeId.current[parentNode.id] : null;
 
-    // Determine move color of the JUST played move
     const moveColor = handicap > 0
-      ? (currentMoveIndex % 2 === 1 ? "WHITE" : "BLACK")
-      : (currentMoveIndex % 2 === 1 ? "BLACK" : "WHITE");
+      ? (currentNode.moveIndex % 2 === 1 ? "WHITE" : "BLACK")
+      : (currentNode.moveIndex % 2 === 1 ? "BLACK" : "WHITE");
 
-    // In PvAI mode, ONLY trigger/clear critique when it's the human's move.
-    // This allows the critique to persist while the AI is moving and after it responds.
     if (gameMode === "PvAI" && moveColor !== humanPlayerColor) {
       return;
     }
 
-    // If we are here, it's either PvP mode OR PvAI mode with a human move.
-    // Clear PREVIOUS critique before starting new analysis for the current move.
-    setTeacherCritique(null);
-    setIgnoredRecommendation(null);
+    if (currentState.teacherCritique !== null || currentState.ignoredRecommendation !== null) {
+      useGameStore.setState({ teacherCritique: null, ignoredRecommendation: null });
+    }
     setLastCritiquedMove(null);
 
     const abortController = new AbortController();
 
-    if (lastMove && rec?.recommendations && rec.recommendations.length > 0) {
-      const isFollowed = rec.recommendations.some(r => r.x === lastMove.x && r.y === lastMove.y);
+    if (lastMove && rec && rec.length > 0) {
+      const isFollowed = rec.some(r => r.x === lastMove.x && r.y === lastMove.y);
       if (!isFollowed) {
         fetchCritique(
           lastMove,
-          rec.recommendations,
-          currentMoveIndex,
+          rec,
+          currentNode,
           abortController.signal,
         );
       }
@@ -199,13 +218,10 @@ const TeacherAdviceWidget = () => {
       abortController.abort();
     };
   }, [
-    currentMoveIndex,
+    currentNode.id,
     isTeacherMode,
     humanPlayerColor,
     gameMode,
-    moveCoordinates,
-    setIgnoredRecommendation,
-    setTeacherCritique,
     fetchCritique,
     handicap,
   ]);

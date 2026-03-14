@@ -427,6 +427,84 @@ app.post("/api/ai/move", async (req, res) => {
   processApiQueue();
 });
 
+app.post("/api/ai/analyze-game", (req, res) => {
+  const { moves, boardSize = 19, handicap = 0 } = req.body;
+  if (!isKatagoReady) return res.status(503).json({ error: "AI Engine not ready yet" });
+
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+  });
+
+  let aborted = false;
+  res.on("close", () => { aborted = true; });
+
+  (async () => {
+  try {
+    // Wait for any current queue task to finish
+    while (isProcessingApiQueue) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    isProcessingApiQueue = true;
+
+    const prevMaxVisits = currentMaxVisits;
+    try { await sendCommandToKataGo(`kata-set-param maxVisits 50`); currentMaxVisits = 50; } catch (e) { console.warn("Failed to set maxVisits:", e.message); }
+
+    await sendCommandToKataGo(`boardsize ${boardSize}`);
+    await sendCommandToKataGo(`komi 6.5`);
+    await sendCommandToKataGo("clear_board");
+    if (handicap > 0) {
+      const stones = getHandicapStones(boardSize, handicap);
+      const handicapGtp = stones.map(s => coordsToGtp(s.x, s.y, boardSize)).join(" ");
+      if (handicapGtp) await sendCommandToKataGo(`set_free_handicap ${handicapGtp}`);
+    }
+
+    if (!aborted) res.write(`data: ${JSON.stringify({ moveIndex: 0, winRate: 50 })}\n\n`);
+
+    for (let i = 1; i < moves.length; i++) {
+      if (aborted) break;
+      const move = moves[i];
+      const color = handicap > 0 ? (((i - 1) % 2 === 0) ? "W" : "B") : (((i - 1) % 2 === 0) ? "B" : "W");
+
+      if (move) {
+        try { await sendCommandToKataGo(`play ${color} ${coordsToGtp(move.x, move.y, boardSize)}`); }
+        catch (e) { res.write(`data: ${JSON.stringify({ moveIndex: i, winRate: 50 })}\n\n`); continue; }
+      } else {
+        await sendCommandToKataGo(`play ${color} pass`);
+      }
+
+      if (aborted) break;
+
+      const nextColor = color === "B" ? "W" : "B";
+      try {
+        await sendCommandToKataGo(`genmove ${nextColor}`);
+        await new Promise(resolve => setTimeout(resolve, 50));
+        await sendCommandToKataGo("undo");
+      } catch (e) {
+        res.write(`data: ${JSON.stringify({ moveIndex: i, winRate: 50 })}\n\n`);
+        continue;
+      }
+
+      const blackWinRate = nextColor === "B" ? latestWinRate : 100 - latestWinRate;
+      res.write(`data: ${JSON.stringify({ moveIndex: i, winRate: Math.round(blackWinRate * 100) / 100 })}\n\n`);
+    }
+
+    if (!aborted) res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+    if (prevMaxVisits && prevMaxVisits !== 50) {
+      try { await sendCommandToKataGo(`kata-set-param maxVisits ${prevMaxVisits}`); currentMaxVisits = prevMaxVisits; } catch (e) {}
+    }
+    res.end();
+  } catch (err) {
+    console.error("[Analysis] Error:", err);
+    if (!res.writableEnded) { res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`); res.end(); }
+  } finally {
+    isProcessingApiQueue = false;
+    processApiQueue();
+  }
+  })();
+});
+
 app.post("/api/ai/score", async (req, res) => {
   const { moves, boardSize = 19, handicap = 0 } = req.body;
   if (!isKatagoReady) return res.status(503).json({ error: "AI Engine not ready yet" });

@@ -4,18 +4,31 @@ import { applyMove } from "@/entities/board/lib/goLogic";
 import { queryClient } from "@/shared/api/queryClient";
 import { produce } from "immer";
 import { BoardState, PlayerColor } from "@/entities/board/model/types";
+import { flattenTree, reconstructTree } from "@/shared/lib/treeUtils";
+
+export interface HistoryNode {
+  id: string;
+  x: number | null; // null for pass or initial node
+  y: number | null;
+  color: PlayerColor | null;
+  board: BoardState;
+  capturedByBlack: number;
+  capturedByWhite: number;
+  winRate: number;
+  children: HistoryNode[];
+  parent: HistoryNode | null;
+  moveIndex: number;
+}
 
 interface GameState {
   board: BoardState;
   currentPlayer: PlayerColor;
   isTeacherMode: boolean;
-  history: BoardState[];
-  moveCoordinates: ({ x: number; y: number } | null)[];
-  winRates: number[];
-  currentMoveIndex: number;
-  capturedByBlack: number;
-  capturedByWhite: number;
-
+  
+  // Tree-based History
+  gameTree: HistoryNode;
+  currentNode: HistoryNode;
+  
   // Game Settings
   gameMode: "PvP" | "PvAI";
   aiDifficulty: number;
@@ -28,6 +41,7 @@ interface GameState {
   consecutivePasses: number;
   isGameOver: boolean;
   isReviewMode: boolean;
+  showDeadStones: boolean;
   boardScale: number;
   soundEnabled: boolean;
   soundVolume: number;
@@ -35,20 +49,33 @@ interface GameState {
   ignoredRecommendation: { x: number; y: number }[] | null;
   teacherCritique: string | null;
   deadStones: { x: number; y: number }[] | null;
+  gameResultText: string | null;
+  isScoring: boolean;
+  isAnalyzing: boolean;
+  analysisProgress: { current: number; total: number } | null;
 
   placeStone: (x: number, y: number) => void;
   passTurn: () => void;
   resignGame: () => void;
   toggleTeacherMode: () => void;
+  toggleDeadStones: () => void;
   setTeacherCritique: (c: string | null) => void;
   setDeadStones: (stones: { x: number; y: number }[] | null) => void;
+  setGameResultText: (text: string | null) => void;
+  setIsScoring: (isScoring: boolean) => void;
+  setIsAnalyzing: (isAnalyzing: boolean) => void;
+  setAnalysisProgress: (progress: { current: number; total: number } | null) => void;
   goToPreviousMove: () => void;
-  goToNextMove: () => void;
+  goToNextMove: (variationIndex?: number) => void;
   setMoveIndex: (index: number) => void;
-  updateWinRate: (index: number, winRate: number) => void;
+  setCurrentNode: (nodeId: string) => void;
+  updateWinRate: (nodeId: string, winRate: number) => void;
   loadMatch: (
     moves: ({ x: number; y: number } | null)[],
     winRates?: number[],
+    resultText?: string,
+    savedBoardSize?: number,
+    savedHandicap?: number,
   ) => void;
   setGameConfig: (
     config: Partial<
@@ -109,6 +136,7 @@ const getHandicapStones = (boardSize: number, handicap: number) => {
   }
   return coords;
 };
+
 const setupInitialBoard = (boardSize: number, handicap: number): BoardState => {
   const board = createEmptyBoard(boardSize);
   const stones = getHandicapStones(boardSize, handicap);
@@ -120,18 +148,49 @@ const setupInitialBoard = (boardSize: number, handicap: number): BoardState => {
   return board;
 };
 
+const createInitialNode = (boardSize: number, handicap: number): HistoryNode => {
+  const board = setupInitialBoard(boardSize, handicap);
+  return {
+    id: "root",
+    x: null,
+    y: null,
+    color: null,
+    board: board,
+    capturedByBlack: 0,
+    capturedByWhite: 0,
+    winRate: 50,
+    children: [],
+    parent: null,
+    moveIndex: 0,
+  };
+};
+
+export const getNode = (root: HistoryNode, id: string): HistoryNode | null => {
+  if (root.id === id) return root;
+  for (const child of root.children) {
+    const found = getNode(child, id);
+    if (found) return found;
+  }
+  return null;
+};
+
+export const getPathToNode = (root: HistoryNode, id: string): HistoryNode[] | null => {
+  if (root.id === id) return [root];
+  for (const child of root.children) {
+    const path = getPathToNode(child, id);
+    if (path) return [root, ...path];
+  }
+  return null;
+};
+
 export const useGameStore = create<GameState>()(
   persist(
     (set, get) => ({
       board: createEmptyBoard(19),
       currentPlayer: "BLACK",
       isTeacherMode: false,
-      history: [createEmptyBoard(19)],
-      moveCoordinates: [null], // index 0 has no move
-      winRates: [50],
-      currentMoveIndex: 0,
-      capturedByBlack: 0,
-      capturedByWhite: 0,
+      gameTree: createInitialNode(19, 0),
+      currentNode: createInitialNode(19, 0),
 
       gameMode: "PvP",
       aiDifficulty: 5,
@@ -143,6 +202,7 @@ export const useGameStore = create<GameState>()(
       consecutivePasses: 0,
       isGameOver: false,
       isReviewMode: false,
+      showDeadStones: false,
       boardScale: 1.0,
       soundEnabled: true,
       soundVolume: 0.6,
@@ -150,29 +210,27 @@ export const useGameStore = create<GameState>()(
       ignoredRecommendation: null,
       teacherCritique: null,
       deadStones: null,
+      gameResultText: null,
+      isScoring: false,
+      isAnalyzing: false,
+      analysisProgress: null,
 
       placeStone: (x: number, y: number) => {
         const {
           board,
           currentPlayer,
-          history,
-          winRates,
-          currentMoveIndex,
+          currentNode,
           isGameOver,
           isReviewMode,
-          capturedByBlack,
-          capturedByWhite,
           gameMode,
           humanPlayerColor,
           ignoredRecommendation,
         } = get();
 
-        if (isGameOver || isReviewMode) return;
+        if (isGameOver && !isReviewMode) return;
 
-        const previousBoard =
-          currentMoveIndex > 0 ? history[currentMoveIndex - 1] : null;
+        const previousBoard = currentNode.parent ? currentNode.parent.board : null;
 
-        // Apply move and calculate captures/liberties/ko
         const { newBoard, isValid, captured } = applyMove(
           board,
           x,
@@ -181,9 +239,8 @@ export const useGameStore = create<GameState>()(
           previousBoard,
         );
 
-        if (!isValid) return; // Invalid move (e.g., suicide, occupied, ko)
+        if (!isValid) return;
 
-        // AI 모드이고 현재가 AI의 차례라면 이전 흔적을 유지, 그 외(사용자 차례)에는 초기화
         const nextIgnoredRecommendation =
           gameMode === "PvAI" && currentPlayer !== humanPlayerColor
             ? ignoredRecommendation
@@ -191,34 +248,45 @@ export const useGameStore = create<GameState>()(
 
         set(
           produce((draft) => {
-            draft.board = newBoard;
-            draft.currentPlayer = currentPlayer === "BLACK" ? "WHITE" : "BLACK";
-            draft.history = draft.history.slice(0, currentMoveIndex + 1);
-            draft.history.push(newBoard);
-            draft.moveCoordinates = draft.moveCoordinates.slice(
-              0,
-              currentMoveIndex + 1,
+            const currentInTree = getNode(draft.gameTree, draft.currentNode.id)!;
+            const existingChild = currentInTree.children.find(
+              (child: HistoryNode) => child.x === x && child.y === y
             );
-            draft.moveCoordinates.push({ x, y });
 
-            const newWinRates = winRates
-              ? winRates.slice(0, currentMoveIndex + 1)
-              : [50];
-            newWinRates.push(newWinRates[newWinRates.length - 1]);
-            draft.winRates = newWinRates;
+            if (existingChild) {
+              draft.currentNode = existingChild;
+              draft.board = existingChild.board;
+            } else {
+              const newNode: HistoryNode = {
+                id: Math.random().toString(36).substring(2, 9),
+                x,
+                y,
+                color: currentPlayer,
+                board: newBoard,
+                capturedByBlack:
+                  currentPlayer === "BLACK"
+                    ? currentInTree.capturedByBlack + captured
+                    : currentInTree.capturedByBlack,
+                capturedByWhite:
+                  currentPlayer === "WHITE"
+                    ? currentInTree.capturedByWhite + captured
+                    : currentInTree.capturedByWhite,
+                winRate: currentInTree.winRate,
+                children: [],
+                parent: currentInTree,
+                moveIndex: currentInTree.moveIndex + 1,
+              };
+              currentInTree.children.push(newNode);
+              // Crucial fix: re-link draft.currentNode to the proxy object inside the tree
+              draft.currentNode = currentInTree.children[currentInTree.children.length - 1];
+              draft.board = newBoard;
+            }
 
-            draft.currentMoveIndex = currentMoveIndex + 1;
+            draft.currentPlayer = currentPlayer === "BLACK" ? "WHITE" : "BLACK";
             draft.consecutivePasses = 0;
-            draft.capturedByBlack =
-              currentPlayer === "BLACK"
-                ? capturedByBlack + captured
-                : capturedByBlack;
-            draft.capturedByWhite =
-              currentPlayer === "WHITE"
-                ? capturedByWhite + captured
-                : capturedByWhite;
             draft.ignoredRecommendation = nextIgnoredRecommendation;
             draft.deadStones = null;
+            draft.showDeadStones = false;
           })
         );
       },
@@ -227,8 +295,6 @@ export const useGameStore = create<GameState>()(
         const {
           board,
           currentPlayer,
-          winRates,
-          currentMoveIndex,
           consecutivePasses,
           isGameOver,
           isReviewMode,
@@ -237,9 +303,8 @@ export const useGameStore = create<GameState>()(
           ignoredRecommendation,
         } = get();
 
-        if (isGameOver || isReviewMode) return;
+        if (isGameOver && !isReviewMode) return;
 
-        // AI 모드이고 현재가 AI의 차례라면 이전 흔적을 유지, 그 외(사용자 차례)에는 초기화
         const nextIgnoredRecommendation =
           gameMode === "PvAI" && currentPlayer !== humanPlayerColor
             ? ignoredRecommendation
@@ -250,31 +315,47 @@ export const useGameStore = create<GameState>()(
 
         set(
           produce((draft) => {
-            draft.currentPlayer = currentPlayer === "BLACK" ? "WHITE" : "BLACK";
-            draft.history = draft.history.slice(0, currentMoveIndex + 1);
-            draft.history.push(board);
-            draft.moveCoordinates = draft.moveCoordinates.slice(
-              0,
-              currentMoveIndex + 1,
+            const currentInTree = getNode(draft.gameTree, draft.currentNode.id)!;
+            const existingChild = currentInTree.children.find(
+              (child: HistoryNode) => child.x === null && child.y === null
             );
-            draft.moveCoordinates.push(null);
 
-            const newWinRates = winRates
-              ? winRates.slice(0, currentMoveIndex + 1)
-              : [50];
-            newWinRates.push(newWinRates[newWinRates.length - 1]);
-            draft.winRates = newWinRates;
+            if (existingChild) {
+              draft.currentNode = existingChild;
+            } else {
+              const newNode: HistoryNode = {
+                id: Math.random().toString(36).substring(2, 9),
+                x: null,
+                y: null,
+                color: currentPlayer,
+                board: board,
+                capturedByBlack: currentInTree.capturedByBlack,
+                capturedByWhite: currentInTree.capturedByWhite,
+                winRate: currentInTree.winRate,
+                children: [],
+                parent: currentInTree,
+                moveIndex: currentInTree.moveIndex + 1,
+              };
+              currentInTree.children.push(newNode);
+              draft.currentNode = currentInTree.children[currentInTree.children.length - 1];
+            }
 
-            draft.currentMoveIndex = currentMoveIndex + 1;
+            draft.currentPlayer = currentPlayer === "BLACK" ? "WHITE" : "BLACK";
             draft.consecutivePasses = newPasses;
             draft.isGameOver = newGameOver;
+            draft.showDeadStones = newGameOver; // Auto-enable on game over
             draft.ignoredRecommendation = nextIgnoredRecommendation;
             draft.deadStones = null;
           })
         );
       },
 
-      resignGame: () => set({ isGameOver: true, ignoredRecommendation: null, deadStones: null }),
+      resignGame: () => set({ 
+        isGameOver: true, 
+        showDeadStones: true, // Auto-enable on resignation
+        ignoredRecommendation: null, 
+        deadStones: null 
+      }),
 
       toggleTeacherMode: () =>
         set((state) => ({
@@ -283,123 +364,186 @@ export const useGameStore = create<GameState>()(
           teacherCritique: null,
         })),
 
+      toggleDeadStones: () => set((state) => ({ showDeadStones: !state.showDeadStones })),
+
       setTeacherCritique: (c: string | null) => set({ teacherCritique: c }),
 
       setDeadStones: (stones: { x: number; y: number }[] | null) => set({ deadStones: stones }),
 
+      setGameResultText: (text: string | null) => set({ gameResultText: text }),
+
+      setIsScoring: (isScoring: boolean) => set({ isScoring }),
+
+      setIsAnalyzing: (isAnalyzing: boolean) => set({ isAnalyzing }),
+
+      setAnalysisProgress: (progress: { current: number; total: number } | null) => set({ analysisProgress: progress }),
+
       goToPreviousMove: () => {
-        const { currentMoveIndex, history, handicap } = get();
-        if (currentMoveIndex > 0) {
-          const index = currentMoveIndex - 1;
+        const { gameTree, currentNode, handicap } = get();
+        const path = getPathToNode(gameTree, currentNode.id);
+        if (path && path.length > 1) {
+          const prevNode = path[path.length - 2];
           set({
-            currentMoveIndex: index,
-            board: history[index],
+            currentNode: prevNode,
+            board: prevNode.board,
             currentPlayer: handicap > 0 
-              ? (index % 2 === 0 ? "WHITE" : "BLACK") 
-              : (index % 2 === 0 ? "BLACK" : "WHITE"),
+              ? (prevNode.moveIndex % 2 === 0 ? "WHITE" : "BLACK") 
+              : (prevNode.moveIndex % 2 === 0 ? "BLACK" : "WHITE"),
             ignoredRecommendation: null,
             deadStones: null,
+            showDeadStones: false,
           });
         }
       },
 
-      goToNextMove: () => {
-        const { currentMoveIndex, history, handicap } = get();
-        if (currentMoveIndex < history.length - 1) {
-          const index = currentMoveIndex + 1;
+      goToNextMove: (variationIndex = 0) => {
+        const { currentNode, handicap } = get();
+        if (currentNode.children.length > variationIndex) {
+          const nextNode = currentNode.children[variationIndex];
           set({
-            currentMoveIndex: index,
-            board: history[index],
+            currentNode: nextNode,
+            board: nextNode.board,
             currentPlayer: handicap > 0 
-              ? (index % 2 === 0 ? "WHITE" : "BLACK") 
-              : (index % 2 === 0 ? "BLACK" : "WHITE"),
+              ? (nextNode.moveIndex % 2 === 0 ? "WHITE" : "BLACK") 
+              : (nextNode.moveIndex % 2 === 0 ? "BLACK" : "WHITE"),
             ignoredRecommendation: null,
             deadStones: null,
+            showDeadStones: false,
           });
         }
       },
 
       setMoveIndex: (index: number) => {
-        const { history, handicap } = get();
-        if (index >= 0 && index < history.length) {
+        const { gameTree, handicap } = get();
+        let targetNode = gameTree;
+        for (let i = 0; i < index; i++) {
+          if (targetNode.children.length > 0) {
+            targetNode = targetNode.children[0];
+          } else break;
+        }
+        
+        set({
+          currentNode: targetNode,
+          board: targetNode.board,
+          currentPlayer: handicap > 0 
+            ? (targetNode.moveIndex % 2 === 0 ? "WHITE" : "BLACK") 
+            : (targetNode.moveIndex % 2 === 0 ? "BLACK" : "WHITE"),
+          ignoredRecommendation: null,
+          deadStones: null,
+          showDeadStones: false,
+        });
+      },
+
+      setCurrentNode: (nodeId: string) => {
+        const { gameTree, handicap } = get();
+        let targetNode: HistoryNode | null = null;
+        
+        const findNode = (node: HistoryNode) => {
+          if (node.id === nodeId) {
+            targetNode = node;
+            return true;
+          }
+          for (const child of node.children) {
+            if (findNode(child)) return true;
+          }
+          return false;
+        };
+        findNode(gameTree);
+
+        if (targetNode) {
+          const tNode = targetNode as HistoryNode;
           set({
-            currentMoveIndex: index,
-            board: history[index],
+            currentNode: tNode,
+            board: tNode.board,
             currentPlayer: handicap > 0 
-              ? (index % 2 === 0 ? "WHITE" : "BLACK") 
-              : (index % 2 === 0 ? "BLACK" : "WHITE"),
+              ? (tNode.moveIndex % 2 === 0 ? "WHITE" : "BLACK") 
+              : (tNode.moveIndex % 2 === 0 ? "BLACK" : "WHITE"),
             ignoredRecommendation: null,
             deadStones: null,
+            showDeadStones: false,
           });
         }
       },
 
-      updateWinRate: (index: number, winRate: number) => {
-        const { winRates } = get();
-        if (!winRates) return;
-        const newWinRates = [...winRates];
-        if (index < newWinRates.length) {
-          newWinRates[index] = winRate;
-          set({ winRates: newWinRates });
-        }
+      updateWinRate: (nodeId: string, winRate: number) => {
+        set(
+          produce((draft) => {
+            const node = getNode(draft.gameTree, nodeId);
+            if (node) {
+              node.winRate = winRate;
+            }
+            // Re-link currentNode to prevent immer detachment
+            draft.currentNode = getNode(draft.gameTree, draft.currentNode.id)!;
+          })
+        );
       },
 
       loadMatch: (
         moves: ({ x: number; y: number } | null)[],
         winRates?: number[],
+        resultText?: string,
+        savedBoardSize?: number,
+        savedHandicap?: number,
       ) => {
-        const { boardSize, handicap } = get();
-        let tempBoard = setupInitialBoard(boardSize || 19, handicap || 0);
-        const newHistory = [tempBoard];
-        const newMoveCoords: ({ x: number; y: number } | null)[] = [null];
-        const newWinRates: number[] = [50];
+        const boardSize = savedBoardSize || get().boardSize;
+        const handicap = savedHandicap ?? get().handicap;
+        const rootNode = createInitialNode(boardSize, handicap);
+        let current = rootNode;
 
-        // Re-simulate all moves to populate history with BoardStates
         moves.slice(1).forEach((move, i) => {
           const color = handicap > 0 
             ? (i % 2 === 0 ? "WHITE" : "BLACK") 
             : (i % 2 === 0 ? "BLACK" : "WHITE");
-          const prevBoard = i > 0 ? newHistory[newHistory.length - 1] : null;
+          const prevBoard = i > 0 ? current.board : null;
 
+          let newBoard = current.board;
+          let captured = 0;
           if (move) {
-            const { newBoard } = applyMove(
-              tempBoard,
-              move.x,
-              move.y,
-              color,
-              prevBoard,
-            );
-            tempBoard = newBoard;
+            const result = applyMove(current.board, move.x, move.y, color, prevBoard);
+            newBoard = result.newBoard;
+            captured = result.captured;
           }
-          newHistory.push(tempBoard);
-          newMoveCoords.push(move);
 
-          if (winRates && winRates[i + 1] !== undefined) {
-            newWinRates.push(winRates[i + 1]);
-          } else {
-            newWinRates.push(newWinRates[newWinRates.length - 1]);
-          }
+          const newNode: HistoryNode = {
+            id: Math.random().toString(36).substring(2, 9),
+            x: move?.x ?? null,
+            y: move?.y ?? null,
+            color,
+            board: newBoard,
+            capturedByBlack: color === "BLACK" ? current.capturedByBlack + captured : current.capturedByBlack,
+            capturedByWhite: color === "WHITE" ? current.capturedByWhite + captured : current.capturedByWhite,
+            winRate: winRates && winRates[i+1] !== undefined ? winRates[i+1] : 50,
+            children: [],
+            parent: current,
+            moveIndex: i + 1,
+          };
+          current.children.push(newNode);
+          current = newNode;
         });
 
         set({
-          board: tempBoard,
-          history: newHistory,
-          moveCoordinates: newMoveCoords,
-          winRates: newWinRates,
-          currentMoveIndex: newHistory.length - 1,
-          currentPlayer: handicap > 0 
-            ? ((newHistory.length - 1) % 2 === 0 ? "WHITE" : "BLACK") 
-            : ((newHistory.length - 1) % 2 === 0 ? "BLACK" : "WHITE"),
+          gameTree: rootNode,
+          currentNode: current,
+          board: current.board,
+          boardSize,
+          handicap,
+          currentPlayer: handicap > 0
+            ? (current.moveIndex % 2 === 0 ? "WHITE" : "BLACK")
+            : (current.moveIndex % 2 === 0 ? "BLACK" : "WHITE"),
           isReviewMode: true,
           isGameOver: false,
           ignoredRecommendation: null,
           deadStones: null,
+          showDeadStones: true, // Auto-enable when entering review
+          gameResultText: resultText || null, // Clear on load or set loaded text
+          isScoring: false,
+          isAnalyzing: false,
+          analysisProgress: null,
         });
       },
 
       setGameConfig: (config) => set((state) => {
         const newState = { ...state, ...config };
-        // If board size is 9x9 or smaller, handicap must be 0
         if (newState.boardSize <= 9) {
           newState.handicap = 0;
         } else if (newState.handicap > Math.min(9, newState.boardSize - 9)) {
@@ -415,30 +559,50 @@ export const useGameStore = create<GameState>()(
         queryClient.removeQueries({ queryKey: ["aiHint"] });
         
         const { boardSize, handicap } = get();
-        const newBoard = setupInitialBoard(boardSize, handicap);
+        const rootNode = createInitialNode(boardSize, handicap);
         const startingPlayer: PlayerColor = handicap > 0 ? "WHITE" : "BLACK";
 
         set({
-          board: newBoard,
+          gameTree: rootNode,
+          currentNode: rootNode,
+          board: rootNode.board,
           currentPlayer: startingPlayer,
-          history: [newBoard],
-          moveCoordinates: [null],
-          winRates: [50],
-          currentMoveIndex: 0,
           consecutivePasses: 0,
           isGameOver: false,
           isReviewMode: false,
-          capturedByBlack: 0,
-          capturedByWhite: 0,
+          showDeadStones: false,
           ignoredRecommendation: null,
           teacherVisits: 330,
           deadStones: null,
+          gameResultText: null,
+          isScoring: false,
+          isAnalyzing: false,
+          analysisProgress: null,
         });
       },
     }),
     {
       name: "zgo-game-storage",
       storage: createJSONStorage(() => localStorage),
+      partialize: (state) => {
+        const { gameTree, currentNode, isAnalyzing, analysisProgress, ...rest } = state;
+        return {
+          ...rest,
+          flatTree: flattenTree(gameTree),
+          currentNodeId: currentNode.id,
+        } as any;
+      },
+      merge: (persistedState: any, currentState) => {
+        if (!persistedState.flatTree) return currentState;
+        const { root, current } = reconstructTree(persistedState.flatTree, persistedState.currentNodeId);
+        return {
+          ...currentState,
+          ...persistedState,
+          gameTree: root,
+          currentNode: current,
+          board: current.board,
+        };
+      },
     },
   ),
 );

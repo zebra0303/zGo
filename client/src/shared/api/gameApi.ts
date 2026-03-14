@@ -106,6 +106,48 @@ export const getMatchById = async (id: string | number) => {
   return response.json();
 };
 
+export const analyzeGame = async (
+  moves: ({ x: number; y: number } | null)[],
+  boardSize: number,
+  handicap: number,
+  onProgress: (moveIndex: number, winRate: number) => void,
+  signal?: AbortSignal,
+): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/ai/analyze-game`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ moves, boardSize, handicap }),
+    signal,
+  });
+  if (!response.ok) throw new Error("Failed to start analysis");
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("No response body");
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+    for (const line of lines) {
+      if (line.startsWith("data: ")) {
+        try {
+          const data = JSON.parse(line.slice(6));
+          if (data.done) return;
+          if (data.error) throw new Error(data.error);
+          if (typeof data.moveIndex === "number" && typeof data.winRate === "number") {
+            onProgress(data.moveIndex, data.winRate);
+          }
+        } catch (e) {
+          if (e instanceof SyntaxError) continue;
+          throw e;
+        }
+      }
+    }
+  }
+};
+
 export const deleteMatch = async (id: string | number) => {
   const response = await fetch(`${API_BASE_URL}/matches/${id}`, {
     method: "DELETE",

@@ -8,6 +8,7 @@ describe("Game Store (Zustand)", () => {
     expect(state.isTeacherMode).toBe(false);
     expect(state.board.length).toBe(19);
     expect(state.board[0].length).toBe(19);
+    expect(state.currentNode.id).toBe("root");
   });
 
   it("should toggle teacher mode", () => {
@@ -18,19 +19,14 @@ describe("Game Store (Zustand)", () => {
   });
 
   it("should place a stone and update player turn", () => {
-    // Reset to start state if needed or test from current
-    useGameStore.setState({
-      currentPlayer: "BLACK",
-      currentMoveIndex: 0,
-      history: [useGameStore.getState().board],
-    });
-
+    useGameStore.getState().resetGame();
     useGameStore.getState().placeStone(3, 3);
 
     const state = useGameStore.getState();
     expect(state.board[3][3]).toBe("BLACK");
     expect(state.currentPlayer).toBe("WHITE");
-    expect(state.currentMoveIndex).toBe(1);
-    expect(state.history.length).toBe(2);
+    expect(state.currentNode.moveIndex).toBe(1);
+    expect(state.currentNode.parent?.id).toBe("root");
+    expect(state.gameTree.children.length).toBe(1);
   });
 });

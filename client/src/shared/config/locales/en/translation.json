@@ -65,5 +65,12 @@
   "reviewGo": "Review →",
   "language": "Language",
   "teacherModeActive": "AI Teacher Advice Active...",
-  "winRate": "Win Rate Analysis"
+  "winRate": "Win Rate Analysis",
+  "showDeadStones": "Show Dead Stones",
+  "toggleDeadStonesTitle": "Dead stones can only be viewed at the final move of a branch",
+  "variations": "Variations",
+  "analyzingProgress": "Analyzing {{current}}/{{total}}...",
+  "analysisComplete": "Analysis Complete",
+  "blackWins": "Black wins",
+  "whiteWins": "White wins"
 }

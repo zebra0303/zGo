@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { useGameStore } from "@/entities/match/model/store";
+import { useGameStore, getPathToNode } from "@/entities/match/model/store";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   fetchAIMove,
@@ -9,6 +9,7 @@ import {
   getMatches,
   getMatchById,
   deleteMatch,
+  analyzeGame,
 } from "@/shared/api/gameApi";
 import { playStoneSound } from "@/shared/lib/sound";
 import CustomDialog from "@/shared/ui/CustomDialog";
@@ -20,8 +21,7 @@ const SidebarWidget = () => {
     currentPlayer,
     isTeacherMode,
     toggleTeacherMode,
-    currentMoveIndex,
-    history: gameHistory,
+    currentNode,
     gameMode,
     aiDifficulty,
     humanPlayerColor,
@@ -31,31 +31,105 @@ const SidebarWidget = () => {
     resignGame,
     resetGame,
     isGameOver,
-    moveCoordinates,
     isReviewMode,
     loadMatch,
-    capturedByBlack,
-    capturedByWhite,
     boardScale,
     soundEnabled,
     soundVolume,
     teacherVisits,
     consecutivePasses,
-    winRates,
     updateWinRate,
     language,
     boardSize,
     handicap,
     setDeadStones,
     deadStones,
+    gameResultText,
+    isScoring,
+    setGameResultText,
+    setIsScoring,
+    gameTree,
   } = useGameStore();
+
+  const capturedByBlack = currentNode.capturedByBlack;
+  const capturedByWhite = currentNode.capturedByWhite;
+
+  // Helper to get moves up to current node
+  const getMoveHistory = useCallback(() => {
+    const path = getPathToNode(gameTree, currentNode.id) || [currentNode];
+    const moves: ({ x: number; y: number } | null)[] = [];
+    // Start from index 1 to skip root node
+    for (let i = 1; i < path.length; i++) {
+      const node = path[i];
+      moves.push(node.x !== null && node.y !== null ? { x: node.x, y: node.y } : null);
+    }
+    return moves;
+  }, [currentNode.id, gameTree]);
+
+  const analysisAbortRef = useRef<AbortController | null>(null);
+
+  const startReviewAnalysis = useCallback((moves: ({ x: number; y: number } | null)[], winRates?: number[]) => {
+    // Skip if win rates already exist (non-trivial values)
+    if (winRates && winRates.some(r => r !== 50)) return;
+
+    if (moves.length <= 1) return;
+
+    // Cancel any previous analysis
+    analysisAbortRef.current?.abort();
+    const abortController = new AbortController();
+    analysisAbortRef.current = abortController;
+
+    const total = moves.length - 1; // exclude root null
+
+    // Read from store state (loadMatch already updated these)
+    const storeState = useGameStore.getState();
+    const tree = storeState.gameTree;
+    const savedBoardSize = storeState.boardSize;
+    const savedHandicap = storeState.handicap;
+
+    storeState.setIsAnalyzing(true);
+    storeState.setAnalysisProgress({ current: 0, total });
+
+    // Collect node IDs from the game tree
+    const nodeIds: string[] = ["root"];
+    let node = tree;
+    while (node.children.length > 0) {
+      node = node.children[0];
+      nodeIds.push(node.id);
+    }
+
+    analyzeGame(
+      moves,
+      savedBoardSize,
+      savedHandicap,
+      (moveIndex, winRate) => {
+        if (nodeIds[moveIndex]) {
+          useGameStore.getState().updateWinRate(nodeIds[moveIndex], winRate);
+        }
+        useGameStore.getState().setAnalysisProgress({ current: moveIndex, total });
+      },
+      abortController.signal,
+    ).then(() => {
+      useGameStore.getState().setIsAnalyzing(false);
+      useGameStore.getState().setAnalysisProgress(null);
+    }).catch((err) => {
+      if (err.name !== "AbortError") console.error("Analysis failed:", err);
+      useGameStore.getState().setIsAnalyzing(false);
+      useGameStore.getState().setAnalysisProgress(null);
+    });
+  }, []);
+
+  // Cancel analysis when leaving review mode
+  useEffect(() => {
+    if (!isReviewMode) {
+      analysisAbortRef.current?.abort();
+    }
+  }, [isReviewMode]);
 
   const [activeTab, setActiveTab] = useState<"game" | "history">("game");
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "saved" | "error"
   >("idle");
-  const [gameResultText, setGameResultText] = useState<string | null>(null);
-  const [isScoring, setIsScoring] = useState(false);
   const [dialog, setDialog] = useState<{
     isOpen: boolean;
     type: "alert" | "confirm";
@@ -118,18 +192,30 @@ const SidebarWidget = () => {
         currentPlayer === humanPlayerColor
       )
         return;
+      
+      const moveHistory = getMoveHistory();
+      
       try {
         const response = await fetchAIMove(
           board,
           currentPlayer,
           aiDifficulty,
-          moveCoordinates.slice(1, currentMoveIndex + 1),
+          moveHistory,
           abortController.signal,
           language,
           boardSize,
           handicap,
         );
         if (!isActive) return;
+
+        if (response.winRate) {
+          const blackWinRate =
+            currentPlayer === "BLACK"
+              ? response.winRate
+              : 100 - response.winRate;
+          // Update the winrate of the current node (the state before AI plays, which is the result of the human's move)
+          updateWinRate(currentNode.id, blackWinRate);
+        }
 
         if (response.pass) {
           passTurn();
@@ -140,13 +226,6 @@ const SidebarWidget = () => {
         } else if (response.move) {
           placeStone(response.move.x, response.move.y);
           playStoneSound(soundEnabled, soundVolume);
-        }
-        if (response.winRate) {
-          const blackWinRate =
-            currentPlayer === "BLACK"
-              ? response.winRate
-              : 100 - response.winRate;
-          updateWinRate(useGameStore.getState().currentMoveIndex, blackWinRate);
         }
       } catch (err) {
         const error = err as Error;
@@ -189,8 +268,7 @@ const SidebarWidget = () => {
     soundEnabled,
     soundVolume,
     aiDifficulty,
-    moveCoordinates,
-    currentMoveIndex,
+    getMoveHistory,
     updateWinRate,
     showAlert,
     t,
@@ -210,28 +288,27 @@ const SidebarWidget = () => {
   });
 
   useEffect(() => {
-    const isEndOfReview =
-      isReviewMode &&
-      gameHistory.length > 1 &&
-      currentMoveIndex === gameHistory.length - 1;
+    const isEndOfBranch = isReviewMode && currentNode.children.length === 0 && currentNode.id !== "root";
 
-    if (isGameOver || isEndOfReview) {
-      if (!gameResultText && !isScoring) {
-        // Find if this was a natural end (pass, pass)
-        let isNaturalEnd = false;
-        if (isGameOver && consecutivePasses >= 2) {
+    if (isGameOver || isEndOfBranch) {
+      const moveHistory = getMoveHistory();
+      
+      // Find if this was a natural end (pass, pass)
+      let isNaturalEnd = false;
+      if (isGameOver && consecutivePasses >= 2) {
+        isNaturalEnd = true;
+      } else if (isEndOfBranch) {
+        const lastMove = moveHistory[moveHistory.length - 1];
+        const prevMove =
+          moveHistory.length > 1
+            ? moveHistory[moveHistory.length - 2]
+            : undefined;
+        if (lastMove === null && prevMove === null) {
           isNaturalEnd = true;
-        } else if (isEndOfReview) {
-          const lastMove = moveCoordinates[moveCoordinates.length - 1];
-          const prevMove =
-            moveCoordinates.length > 1
-              ? moveCoordinates[moveCoordinates.length - 2]
-              : undefined;
-          if (lastMove === null && prevMove === null) {
-            isNaturalEnd = true;
-          }
         }
+      }
 
+      if (!gameResultText && !isScoring) {
         if (!isNaturalEnd) {
           const loserColor = currentPlayer === "BLACK" ? t('black') : t('white');
           const winnerColor = currentPlayer === "BLACK" ? t('white') : t('black');
@@ -240,19 +317,18 @@ const SidebarWidget = () => {
           
           // Even on resignation, try to fetch dead stones for display
           fetchAIScore(
-            moveCoordinates.slice(1, currentMoveIndex + 1),
+            moveHistory,
             boardSize,
             handicap
           ).then(data => {
             if (data.deadStones) {
-              console.log("[DEBUG] Resign - dead stones:", data.deadStones);
               setDeadStones(data.deadStones);
             }
           }).catch(() => {});
         } else {
           setIsScoring(true);
           fetchAIScore(
-            moveCoordinates.slice(1, currentMoveIndex + 1),
+            moveHistory,
             boardSize,
             handicap
           )
@@ -278,7 +354,6 @@ const SidebarWidget = () => {
 
               // Always try to set dead stones if returned
               if (data.deadStones) {
-                console.log("[DEBUG] Score - dead stones:", data.deadStones);
                 setDeadStones(data.deadStones);
               }
             })
@@ -288,6 +363,21 @@ const SidebarWidget = () => {
             })
             .finally(() => setIsScoring(false));
         }
+      } else if (gameResultText && !deadStones && !isScoring) {
+        // Text is already loaded (e.g. from history), but we still need dead stones
+        setIsScoring(true);
+        fetchAIScore(
+          moveHistory,
+          boardSize,
+          handicap
+        )
+          .then((data) => {
+            if (data.deadStones) {
+              setDeadStones(data.deadStones);
+            }
+          })
+          .catch(() => {})
+          .finally(() => setIsScoring(false));
       }
     } else {
       if (gameResultText !== null) setGameResultText(null);
@@ -295,54 +385,72 @@ const SidebarWidget = () => {
   }, [
     isGameOver,
     isReviewMode,
-    currentMoveIndex,
-    gameHistory.length,
+    currentNode.id, // Stable ID
+    currentNode.children.length, // Stable length
     consecutivePasses,
     currentPlayer,
-    moveCoordinates,
+    getMoveHistory,
     gameResultText,
     isScoring,
     t,
     boardSize,
     handicap,
+    deadStones,
     setDeadStones,
+    setGameResultText,
+    setIsScoring,
   ]);
 
-  // Reset status when move index changes
+  // Reset status when move node changes
   useEffect(() => {
     if (!isGameOver && !isReviewMode) {
       setSaveStatus("idle");
       setGameResultText(null);
     }
-  }, [currentMoveIndex, isGameOver, isReviewMode]);
+  }, [currentNode.id, isGameOver, isReviewMode]);
 
   const handleSaveMatch = () => {
     let winnerColor: "BLACK" | "WHITE" = "BLACK";
-    
+
     // Determine winner based on result text
     if (gameResultText) {
-      if (gameResultText.includes(t('black')) && (
-        gameResultText.includes(t('win')) || 
-        gameResultText.includes(t('winByScore', { winner: '', diff: '' }).replace(': {{winner}} {{diff}}집승', '').trim())
-      )) {
+      // For resign: format is "{{loser}} resigned ({{winner}} wins)"
+      // The winner's name appears after "(" in resignWin pattern
+      const blackName = t('black');
+      const whiteName = t('white');
+      const resignBlackWin = t('resignWin', { loser: whiteName, winner: blackName });
+      const resignWhiteWin = t('resignWin', { loser: blackName, winner: whiteName });
+      const scoreBlackWin = gameResultText.startsWith(blackName);
+
+      if (gameResultText === resignBlackWin || scoreBlackWin) {
         winnerColor = "BLACK";
-      } else if (gameResultText.includes(t('white'))) {
+      } else if (gameResultText === resignWhiteWin || gameResultText.startsWith(whiteName)) {
         winnerColor = "WHITE";
       }
     } else {
-      const finalWinRateBlack = winRates[currentMoveIndex] ?? 50;
-      winnerColor = finalWinRateBlack > 50 ? "BLACK" : "WHITE";
+      winnerColor = currentNode.winRate > 50 ? "BLACK" : "WHITE";
     }
 
+    const moveHistory = getMoveHistory();
+    
+    // Extract win rates using full path from root to current node
+    const path = getPathToNode(gameTree, currentNode.id) || [currentNode];
+    const winRates = path.map(node => node.winRate);
+
+    // Simplified SGF data for now (linear path from current node back to root)
+    // Future: implement full tree SGF
     const matchData = {
       mode: gameMode,
       aiDifficulty: gameMode === "PvAI" ? aiDifficulty : null,
       humanColor: humanPlayerColor,
       winner: winnerColor,
       sgfData: JSON.stringify({
-        moves: moveCoordinates,
+        moves: [null, ...moveHistory],
         winRates,
         resultText: gameResultText,
+        resultWinner: winnerColor,
+        boardSize,
+        handicap,
       }),
     };
     saveMutation.mutate(matchData);
@@ -412,7 +520,7 @@ const SidebarWidget = () => {
                     {t('backToGame')}
                   </button>
                 </div>
-                {currentMoveIndex === gameHistory.length - 1 &&
+                {currentNode.children.length === 0 && currentNode.id !== "root" &&
                   (gameResultText || isScoring) && (
                     <div className="text-sm font-extrabold text-amber-900 bg-amber-100/50 rounded p-1.5 text-center">
                       {isScoring ? t('resultScoring') : t('result', { text: gameResultText })}
@@ -776,7 +884,23 @@ const SidebarWidget = () => {
                     onClick={async () => {
                       const f = await getMatchById(match.id);
                       const parsedData = JSON.parse(f.match.sgfData);
-                      loadMatch(parsedData.moves, parsedData.winRates);
+                      // Regenerate result text in current language from structured data
+                      let resultText = parsedData.resultText;
+                      if (parsedData.resultWinner || match.winner) {
+                        const winner = parsedData.resultWinner || match.winner;
+                        // Check if stored resultText contains score info (e.g., "3.5집승")
+                        const scoreMatch = parsedData.resultText?.match(/([0-9.]+)/);
+                        if (scoreMatch && !parsedData.resultText?.includes(t('resign') || '기권')) {
+                          const winnerName = winner === "BLACK" ? t('black') : t('white');
+                          resultText = t('winByScore', { winner: winnerName, diff: scoreMatch[1] });
+                        } else {
+                          const loser = winner === "BLACK" ? t('white') : t('black');
+                          const winnerName = winner === "BLACK" ? t('black') : t('white');
+                          resultText = t('resignWin', { loser, winner: winnerName });
+                        }
+                      }
+                      loadMatch(parsedData.moves, parsedData.winRates, resultText, parsedData.boardSize, parsedData.handicap);
+                      startReviewAnalysis(parsedData.moves, parsedData.winRates);
                       setActiveTab("game");
                     }}
                   >
@@ -787,9 +911,15 @@ const SidebarWidget = () => {
                           : t('friendlyMatch')}
                       </span>
                       <span
-                        className={`text-[10px] font-bold ${match.humanColor === match.winner ? "text-blue-600" : "text-red-500"}`}
+                        className={`text-[10px] font-bold ${
+                          match.mode === "PvAI"
+                            ? match.humanColor === match.winner ? "text-blue-600" : "text-red-500"
+                            : match.winner === "BLACK" ? "text-gray-800" : "text-gray-400"
+                        }`}
                       >
-                        {match.humanColor === match.winner ? t('win') : t('lose')}
+                        {match.mode === "PvAI"
+                          ? (match.humanColor === match.winner ? t('win') : t('lose'))
+                          : (match.winner === "BLACK" ? t('blackWins') : t('whiteWins'))}
                       </span>
                     </div>
                     <div className="text-[10px] text-gray-500 flex justify-between">
