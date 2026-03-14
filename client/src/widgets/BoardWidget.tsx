@@ -1,8 +1,10 @@
+import { lazy, Suspense } from "react";
 import { useGameStore } from "@/entities/match/model/store";
 import BoardCore from "@/features/board/ui/BoardCore";
-import ReviewControlWidget from "@/widgets/ReviewControlWidget";
-import TeacherAdviceWidget from "@/widgets/TeacherAdviceWidget";
-import WinRateGraphWidget from "@/widgets/WinRateGraphWidget";
+
+const ReviewControlWidget = lazy(() => import("@/widgets/ReviewControlWidget"));
+const TeacherAdviceWidget = lazy(() => import("@/widgets/TeacherAdviceWidget"));
+const WinRateGraphWidget = lazy(() => import("@/widgets/WinRateGraphWidget"));
 
 const BoardWidget = () => {
   const { isReviewMode } = useGameStore();
@@ -12,8 +14,20 @@ const BoardWidget = () => {
       {/* Top: Win Rate Graph & Review Controls (if review mode) */}
       {isReviewMode && (
         <div className="w-full space-y-4">
-          <WinRateGraphWidget />
-          <ReviewControlWidget />
+          <Suspense
+            fallback={
+              <div className="animate-pulse h-20 bg-gray-100 rounded-xl" />
+            }
+          >
+            <WinRateGraphWidget />
+          </Suspense>
+          <Suspense
+            fallback={
+              <div className="animate-pulse h-12 bg-gray-100 rounded-xl" />
+            }
+          >
+            <ReviewControlWidget />
+          </Suspense>
         </div>
       )}
 
@@ -25,7 +39,10 @@ const BoardWidget = () => {
       </div>
 
       <div className="absolute top-full left-0 w-full mt-2 z-10 px-4">
-        <TeacherAdviceWidget />
+        {/* TeacherAdviceWidget handles its own isTeacherMode internal check, but we can also wrap it in Suspense */}
+        <Suspense fallback={null}>
+          <TeacherAdviceWidget />
+        </Suspense>
       </div>
     </div>
   );

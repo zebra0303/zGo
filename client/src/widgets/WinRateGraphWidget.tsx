@@ -1,4 +1,6 @@
-import { useGameStore, getPathToNode } from "@/entities/match/model/store";
+import React from "react";
+import { useGameStore } from "@/entities/match/model/store";
+import { useGamePath } from "@/entities/match/lib/useGamePath";
 import { useTranslation } from "react-i18next";
 
 const WinRateGraphWidget = () => {
@@ -7,25 +9,13 @@ const WinRateGraphWidget = () => {
     currentNode,
     isReviewMode,
     setCurrentNode,
-    gameTree,
     isAnalyzing,
     analysisProgress,
   } = useGameStore();
+  const { fullPath, currentIndexInPath } = useGamePath();
 
   if (!isReviewMode) return null;
 
-  // Get path from currentNode back to root
-  const ancestorPath = getPathToNode(gameTree, currentNode.id) || [currentNode];
-
-  // Get continuation path from currentNode down the main branch
-  const continuationPath = [];
-  let curr: any = currentNode.children[0];
-  while (curr) {
-    continuationPath.push(curr);
-    curr = curr.children[0];
-  }
-
-  const fullPath = [...ancestorPath, ...continuationPath];
   const mainBranchWinRates: number[] = fullPath.map((node) => node.winRate);
 
   if (mainBranchWinRates.length <= 1) return null;
@@ -34,32 +24,40 @@ const WinRateGraphWidget = () => {
   const winRateBlack = currentWinRate;
   const winRateWhite = 100 - winRateBlack;
 
-  // Find the index of the current node in the full path
-  const currentIndexInPath = ancestorPath.length - 1;
-
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm w-full">
       <div className="flex justify-between items-center mb-2">
         <h2 className="font-bold text-gray-700 text-sm flex items-center gap-2">
-          📊 {t('winRate')}
+          📊 {t("winRate")}
           {isAnalyzing && analysisProgress && (
             <span className="text-[10px] font-normal text-blue-500 animate-pulse">
-              {t('analyzingProgress', { current: analysisProgress.current, total: analysisProgress.total })}
+              {t("analyzingProgress", {
+                current: analysisProgress.current,
+                total: analysisProgress.total,
+              })}
             </span>
           )}
         </h2>
         <div className="flex gap-4 text-[10px] font-bold">
           <span className="text-black flex items-center gap-1">
-            <div className="w-2 h-2 bg-black rounded-full" /> {t('black')} {winRateBlack.toFixed(1)}%
+            <div className="w-2 h-2 bg-black rounded-full" /> {t("black")}{" "}
+            {winRateBlack.toFixed(1)}%
           </span>
           <span className="text-gray-400 flex items-center gap-1">
-            <div className="w-2 h-2 bg-white border border-gray-300 rounded-full" /> {t('white')} {winRateWhite.toFixed(1)}%
+            <div className="w-2 h-2 bg-white border border-gray-300 rounded-full" />{" "}
+            {t("white")} {winRateWhite.toFixed(1)}%
           </span>
         </div>
       </div>
 
       <div
-        className="w-full h-20 bg-gray-50 rounded border border-gray-100 relative overflow-hidden cursor-pointer"
+        className="w-full h-20 bg-gray-50 rounded border border-gray-100 relative overflow-hidden cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
+        role="slider"
+        aria-label={t("winRateTimeline", "승률 타임라인 그래프")}
+        aria-valuemin={0}
+        aria-valuemax={Math.max(1, fullPath.length - 1)}
+        aria-valuenow={currentIndexInPath}
+        tabIndex={0}
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           const x = e.clientX - rect.left;
@@ -68,6 +66,17 @@ const WinRateGraphWidget = () => {
           const targetIndex = Math.round(ratio * totalMoves);
           if (fullPath[targetIndex]) {
             setCurrentNode(fullPath[targetIndex].id);
+          }
+        }}
+        onKeyDown={(e) => {
+          let newIndex = currentIndexInPath;
+          if (e.key === "ArrowLeft") {
+            newIndex = Math.max(0, currentIndexInPath - 1);
+          } else if (e.key === "ArrowRight") {
+            newIndex = Math.min(fullPath.length - 1, currentIndexInPath + 1);
+          }
+          if (newIndex !== currentIndexInPath && fullPath[newIndex]) {
+            setCurrentNode(fullPath[newIndex].id);
           }
         }}
       >
@@ -131,4 +140,4 @@ const WinRateGraphWidget = () => {
   );
 };
 
-export default WinRateGraphWidget;
+export default React.memo(WinRateGraphWidget);

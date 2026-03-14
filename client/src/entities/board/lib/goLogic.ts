@@ -1,4 +1,4 @@
-import { BoardState, PlayerColor } from "../model/types";
+import { BoardState, PlayerColor } from "@/shared/types/board";
 
 interface Group {
   stones: { x: number; y: number }[];
@@ -6,7 +6,11 @@ interface Group {
   color: PlayerColor;
 }
 
-const getNeighbors = (x: number, y: number, boardSize: number): { x: number; y: number }[] => {
+const getNeighbors = (
+  x: number,
+  y: number,
+  boardSize: number,
+): { x: number; y: number }[] => {
   const neighbors = [];
   if (x > 0) neighbors.push({ x: x - 1, y });
   if (x < boardSize - 1) neighbors.push({ x: x + 1, y });
@@ -75,7 +79,13 @@ export const applyMove = (
   reason?: string;
 } => {
   const boardSize = board.length;
-  if (x < 0 || x >= boardSize || y < 0 || y >= boardSize || board[y][x] !== null)
+  if (
+    x < 0 ||
+    x >= boardSize ||
+    y < 0 ||
+    y >= boardSize ||
+    board[y][x] !== null
+  )
     return { newBoard: board, captured: 0, isValid: false, reason: "Occupied" };
 
   const newBoard = board.map((row) => [...row]);
@@ -103,12 +113,17 @@ export const applyMove = (
   }
 
   // 2. Check for suicide (self-capture)
-  // According to Go rules: A move is suicide ONLY if it captures 0 opponent stones 
+  // According to Go rules: A move is suicide ONLY if it captures 0 opponent stones
   // AND the resulting group has 0 liberties.
   if (totalCaptured === 0) {
     const myGroup = getGroup(newBoard, x, y);
     if (myGroup && myGroup.liberties.size === 0) {
-      return { newBoard: board, captured: 0, isValid: false, reason: "Suicide" };
+      return {
+        newBoard: board,
+        captured: 0,
+        isValid: false,
+        reason: "Suicide",
+      };
     }
   }
 

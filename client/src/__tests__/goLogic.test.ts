@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { applyMove } from "@/entities/board/lib/goLogic";
-import { BoardState } from "@/entities/board/model/types";
+import { BoardState } from "@/shared/types/board";
 
 describe("Go Logic (applyMove)", () => {
   const createEmptyBoard = (): BoardState => {
@@ -82,12 +82,12 @@ describe("Go Logic (applyMove)", () => {
     const board = createEmptyBoard();
     // Target White stone at (1,1)
     board[1][1] = "WHITE";
-    
+
     // Surround (1,1) with Black stones except for (1,0)
     board[0][1] = "BLACK"; // (x=1, y=0)
     board[2][1] = "BLACK"; // (x=1, y=2)
     board[1][2] = "BLACK"; // (x=2, y=1)
-    
+
     // Now (1,1) White has only one liberty at (0,1) [x=0, y=1]
     // Black plays at (0,1) to capture (1,1).
     // BUT (0,1) is a suicide spot for Black because it's surrounded by White?
@@ -95,10 +95,10 @@ describe("Go Logic (applyMove)", () => {
     board[0][0] = "WHITE"; // (x=0, y=0)
     board[2][0] = "WHITE"; // (x=0, y=2) (Wait, y=2, x=0 is neighbor of x=0, y=1)
     // Correcting neighbors of (x=0, y=1): (0,0), (0,2), (1,1)
-    board[0][0] = "WHITE"; 
+    board[0][0] = "WHITE";
     board[2][0] = "WHITE";
     // (1,1) is already WHITE.
-    
+
     // Black plays at (0,1). It captures (1,1), so it's NOT suicide.
     const result = applyMove(board, 0, 1, "BLACK");
 

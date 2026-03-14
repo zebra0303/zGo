@@ -1,11 +1,12 @@
 import { HistoryNode } from "@/entities/match/model/store";
+import { PlayerColor, BoardState } from "@/shared/types/board";
 
 export interface FlatNode {
   id: string;
   x: number | null;
   y: number | null;
-  color: string | null;
-  board: (string | null)[][];
+  color: PlayerColor | null;
+  board: BoardState;
   capturedByBlack: number;
   capturedByWhite: number;
   winRate: number;
@@ -39,7 +40,10 @@ export const flattenTree = (root: HistoryNode): FlatNode[] => {
   return flattened;
 };
 
-export const reconstructTree = (nodes: FlatNode[], currentNodeId: string): { root: HistoryNode, current: HistoryNode } => {
+export const reconstructTree = (
+  nodes: FlatNode[],
+  currentNodeId: string,
+): { root: HistoryNode; current: HistoryNode } => {
   const nodeMap = new Map<string, HistoryNode>();
 
   // First pass: create all nodes without links
@@ -48,8 +52,8 @@ export const reconstructTree = (nodes: FlatNode[], currentNodeId: string): { roo
       id: fn.id,
       x: fn.x,
       y: fn.y,
-      color: fn.color as any,
-      board: fn.board as any,
+      color: fn.color,
+      board: fn.board,
       capturedByBlack: fn.capturedByBlack,
       capturedByWhite: fn.capturedByWhite,
       winRate: fn.winRate,

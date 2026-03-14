@@ -20,5 +20,18 @@ export default defineConfig(({ mode }) => {
     server: {
       port: parseInt(env.VITE_PORT || "5173", 10),
     },
+    build: {
+      rollupOptions: {
+        output: {
+          // perf: split vendor chunks for better cache efficiency
+          manualChunks: {
+            "vendor-react": ["react", "react-dom"],
+            "vendor-state": ["zustand", "immer", "@tanstack/react-query"],
+            "vendor-i18n": ["i18next", "react-i18next"],
+            "vendor-icons": ["lucide-react"],
+          },
+        },
+      },
+    },
   };
 });

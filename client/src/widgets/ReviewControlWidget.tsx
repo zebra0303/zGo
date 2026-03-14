@@ -1,5 +1,6 @@
-import { useGameStore, getPathToNode } from "@/entities/match/model/store";
-import { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback } from "react";
+import { useGameStore } from "@/entities/match/model/store";
+import { useGamePath } from "@/entities/match/lib/useGamePath";
 import { useTranslation } from "react-i18next";
 
 const ReviewControlWidget = () => {
@@ -13,8 +14,8 @@ const ReviewControlWidget = () => {
     showDeadStones,
     toggleDeadStones,
     deadStones,
-    gameTree,
   } = useGameStore();
+  const { fullPath, currentIndexInPath, totalMoves } = useGamePath();
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -39,21 +40,6 @@ const ReviewControlWidget = () => {
 
   if (!isReviewMode) return null;
 
-  // Get path from currentNode back to root
-  const ancestorPath = getPathToNode(gameTree, currentNode.id) || [currentNode];
-
-  // Get continuation path from currentNode down the main branch
-  const continuationPath = [];
-  let curr: any = currentNode.children[0];
-  while (curr) {
-    continuationPath.push(curr);
-    curr = curr.children[0];
-  }
-
-  const fullPath = [...ancestorPath, ...continuationPath];
-  const totalMoves = Math.max(1, fullPath.length - 1);
-  const currentIndexInPath = ancestorPath.length - 1;
-
   const isFinalMove = currentNode.children.length === 0;
   const hasDeadStones = deadStones && deadStones.length > 0;
 
@@ -73,20 +59,26 @@ const ReviewControlWidget = () => {
               }
             }}
             className="flex-1 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            aria-label={t("reviewTimeline", "복기 타임라인")}
           />
-          
+
           {/* 스마트 사석 보기 토글 */}
           <button
             onClick={toggleDeadStones}
             disabled={!isFinalMove || !hasDeadStones}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border shadow-sm ${
-              showDeadStones 
-                ? "bg-red-500 text-white border-red-600" 
+              showDeadStones
+                ? "bg-red-500 text-white border-red-600"
                 : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
             } disabled:opacity-30 disabled:grayscale`}
-            title={t('toggleDeadStonesTitle', '최종 수에서만 사석을 볼 수 있습니다')}
+            title={t(
+              "toggleDeadStonesTitle",
+              "최종 수에서만 사석을 볼 수 있습니다",
+            )}
+            aria-pressed={showDeadStones}
+            aria-label={t("showDeadStones", "사석 보기")}
           >
-            {t('showDeadStones', '사석 보기')}
+            {t("showDeadStones", "사석 보기")}
           </button>
         </div>
 
@@ -96,17 +88,25 @@ const ReviewControlWidget = () => {
             disabled={currentNode.moveIndex === 0}
             className="p-2 w-12 h-10 flex items-center justify-center bg-white hover:bg-gray-50 disabled:opacity-30 rounded-lg border shadow-sm transition-colors text-gray-700 font-bold"
             title="이전 수 (왼쪽 화살표)"
+            aria-label="이전 수"
           >
             &lt;
           </button>
-          
+
           <div className="flex flex-col items-center">
-            <div className="text-sm font-mono font-semibold text-gray-600 px-4 py-1.5 bg-gray-100 rounded-md border border-gray-200">
+            <div
+              className="text-sm font-mono font-semibold text-gray-600 px-4 py-1.5 bg-gray-100 rounded-md border border-gray-200"
+              aria-live="polite"
+              aria-atomic="true"
+            >
               {currentIndexInPath} / {totalMoves}
             </div>
             {currentNode.children.length > 1 && (
-              <div className="text-[10px] text-blue-500 font-bold mt-1">
-                {currentNode.children.length} {t('variations', '갈림길')}
+              <div
+                className="text-[10px] text-blue-500 font-bold mt-1"
+                aria-live="polite"
+              >
+                {currentNode.children.length} {t("variations", "갈림길")}
               </div>
             )}
           </div>
@@ -116,6 +116,7 @@ const ReviewControlWidget = () => {
             disabled={currentNode.children.length === 0}
             className="p-2 w-12 h-10 flex items-center justify-center bg-white hover:bg-gray-50 disabled:opacity-30 rounded-lg border shadow-sm transition-colors text-gray-700 font-bold"
             title="다음 수 (오른쪽 화살표)"
+            aria-label="다음 수"
           >
             &gt;
           </button>
@@ -125,4 +126,4 @@ const ReviewControlWidget = () => {
   );
 };
 
-export default ReviewControlWidget;
+export default React.memo(ReviewControlWidget);

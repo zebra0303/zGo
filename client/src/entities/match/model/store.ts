@@ -3,8 +3,8 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { applyMove } from "@/entities/board/lib/goLogic";
 import { queryClient } from "@/shared/api/queryClient";
 import { produce } from "immer";
-import { BoardState, PlayerColor } from "@/entities/board/model/types";
-import { flattenTree, reconstructTree } from "@/shared/lib/treeUtils";
+import { BoardState, PlayerColor } from "@/shared/types/board";
+import { flattenTree, reconstructTree } from "@/entities/match/lib/treeUtils";
 
 export interface HistoryNode {
   id: string;
@@ -24,11 +24,11 @@ interface GameState {
   board: BoardState;
   currentPlayer: PlayerColor;
   isTeacherMode: boolean;
-  
+
   // Tree-based History
   gameTree: HistoryNode;
   currentNode: HistoryNode;
-  
+
   // Game Settings
   gameMode: "PvP" | "PvAI";
   aiDifficulty: number;
@@ -66,12 +66,15 @@ interface GameState {
   setWinner: (winner: PlayerColor | "DRAW" | null) => void;
   setIsScoring: (isScoring: boolean) => void;
   setIsAnalyzing: (isAnalyzing: boolean) => void;
-  setAnalysisProgress: (progress: { current: number; total: number } | null) => void;
+  setAnalysisProgress: (
+    progress: { current: number; total: number } | null,
+  ) => void;
   goToPreviousMove: () => void;
   goToNextMove: (variationIndex?: number) => void;
   setMoveIndex: (index: number) => void;
   setCurrentNode: (nodeId: string) => void;
   updateWinRate: (nodeId: string, winRate: number) => void;
+  updateWinRates: (updates: { nodeId: string; winRate: number }[]) => void;
   loadMatch: (
     moves: ({ x: number; y: number } | null)[],
     winRates?: number[],
@@ -108,7 +111,7 @@ const createEmptyBoard = (size: number = 19): BoardState => {
 };
 
 const getHandicapStones = (boardSize: number, handicap: number) => {
-  let coords: {x: number, y: number}[] = [];
+  let coords: { x: number; y: number }[] = [];
   if (handicap > 1 && boardSize >= 9) {
     const min = boardSize >= 13 ? 3 : 2;
     const max = boardSize - 1 - min;
@@ -151,7 +154,10 @@ const setupInitialBoard = (boardSize: number, handicap: number): BoardState => {
   return board;
 };
 
-const createInitialNode = (boardSize: number, handicap: number): HistoryNode => {
+const createInitialNode = (
+  boardSize: number,
+  handicap: number,
+): HistoryNode => {
   const board = setupInitialBoard(boardSize, handicap);
   return {
     id: "root",
@@ -177,7 +183,10 @@ export const getNode = (root: HistoryNode, id: string): HistoryNode | null => {
   return null;
 };
 
-export const getPathToNode = (root: HistoryNode, id: string): HistoryNode[] | null => {
+export const getPathToNode = (
+  root: HistoryNode,
+  id: string,
+): HistoryNode[] | null => {
   if (root.id === id) return [root];
   for (const child of root.children) {
     const path = getPathToNode(child, id);
@@ -214,6 +223,7 @@ export const useGameStore = create<GameState>()(
       teacherCritique: null,
       deadStones: null,
       gameResultText: null,
+      winner: null,
       isScoring: false,
       isAnalyzing: false,
       analysisProgress: null,
@@ -232,7 +242,9 @@ export const useGameStore = create<GameState>()(
 
         if (isGameOver && !isReviewMode) return;
 
-        const previousBoard = currentNode.parent ? currentNode.parent.board : null;
+        const previousBoard = currentNode.parent
+          ? currentNode.parent.board
+          : null;
 
         const { newBoard, isValid, captured } = applyMove(
           board,
@@ -251,9 +263,12 @@ export const useGameStore = create<GameState>()(
 
         set(
           produce((draft) => {
-            const currentInTree = getNode(draft.gameTree, draft.currentNode.id)!;
+            const currentInTree = getNode(
+              draft.gameTree,
+              draft.currentNode.id,
+            )!;
             const existingChild = currentInTree.children.find(
-              (child: HistoryNode) => child.x === x && child.y === y
+              (child: HistoryNode) => child.x === x && child.y === y,
             );
 
             if (existingChild) {
@@ -281,7 +296,8 @@ export const useGameStore = create<GameState>()(
               };
               currentInTree.children.push(newNode);
               // Crucial fix: re-link draft.currentNode to the proxy object inside the tree
-              draft.currentNode = currentInTree.children[currentInTree.children.length - 1];
+              draft.currentNode =
+                currentInTree.children[currentInTree.children.length - 1];
               draft.board = newBoard;
             }
 
@@ -290,7 +306,7 @@ export const useGameStore = create<GameState>()(
             draft.ignoredRecommendation = nextIgnoredRecommendation;
             draft.deadStones = null;
             draft.showDeadStones = false;
-          })
+          }),
         );
       },
 
@@ -318,9 +334,12 @@ export const useGameStore = create<GameState>()(
 
         set(
           produce((draft) => {
-            const currentInTree = getNode(draft.gameTree, draft.currentNode.id)!;
+            const currentInTree = getNode(
+              draft.gameTree,
+              draft.currentNode.id,
+            )!;
             const existingChild = currentInTree.children.find(
-              (child: HistoryNode) => child.x === null && child.y === null
+              (child: HistoryNode) => child.x === null && child.y === null,
             );
 
             if (existingChild) {
@@ -340,7 +359,8 @@ export const useGameStore = create<GameState>()(
                 moveIndex: currentInTree.moveIndex + 1,
               };
               currentInTree.children.push(newNode);
-              draft.currentNode = currentInTree.children[currentInTree.children.length - 1];
+              draft.currentNode =
+                currentInTree.children[currentInTree.children.length - 1];
             }
 
             draft.currentPlayer = currentPlayer === "BLACK" ? "WHITE" : "BLACK";
@@ -349,16 +369,17 @@ export const useGameStore = create<GameState>()(
             draft.showDeadStones = newGameOver; // Auto-enable on game over
             draft.ignoredRecommendation = nextIgnoredRecommendation;
             draft.deadStones = null;
-          })
+          }),
         );
       },
 
-      resignGame: () => set({ 
-        isGameOver: true, 
-        showDeadStones: true, // Auto-enable on resignation
-        ignoredRecommendation: null, 
-        deadStones: null 
-      }),
+      resignGame: () =>
+        set({
+          isGameOver: true,
+          showDeadStones: true, // Auto-enable on resignation
+          ignoredRecommendation: null,
+          deadStones: null,
+        }),
 
       toggleTeacherMode: () =>
         set((state) => ({
@@ -367,11 +388,13 @@ export const useGameStore = create<GameState>()(
           teacherCritique: null,
         })),
 
-      toggleDeadStones: () => set((state) => ({ showDeadStones: !state.showDeadStones })),
+      toggleDeadStones: () =>
+        set((state) => ({ showDeadStones: !state.showDeadStones })),
 
       setTeacherCritique: (c: string | null) => set({ teacherCritique: c }),
 
-      setDeadStones: (stones: { x: number; y: number }[] | null) => set({ deadStones: stones }),
+      setDeadStones: (stones: { x: number; y: number }[] | null) =>
+        set({ deadStones: stones }),
 
       setGameResultText: (text: string | null) => set({ gameResultText: text }),
 
@@ -381,7 +404,9 @@ export const useGameStore = create<GameState>()(
 
       setIsAnalyzing: (isAnalyzing: boolean) => set({ isAnalyzing }),
 
-      setAnalysisProgress: (progress: { current: number; total: number } | null) => set({ analysisProgress: progress }),
+      setAnalysisProgress: (
+        progress: { current: number; total: number } | null,
+      ) => set({ analysisProgress: progress }),
 
       goToPreviousMove: () => {
         const { gameTree, currentNode, handicap } = get();
@@ -391,9 +416,14 @@ export const useGameStore = create<GameState>()(
           set({
             currentNode: prevNode,
             board: prevNode.board,
-            currentPlayer: handicap > 0 
-              ? (prevNode.moveIndex % 2 === 0 ? "WHITE" : "BLACK") 
-              : (prevNode.moveIndex % 2 === 0 ? "BLACK" : "WHITE"),
+            currentPlayer:
+              handicap > 0
+                ? prevNode.moveIndex % 2 === 0
+                  ? "WHITE"
+                  : "BLACK"
+                : prevNode.moveIndex % 2 === 0
+                  ? "BLACK"
+                  : "WHITE",
             ignoredRecommendation: null,
             deadStones: null,
             showDeadStones: false,
@@ -408,9 +438,14 @@ export const useGameStore = create<GameState>()(
           set({
             currentNode: nextNode,
             board: nextNode.board,
-            currentPlayer: handicap > 0 
-              ? (nextNode.moveIndex % 2 === 0 ? "WHITE" : "BLACK") 
-              : (nextNode.moveIndex % 2 === 0 ? "BLACK" : "WHITE"),
+            currentPlayer:
+              handicap > 0
+                ? nextNode.moveIndex % 2 === 0
+                  ? "WHITE"
+                  : "BLACK"
+                : nextNode.moveIndex % 2 === 0
+                  ? "BLACK"
+                  : "WHITE",
             ignoredRecommendation: null,
             deadStones: null,
             showDeadStones: false,
@@ -426,13 +461,18 @@ export const useGameStore = create<GameState>()(
             targetNode = targetNode.children[0];
           } else break;
         }
-        
+
         set({
           currentNode: targetNode,
           board: targetNode.board,
-          currentPlayer: handicap > 0 
-            ? (targetNode.moveIndex % 2 === 0 ? "WHITE" : "BLACK") 
-            : (targetNode.moveIndex % 2 === 0 ? "BLACK" : "WHITE"),
+          currentPlayer:
+            handicap > 0
+              ? targetNode.moveIndex % 2 === 0
+                ? "WHITE"
+                : "BLACK"
+              : targetNode.moveIndex % 2 === 0
+                ? "BLACK"
+                : "WHITE",
           ignoredRecommendation: null,
           deadStones: null,
           showDeadStones: false,
@@ -442,7 +482,7 @@ export const useGameStore = create<GameState>()(
       setCurrentNode: (nodeId: string) => {
         const { gameTree, handicap } = get();
         let targetNode: HistoryNode | null = null;
-        
+
         const findNode = (node: HistoryNode) => {
           if (node.id === nodeId) {
             targetNode = node;
@@ -460,9 +500,14 @@ export const useGameStore = create<GameState>()(
           set({
             currentNode: tNode,
             board: tNode.board,
-            currentPlayer: handicap > 0 
-              ? (tNode.moveIndex % 2 === 0 ? "WHITE" : "BLACK") 
-              : (tNode.moveIndex % 2 === 0 ? "BLACK" : "WHITE"),
+            currentPlayer:
+              handicap > 0
+                ? tNode.moveIndex % 2 === 0
+                  ? "WHITE"
+                  : "BLACK"
+                : tNode.moveIndex % 2 === 0
+                  ? "BLACK"
+                  : "WHITE",
             ignoredRecommendation: null,
             deadStones: null,
             showDeadStones: false,
@@ -479,7 +524,22 @@ export const useGameStore = create<GameState>()(
             }
             // Re-link currentNode to prevent immer detachment
             draft.currentNode = getNode(draft.gameTree, draft.currentNode.id)!;
-          })
+          }),
+        );
+      },
+
+      updateWinRates: (updates: { nodeId: string; winRate: number }[]) => {
+        set(
+          produce((draft) => {
+            for (const { nodeId, winRate } of updates) {
+              const node = getNode(draft.gameTree, nodeId);
+              if (node) {
+                node.winRate = winRate;
+              }
+            }
+            // Re-link currentNode to prevent immer detachment
+            draft.currentNode = getNode(draft.gameTree, draft.currentNode.id)!;
+          }),
         );
       },
 
@@ -497,15 +557,26 @@ export const useGameStore = create<GameState>()(
         let current = rootNode;
 
         moves.slice(1).forEach((move, i) => {
-          const color = handicap > 0 
-            ? (i % 2 === 0 ? "WHITE" : "BLACK") 
-            : (i % 2 === 0 ? "BLACK" : "WHITE");
+          const color =
+            handicap > 0
+              ? i % 2 === 0
+                ? "WHITE"
+                : "BLACK"
+              : i % 2 === 0
+                ? "BLACK"
+                : "WHITE";
           const prevBoard = i > 0 ? current.board : null;
 
           let newBoard = current.board;
           let captured = 0;
           if (move) {
-            const result = applyMove(current.board, move.x, move.y, color, prevBoard);
+            const result = applyMove(
+              current.board,
+              move.x,
+              move.y,
+              color,
+              prevBoard,
+            );
             newBoard = result.newBoard;
             captured = result.captured;
           }
@@ -516,9 +587,16 @@ export const useGameStore = create<GameState>()(
             y: move?.y ?? null,
             color,
             board: newBoard,
-            capturedByBlack: color === "BLACK" ? current.capturedByBlack + captured : current.capturedByBlack,
-            capturedByWhite: color === "WHITE" ? current.capturedByWhite + captured : current.capturedByWhite,
-            winRate: winRates && winRates[i+1] !== undefined ? winRates[i+1] : 50,
+            capturedByBlack:
+              color === "BLACK"
+                ? current.capturedByBlack + captured
+                : current.capturedByBlack,
+            capturedByWhite:
+              color === "WHITE"
+                ? current.capturedByWhite + captured
+                : current.capturedByWhite,
+            winRate:
+              winRates && winRates[i + 1] !== undefined ? winRates[i + 1] : 50,
             children: [],
             parent: current,
             moveIndex: i + 1,
@@ -533,9 +611,14 @@ export const useGameStore = create<GameState>()(
           board: current.board,
           boardSize,
           handicap,
-          currentPlayer: handicap > 0
-            ? (current.moveIndex % 2 === 0 ? "WHITE" : "BLACK")
-            : (current.moveIndex % 2 === 0 ? "BLACK" : "WHITE"),
+          currentPlayer:
+            handicap > 0
+              ? current.moveIndex % 2 === 0
+                ? "WHITE"
+                : "BLACK"
+              : current.moveIndex % 2 === 0
+                ? "BLACK"
+                : "WHITE",
           isReviewMode: true,
           isGameOver: false,
           ignoredRecommendation: null,
@@ -549,22 +632,23 @@ export const useGameStore = create<GameState>()(
         });
       },
 
-      setGameConfig: (config) => set((state) => {
-        const newState = { ...state, ...config };
-        if (newState.boardSize <= 9) {
-          newState.handicap = 0;
-        } else if (newState.handicap > Math.min(9, newState.boardSize - 9)) {
-          newState.handicap = Math.min(9, newState.boardSize - 9);
-        }
-        return newState;
-      }),
+      setGameConfig: (config) =>
+        set((state) => {
+          const newState = { ...state, ...config };
+          if (newState.boardSize <= 9) {
+            newState.handicap = 0;
+          } else if (newState.handicap > Math.min(9, newState.boardSize - 9)) {
+            newState.handicap = Math.min(9, newState.boardSize - 9);
+          }
+          return newState;
+        }),
 
       setIgnoredRecommendation: (coords) =>
         set({ ignoredRecommendation: coords }),
 
       resetGame: () => {
         queryClient.removeQueries({ queryKey: ["aiHint"] });
-        
+
         const { boardSize, handicap } = get();
         const rootNode = createInitialNode(boardSize, handicap);
         const startingPlayer: PlayerColor = handicap > 0 ? "WHITE" : "BLACK";
@@ -605,20 +689,27 @@ export const useGameStore = create<GameState>()(
         }
       }),
       partialize: (state) => {
+        // Exclude non-serializable tree refs and transient analysis state
         const { gameTree, currentNode, ...rest } = state;
-        // Exclude transient state like isAnalyzing
-        delete (rest as any).isAnalyzing;
-        delete (rest as any).analysisProgress;
-        
+        const persistable = Object.fromEntries(
+          Object.entries(rest).filter(
+            ([k]) => k !== "isAnalyzing" && k !== "analysisProgress",
+          ),
+        );
+
         return {
-          ...rest,
+          ...persistable,
           flatTree: flattenTree(gameTree),
           currentNodeId: currentNode.id,
-        } as any;
+        };
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       merge: (persistedState: any, currentState) => {
         if (!persistedState.flatTree) return currentState;
-        const { root, current } = reconstructTree(persistedState.flatTree, persistedState.currentNodeId);
+        const { root, current } = reconstructTree(
+          persistedState.flatTree,
+          persistedState.currentNodeId,
+        );
         return {
           ...currentState,
           ...persistedState,

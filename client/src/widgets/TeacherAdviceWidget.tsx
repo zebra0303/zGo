@@ -1,6 +1,10 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import React, { useEffect, useRef, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useGameStore, getPathToNode } from "@/entities/match/model/store";
+import {
+  useGameStore,
+  getPathToNode,
+  HistoryNode,
+} from "@/entities/match/model/store";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAIHint, API_BASE_URL } from "@/shared/api/gameApi";
 
@@ -28,8 +32,22 @@ const TeacherAdviceWidget = () => {
     gameTree,
   } = useGameStore();
 
-  const [lastCritiquedMove, setLastCritiquedMove] = useState<string | null>(null);
-  const recommendationsByNodeId = useRef<Record<string, { x: number; y: number; winRate?: number; visits?: number; gtpMove: string; explanation: string }[]>>({});
+  const [lastCritiquedMove, setLastCritiquedMove] = useState<string | null>(
+    null,
+  );
+  const recommendationsByNodeId = useRef<
+    Record<
+      string,
+      {
+        x: number;
+        y: number;
+        winRate?: number;
+        visits?: number;
+        gtpMove: string;
+        explanation: string;
+      }[]
+    >
+  >({});
   const fetchingCritiqueForNodeId = useRef<string | null>(null);
 
   // API 호출을 통한 힌트 요청
@@ -50,9 +68,11 @@ const TeacherAdviceWidget = () => {
       const moves: ({ x: number; y: number } | null)[] = [];
       for (let i = 1; i < path.length; i++) {
         const node = path[i];
-        moves.push(node.x !== null && node.y !== null ? { x: node.x, y: node.y } : null);
+        moves.push(
+          node.x !== null && node.y !== null ? { x: node.x, y: node.y } : null,
+        );
       }
-      
+
       const data = await fetchAIHint(
         board,
         currentPlayer,
@@ -76,22 +96,35 @@ const TeacherAdviceWidget = () => {
 
   // Update win rate in store when AI data is received
   useEffect(() => {
-    if (aiData && typeof aiData.winRate === "number" && aiData.nodeId === currentNode.id) {
+    if (
+      aiData &&
+      typeof aiData.winRate === "number" &&
+      aiData.nodeId === currentNode.id
+    ) {
       const blackWinRate =
         currentPlayer === "BLACK" ? aiData.winRate : 100 - aiData.winRate;
-      console.log(`[TeacherAdvice] Fetched winrate for node ${currentNode.id}: aiData.winRate=${aiData.winRate}, blackWinRate=${blackWinRate}`);
-      // Only update if current store winRate is different to avoid redundant renders
+      // perf: only update if winRate actually changed to avoid redundant renders
       if (currentNode.winRate !== blackWinRate) {
-        console.log(`[TeacherAdvice] Updating store winRate from ${currentNode.winRate} to ${blackWinRate}`);
         updateWinRate(currentNode.id, blackWinRate);
       }
     }
-  }, [aiData, currentNode.id, currentNode.winRate, updateWinRate, currentPlayer]);
+  }, [
+    aiData,
+    currentNode.id,
+    currentNode.winRate,
+    updateWinRate,
+    currentPlayer,
+  ]);
 
-  // Track the recommendation to contrast it later
+  // Track the recommendation to contrast it later (cap at 50 entries)
   useEffect(() => {
     if (aiData?.recommendations && aiData.nodeId === currentNode.id) {
-      recommendationsByNodeId.current[currentNode.id] = aiData.recommendations;
+      const cache = recommendationsByNodeId.current;
+      cache[currentNode.id] = aiData.recommendations;
+      const keys = Object.keys(cache);
+      if (keys.length > 50) {
+        keys.slice(0, keys.length - 50).forEach((k) => delete cache[k]);
+      }
     }
   }, [aiData, currentNode.id]);
 
@@ -99,53 +132,65 @@ const TeacherAdviceWidget = () => {
     async (
       userMove: { x: number; y: number },
       bestMoves: { x: number; y: number }[],
-      targetNode: any,
+      targetNode: HistoryNode,
       signal: AbortSignal,
     ) => {
       if (fetchingCritiqueForNodeId.current === targetNode.id) return;
       fetchingCritiqueForNodeId.current = targetNode.id;
 
       try {
-        const path = getPathToNode(useGameStore.getState().gameTree, targetNode.id);
+        const path = getPathToNode(
+          useGameStore.getState().gameTree,
+          targetNode.id,
+        );
         if (!path || path.length < 2) return;
-        
+
         const parentNode = path[path.length - 2];
         const moves: ({ x: number; y: number } | null)[] = [];
         for (let i = 1; i < path.length - 1; i++) {
           const node = path[i];
-          moves.push(node.x !== null && node.y !== null ? { x: node.x, y: node.y } : null);
+          moves.push(
+            node.x !== null && node.y !== null
+              ? { x: node.x, y: node.y }
+              : null,
+          );
         }
 
-        const response = await fetch(
-          `${API_BASE_URL}/ai/move`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              board: parentNode.board,
-              currentPlayer: handicap > 0
-                ? (parentNode.moveIndex % 2 === 0 ? "WHITE" : "BLACK")
-                : (parentNode.moveIndex % 2 === 0 ? "BLACK" : "WHITE"),
-              isHintRequest: true,
-              aiDifficulty,
-              teacherVisits,
-              lastUserMove: userMove,
-              lastRecommendations: bestMoves,
-              moves: moves,
-              language,
-              boardSize,
-              handicap,
-            }),
-            signal,
-          },
-        );
+        const response = await fetch(`${API_BASE_URL}/ai/move`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            board: parentNode.board,
+            currentPlayer:
+              handicap > 0
+                ? parentNode.moveIndex % 2 === 0
+                  ? "WHITE"
+                  : "BLACK"
+                : parentNode.moveIndex % 2 === 0
+                  ? "BLACK"
+                  : "WHITE",
+            isHintRequest: true,
+            aiDifficulty,
+            teacherVisits,
+            lastUserMove: userMove,
+            lastRecommendations: bestMoves,
+            moves: moves,
+            language,
+            boardSize,
+            handicap,
+          }),
+          signal,
+        });
         const data = await response.json();
 
         const currentStoreState = useGameStore.getState();
-        if (currentStoreState.currentNode.id === targetNode.id && data.critique) {
-          useGameStore.setState({ 
-            teacherCritique: data.critique, 
-            ignoredRecommendation: bestMoves 
+        if (
+          currentStoreState.currentNode.id === targetNode.id &&
+          data.critique
+        ) {
+          useGameStore.setState({
+            teacherCritique: data.critique,
+            ignoredRecommendation: bestMoves,
           });
           setLastCritiquedMove(coordsToGtp(userMove.x, userMove.y, boardSize));
         }
@@ -160,63 +205,77 @@ const TeacherAdviceWidget = () => {
         }
       }
     },
-    [
-      aiDifficulty,
-      teacherVisits,
-      language,
-      boardSize,
-      handicap,
-    ],
+    [aiDifficulty, teacherVisits, language, boardSize, handicap],
   );
 
   // Listen for move changes to determine if we should show a critique
   useEffect(() => {
     const currentState = useGameStore.getState();
-    
+
     if (!isTeacherMode || currentNode.id === "root") {
-      if (currentState.teacherCritique !== null || currentState.ignoredRecommendation !== null) {
-        useGameStore.setState({ teacherCritique: null, ignoredRecommendation: null });
+      if (
+        currentState.teacherCritique !== null ||
+        currentState.ignoredRecommendation !== null
+      ) {
+        useGameStore.setState({
+          teacherCritique: null,
+          ignoredRecommendation: null,
+        });
       }
       setLastCritiquedMove(null);
       return;
     }
 
-    const lastMove = (currentNode.x !== null && currentNode.y !== null) ? { x: currentNode.x, y: currentNode.y } : null;
-    
+    const lastMove =
+      currentNode.x !== null && currentNode.y !== null
+        ? { x: currentNode.x, y: currentNode.y }
+        : null;
+
     const path = getPathToNode(currentState.gameTree, currentNode.id);
     const parentNode = path && path.length > 1 ? path[path.length - 2] : null;
-    const rec = parentNode ? recommendationsByNodeId.current[parentNode.id] : null;
+    const rec = parentNode
+      ? recommendationsByNodeId.current[parentNode.id]
+      : null;
 
-    const moveColor = handicap > 0
-      ? (currentNode.moveIndex % 2 === 1 ? "WHITE" : "BLACK")
-      : (currentNode.moveIndex % 2 === 1 ? "BLACK" : "WHITE");
+    const moveColor =
+      handicap > 0
+        ? currentNode.moveIndex % 2 === 1
+          ? "WHITE"
+          : "BLACK"
+        : currentNode.moveIndex % 2 === 1
+          ? "BLACK"
+          : "WHITE";
 
     if (gameMode === "PvAI" && moveColor !== humanPlayerColor) {
       return;
     }
 
-    if (currentState.teacherCritique !== null || currentState.ignoredRecommendation !== null) {
-      useGameStore.setState({ teacherCritique: null, ignoredRecommendation: null });
+    if (
+      currentState.teacherCritique !== null ||
+      currentState.ignoredRecommendation !== null
+    ) {
+      useGameStore.setState({
+        teacherCritique: null,
+        ignoredRecommendation: null,
+      });
     }
     setLastCritiquedMove(null);
 
     const abortController = new AbortController();
 
     if (lastMove && rec && rec.length > 0) {
-      const isFollowed = rec.some(r => r.x === lastMove.x && r.y === lastMove.y);
+      const isFollowed = rec.some(
+        (r) => r.x === lastMove.x && r.y === lastMove.y,
+      );
       if (!isFollowed) {
-        fetchCritique(
-          lastMove,
-          rec,
-          currentNode,
-          abortController.signal,
-        );
+        fetchCritique(lastMove, rec, currentNode, abortController.signal);
       }
     }
 
     return () => {
       abortController.abort();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     currentNode.id,
     isTeacherMode,
@@ -237,23 +296,24 @@ const TeacherAdviceWidget = () => {
             alt="iGo"
             className="w-6 h-6 object-contain"
           />
-          {t('teacherMode')}
+          {t("teacherMode")}
         </h2>
         <div className="text-[10px] text-blue-600 font-semibold animate-pulse absolute right-0">
-          {t('teacherModeActive')}
+          {t("teacherModeActive")}
         </div>
       </div>
       <div className="space-y-3 flex-1">
         {teacherCritique && (
           <div className="bg-rose-50 border border-rose-100 text-rose-900 p-3 rounded-lg shadow-inner relative overflow-hidden">
             <h3 className="font-bold text-[10px] flex items-center gap-1 mb-2 text-rose-700 uppercase tracking-wider">
-              <span className="mr-1">⚠️</span> {t('teacherAnalysis').replace('⚠️ ', '')}
+              <span className="mr-1">⚠️</span>{" "}
+              {t("teacherAnalysis").replace("⚠️ ", "")}
             </h3>
 
             <div className="flex gap-2 mb-3">
               <div className="flex-1 bg-white/50 rounded p-1.5 border border-rose-200/50">
                 <div className="text-[8px] text-rose-400 font-bold uppercase">
-                  {t('myMove')}
+                  {t("myMove")}
                 </div>
                 <div className="text-xs font-black text-rose-900">
                   {lastCritiquedMove || "-"}
@@ -261,13 +321,13 @@ const TeacherAdviceWidget = () => {
               </div>
               <div className="flex-1 bg-blue-50/50 rounded p-1.5 border border-blue-200/50">
                 <div className="text-[8px] text-blue-400 font-bold uppercase">
-                  {t('recommendedMove')}
+                  {t("recommendedMove")}
                 </div>
                 <div className="text-xs font-black text-blue-900">
                   {ignoredRecommendation && ignoredRecommendation.length > 0
                     ? ignoredRecommendation
-                      .map((r) => coordsToGtp(r.x, r.y, boardSize))
-                      .join(", ")
+                        .map((r) => coordsToGtp(r.x, r.y, boardSize))
+                        .join(", ")
                     : "-"}
                 </div>
               </div>
@@ -283,20 +343,23 @@ const TeacherAdviceWidget = () => {
           {isFetchingHint ? (
             <div className="flex items-center gap-2 h-full">
               <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-              {t('analyzing')}
+              {t("analyzing")}
             </div>
           ) : (
             <div className="leading-relaxed">
               {aiData?.recommendations && aiData.recommendations.length > 0 ? (
                 <>
                   <span className="font-bold text-blue-800 block mb-1">
-                    {t('recommendationPrefix')}{aiData.recommendations.map((r: { gtpMove: string }) => r.gtpMove).join(", ")}
+                    {t("recommendationPrefix")}
+                    {aiData.recommendations
+                      .map((r: { gtpMove: string }) => r.gtpMove)
+                      .join(", ")}
                   </span>
                   {aiData.recommendations[0].explanation}
                 </>
               ) : (
                 <span className="opacity-70 italic h-full flex items-center">
-                  {t('analysisReady')}
+                  {t("analysisReady")}
                 </span>
               )}
             </div>
@@ -307,4 +370,4 @@ const TeacherAdviceWidget = () => {
   );
 };
 
-export default TeacherAdviceWidget;
+export default React.memo(TeacherAdviceWidget);
