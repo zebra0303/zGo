@@ -1,109 +1,95 @@
-# zGo 🎮
+# zGo
 
-Welcome to **zGo**, a modern and beautiful web-based Go (Baduk/Weiqi) client powered by **React** and the world-class AI, **KataGo**!
+Welcome to **zGo**, a modern web-based Go (Baduk/Weiqi) client powered by **React** and the world-class AI, **KataGo**.
 
-Whether you are a complete beginner or a seasoned professional, zGo provides an elegant interface to play against AI, review your matches with advanced AI recommendations, and improve your skills.
+Whether you are a complete beginner or a seasoned professional, zGo provides an elegant interface to play against AI, challenge friends online, review matches with advanced AI analysis, and improve your skills.
 
----
-
-## 🚀 Features
-
-- **Beautiful UI**: A sleek, responsive, and gorgeous Go board experience.
-- **Multi-language Support (i18n)**: Fully supports English and Korean. Instantly switch the UI and AI Teacher's explanations.
-- **Play vs AI**: Challenge KataGo directly in your browser with adjustable difficulty levels (1–30).
-- **Teacher Mode**: The AI will actively suggest the best moves and critique your mistakes with detailed explanations in real-time (Available in EN/KR).
-- **Review Mode**: Effortlessly browse through your game history with Win Rate graphs and interactive AI visualizer zones.
-- **Game Analysis**: Full-game win rate analysis via SSE streaming with throttled batch updates.
-- **Board Sizes**: Supports 9×9, 13×13, and 19×19 boards with handicap stones (2–9).
-- **Sound Effects**: Stone placement, win/lose sounds with adjustable volume.
-- **Local History**: Your matches are automatically saved and stored safely in a local SQLite database.
+[한국어 README](./README.ko.md)
 
 ---
 
-## 📦 How to Install (For Beginners)
+## Features
 
-Don't worry if you've never used code before! Just follow these simple steps to run the game on your computer.
+### Play
+
+- **Play vs AI (PvAI)**: Challenge KataGo with adjustable difficulty (1-30) on 9x9, 13x13, and 19x19 boards with handicap support (2-9 stones).
+- **Player vs Player (PvP)**: Local friendly matches on the same device.
+- **Online Multiplayer**: Create or join rooms with unique invite links. Real-time play via WebSocket with character avatars, in-game chat, emoji reactions, and an undo request system (once per player per game).
+
+### Learn
+
+- **Teacher Mode**: AI suggests best moves in real-time and critiques your mistakes with detailed explanations (EN/KR).
+- **Review Mode**: Browse through completed games with a win rate graph, interactive AI analysis, variation explorer, and dead stone detection.
+- **Full-Game Analysis**: SSE streaming-based move-by-move win rate analysis with throttled batch updates.
+- **Chat History**: Review chat messages exchanged during online games via a lazy-loaded modal (30 messages at a time).
+
+### System
+
+- **Authentication**: Password-based access control with JWT tokens, rate limiting, and account lockout protection.
+- **Admin Panel**: Manage language, theme (light/dark), accent color, font family, and password — all from the sidebar.
+- **PWA (Progressive Web App)**: Install zGo on your phone's home screen for a native app experience. Auto-updating service worker with asset caching.
+- **Multi-language (i18n)**: Full English and Korean support. Instantly switch the UI and AI explanations.
+- **Sound Effects**: Stone placement, pass, win/lose sounds with adjustable volume.
+- **Dark Mode**: Full dark mode support across all UI components.
+
+---
+
+## Installation (Beginner Guide)
 
 ### Prerequisites
 
-Before starting, you need to install **Node.js** (the engine that runs the web app).
+Install **Node.js** (LTS version) from [nodejs.org](https://nodejs.org/).
 
-1. Go to the [Node.js Official Website](https://nodejs.org/).
-2. Download and install the **LTS (Long Term Support)** version.
+### Step 1: Download & Navigate
 
-### Step 1: Download the Game
+Download this project, unzip it, and open a terminal in the project folder:
 
-If you haven't already, download this project folder to your computer and unzip it.
+```bash
+cd path/to/zGo
+```
 
-### Step 2: Open your Terminal (Command Prompt)
-
-- **Windows**: Press the `Windows Key`, type `cmd`, and press Enter.
-- **Mac**: Press `Command + Space`, type `Terminal`, and press Enter.
-
-### Step 3: Navigate to the Project Folder
-
-In your terminal, you need to navigate to the folder where you unzipped zGo. You can do this by typing `cd ` and dragging the folder into the terminal, then pressing Enter.
-
-_(Example: `cd Desktop/zGo`)_
-
-### Step 4: Install Dependencies
-
-Now that you're inside the project folder, type the following command to install the required tools:
+### Step 2: Install Dependencies
 
 ```bash
 npm install
 ```
 
-_(Wait a few minutes for this to finish.)_
+### Step 3: Download the KataGo AI Model
 
-### Step 5: Download the KataGo AI Model
+1. Go to [KataGo Archive](https://katagoarchive.org/g170/neuralnets/index.html).
+2. Download `g170e-b10c128-s1141046784-d204142634.bin.gz`.
+3. Rename it to `katago-model.bin.gz`.
+4. Place it in the `server/katago/` folder.
 
-The AI engine requires a neural network model file (`katago-model.bin.gz`) to play. Because of its large size, it is not included in the repository.
+### Step 4: Configure (Optional)
 
-1. Go to the [KataGo Archive](https://katagoarchive.org/g170/neuralnets/index.html).
-2. Download the exact model file named: `g170e-b10c128-s1141046784-d204142634.bin.gz`.
-3. Rename the downloaded file to `katago-model.bin.gz`.
-4. Place the file inside the `server/katago/` folder of this project.
+Copy `.env.example` to `.env` and edit ports if needed (`PORT` for backend, `VITE_PORT` for frontend).
 
-### Step 6: Configure your Network (Optional)
+### Step 5: Run
 
-If you need to change the game's port or API URL, you can create a `.env` file in the project root. Use the provided `.env.example` as a template:
-
-1. Duplicate `.env.example`.
-2. Rename the duplicated file to `.env`.
-3. Open it with any text editor to modify the ports (`PORT` for backend, `VITE_PORT` for frontend).
-
-### Step 7: Start the Game!
-
-You have two options to run the game:
-
-**Option A: Developer Mode (Easiest)**
-Simply type:
+**Development Mode:**
 
 ```bash
 npm run dev
 ```
 
-**Option B: Production Mode (Optimized & Faster)**
-If you want the game to run at maximum performance, compile the app first and then start the production server:
+**Production Mode:**
 
 ```bash
 npm run build
 npm start
 ```
 
-Depending on the mode you chose, open your web browser and go to:
+- Dev: [http://localhost:5550](http://localhost:5550) (or `VITE_PORT`)
+- Prod: [http://localhost:3330](http://localhost:3330) (or `PORT`)
 
-- **Developer Mode**: 👉 **[http://localhost:5550](http://localhost:5550)** (or the port defined in `VITE_PORT`)
-- **Production Mode**: 👉 **[http://localhost:3330](http://localhost:3330)** (or the port defined in `PORT`)
-
-Enjoy your game! 🎉
+On first access, you will be prompted to set an admin password.
 
 ---
 
-## 🛠 For Developers
+## For Developers
 
-This project strictly follows the **FSD (Feature-Sliced Design)** architecture for a scalable frontend.
+This project follows the **FSD (Feature-Sliced Design)** architecture.
 
 ### Tech Stack
 
@@ -112,45 +98,53 @@ This project strictly follows the **FSD (Feature-Sliced Design)** architecture f
 | **Frontend**     | React 18, TypeScript, Tailwind CSS, Zustand (+ Immer), TanStack Query, Vite |
 | **Backend**      | Node.js, Express 5, TypeScript                                              |
 | **AI Engine**    | KataGo (GTP protocol via child_process)                                     |
-| **Database**     | SQLite3                                                                     |
-| **Testing**      | Vitest, Testing Library                                                     |
+| **Database**     | better-sqlite3 (WAL mode)                                                   |
+| **Realtime**     | WebSocket (ws) with JWT room tokens                                         |
+| **Auth**         | bcrypt + jsonwebtoken, express-rate-limit                                   |
+| **PWA**          | vite-plugin-pwa (Workbox)                                                   |
+| **Testing**      | Vitest (105 tests)                                                          |
 | **Code Quality** | ESLint, Prettier, Husky, lint-staged                                        |
 
 ### Project Structure
 
 ```
 zGo/
-├── client/                     # React frontend (FSD architecture)
+├── client/                         # React frontend (FSD architecture)
 │   ├── src/
-│   │   ├── app/                # App-level setup (providers, i18n)
-│   │   ├── pages/              # Page components (MainPage)
-│   │   ├── widgets/            # Composite UI blocks
-│   │   │   ├── sidebar/        # Decomposed sidebar panels
+│   │   ├── app/                    # App setup (providers, i18n, auth gate)
+│   │   ├── pages/                  # MainPage, OnlinePage, AuthPage
+│   │   ├── widgets/                # Composite UI blocks
+│   │   │   ├── sidebar/            # AdminPanel, SettingsPanel, GameStatusPanel,
+│   │   │   │                       # MatchHistory, ChatHistoryModal
 │   │   │   ├── BoardWidget.tsx
 │   │   │   ├── SidebarWidget.tsx
+│   │   │   ├── OnlineSidebarWidget.tsx
 │   │   │   ├── ReviewControlWidget.tsx
 │   │   │   ├── WinRateGraphWidget.tsx
 │   │   │   └── TeacherAdviceWidget.tsx
-│   │   ├── features/           # Feature-specific logic (board interaction)
-│   │   ├── entities/           # Domain models (match store, game tree, Go logic)
-│   │   └── shared/             # Shared utilities, types, API, UI components
-│   └── vite.config.ts
-├── server/                     # Express backend (TypeScript)
+│   │   ├── features/               # Board interaction, online UI (rooms, chat)
+│   │   ├── entities/               # Game store, online store, Go logic, tree utils
+│   │   └── shared/                 # API client, types, i18n, sounds, router
+│   └── vite.config.ts              # Vite + PWA plugin config
+├── server/                         # Express backend (TypeScript)
 │   ├── src/
-│   │   ├── index.ts            # App entry, route mounting
-│   │   ├── db.ts               # SQLite initialization
-│   │   ├── katago/
-│   │   │   ├── engine.ts       # KataGo process management & GTP queue
-│   │   │   ├── coords.ts       # Board ↔ GTP coordinate conversion
-│   │   │   └── tactics.ts      # Move analysis & explanations (KR/EN)
-│   │   └── routes/
-│   │       ├── ai.ts           # /api/ai/* endpoints
-│   │       └── matches.ts      # /api/matches CRUD
-│   ├── __tests__/
-│   ├── katago/                 # KataGo binary config & model
-│   └── tsconfig.json
-├── .env                        # Environment variables (PORT, VITE_PORT, etc.)
-└── package.json                # Root scripts (dev, build, test, start)
+│   │   ├── index.ts                # Entry point, route & WebSocket mounting
+│   │   ├── db.ts                   # SQLite (matches, system_settings,
+│   │   │                           #   online_rooms, online_chat)
+│   │   ├── middleware/auth.ts      # JWT requireAdmin middleware
+│   │   ├── lib/goLogic.ts          # Server-side move validation
+│   │   ├── katago/                 # KataGo process management & GTP
+│   │   ├── routes/
+│   │   │   ├── ai.ts              # /api/ai/* (move, analyze, score)
+│   │   │   ├── matches.ts         # /api/matches CRUD
+│   │   │   ├── online.ts          # /api/online/* (rooms, join, match)
+│   │   │   └── settings.ts        # /api/settings/* (auth, config)
+│   │   └── ws/
+│   │       ├── onlineHandler.ts   # WebSocket game logic
+│   │       └── roomManager.ts     # Room state management
+│   └── katago/                     # KataGo binary, config & model
+├── .env                            # Environment variables
+└── package.json                    # Root scripts
 ```
 
 ### Scripts
@@ -159,21 +153,50 @@ zGo/
 | --------------- | ------------------------------------------------------------ |
 | `npm run dev`   | Start both client (Vite) and server (tsx watch) concurrently |
 | `npm run build` | Build client (Vite) + server (tsc) for production            |
-| `npm start`     | Start the production server (`server/dist/index.js`)         |
-| `npm test`      | Run all tests (client + server, 47 tests)                    |
+| `npm start`     | Start the production server                                  |
+| `npm test`      | Run all tests (client 71 + server 34 = 105 tests)            |
 | `npm run lint`  | Lint the client codebase                                     |
 
 ### API Endpoints
 
-| Method | Endpoint               | Description                                           |
-| ------ | ---------------------- | ----------------------------------------------------- |
-| POST   | `/api/ai/move`         | Generate AI move or teacher hint with recommendations |
-| POST   | `/api/ai/analyze-game` | Full-game win rate analysis (SSE stream)              |
-| POST   | `/api/ai/score`        | Calculate final score and identify dead stones        |
-| POST   | `/api/matches`         | Save a match record                                   |
-| GET    | `/api/matches`         | List all match records                                |
-| GET    | `/api/matches/:id`     | Get match details by ID                               |
-| DELETE | `/api/matches/:id`     | Delete a match record                                 |
+#### AI
+
+| Method | Endpoint               | Auth | Description                               |
+| ------ | ---------------------- | ---- | ----------------------------------------- |
+| POST   | `/api/ai/move`         | -    | AI move or teacher hint with explanations |
+| POST   | `/api/ai/analyze-game` | -    | Full-game win rate analysis (SSE stream)  |
+| POST   | `/api/ai/score`        | -    | Final score calculation & dead stones     |
+
+#### Matches
+
+| Method | Endpoint           | Auth | Description         |
+| ------ | ------------------ | ---- | ------------------- |
+| POST   | `/api/matches`     | -    | Save a match record |
+| GET    | `/api/matches`     | -    | List all matches    |
+| GET    | `/api/matches/:id` | -    | Get match by ID     |
+| DELETE | `/api/matches/:id` | -    | Delete a match      |
+
+#### Online Multiplayer
+
+| Method | Endpoint                      | Auth | Description                  |
+| ------ | ----------------------------- | ---- | ---------------------------- |
+| POST   | `/api/online/rooms`           | -    | Create a new room            |
+| GET    | `/api/online/rooms/:id`       | -    | Get room info                |
+| POST   | `/api/online/rooms/:id/join`  | -    | Join an existing room        |
+| GET    | `/api/online/rooms/:id/match` | JWT  | Get match data with chat     |
+| WS     | `/ws/online`                  | JWT  | Real-time game communication |
+
+#### Auth & Settings
+
+| Method | Endpoint                 | Auth | Description              |
+| ------ | ------------------------ | ---- | ------------------------ |
+| GET    | `/api/settings/status`   | -    | Check if password is set |
+| POST   | `/api/settings/setup`    | -    | Initial password setup   |
+| POST   | `/api/settings/login`    | -    | Login (returns JWT)      |
+| POST   | `/api/settings/refresh`  | JWT  | Refresh token            |
+| PUT    | `/api/settings/password` | JWT  | Change password          |
+| GET    | `/api/settings/config`   | -    | Get public config        |
+| PUT    | `/api/settings/config`   | JWT  | Update config            |
 
 ### Performance Optimizations
 
@@ -183,10 +206,11 @@ zGo/
 - **Throttled Updates**: 100ms batched win rate updates during game analysis.
 - **AbortController**: All async effects cleaned up to prevent memory leaks.
 - **Cache Eviction**: Teacher recommendation cache capped at 50 entries.
+- **PWA Caching**: Service worker caches static assets (images, fonts) for offline use.
 - **Dev Profiling**: `useRenderProfile` hook logs slow renders (>16ms) in development.
 
 ---
 
-## 📝 License
+## License
 
-This project is open-source. Please feel free to contribute and enhance the AI Go experience!
+This project is open-source. Contributions are welcome!
