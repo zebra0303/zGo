@@ -14,6 +14,8 @@ import {
   playStoneSound,
   playWinSound,
   playLoseSound,
+  playChatSendSound,
+  playChatReceiveSound,
 } from "@/shared/lib/sound";
 import { saveMatch, fetchAIScore } from "@/shared/api/gameApi";
 import { PlayerColor } from "@/shared/types/board";
@@ -499,8 +501,18 @@ function handleWsMessage(
         message: p.message as string,
         createdAt: p.createdAt as string,
       };
+
+      const onlineState = useOnlineStore.getState();
+      const { soundEnabled, soundVolume } = useGameStore.getState();
+
+      if (chatMsg.sender !== onlineState.myRole) {
+        playChatReceiveSound(soundEnabled, soundVolume);
+      } else {
+        playChatSendSound(soundEnabled, soundVolume);
+      }
+
       set({
-        chatMessages: [...useOnlineStore.getState().chatMessages, chatMsg],
+        chatMessages: [...onlineState.chatMessages, chatMsg],
       });
       break;
     }

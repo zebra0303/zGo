@@ -44,3 +44,14 @@ export const playWinSound = (enabled: boolean, volume: number = 0.6) => {
 export const playLoseSound = (enabled: boolean, volume: number = 0.6) => {
   playSound("/assets/sounds/lose.mp3", enabled, volume);
 };
+
+export const playChatSendSound = (enabled: boolean, volume: number = 0.6) => {
+  playSound("/assets/sounds/chat_send.mp3", enabled, volume);
+};
+
+export const playChatReceiveSound = (
+  enabled: boolean,
+  volume: number = 0.6,
+) => {
+  playSound("/assets/sounds/chat_receive.mp3", enabled, volume);
+};

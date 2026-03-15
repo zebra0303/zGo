@@ -51,11 +51,12 @@ router.post("/rooms", (req: Request, res: Response) => {
 
   const roomId = uuidv4();
   const now = new Date().toISOString();
+  const initialPlayer = handicap > 0 ? "WHITE" : "BLACK";
 
   try {
     db.prepare(
       `INSERT INTO online_rooms (id, status, board_size, handicap, host_nickname, host_character, host_color, current_player, created_at, updated_at)
-       VALUES (?, 'waiting', ?, ?, ?, ?, ?, 'BLACK', ?, ?)`,
+       VALUES (?, 'waiting', ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       roomId,
       boardSize,
@@ -63,6 +64,7 @@ router.post("/rooms", (req: Request, res: Response) => {
       nickname.trim(),
       character,
       hostColor,
+      initialPlayer,
       now,
       now,
     );

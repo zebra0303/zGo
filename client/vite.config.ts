@@ -36,7 +36,7 @@ export default defineConfig(({ mode }) => {
           ],
         },
         workbox: {
-          globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+          globPatterns: ["**/*.{ico,png,svg,jpg,jpeg,webp,woff,woff2,ttf,mp3,m4a}"],
           runtimeCaching: [
             {
               urlPattern: /^\/api\//,
