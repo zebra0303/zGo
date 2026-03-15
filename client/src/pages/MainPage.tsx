@@ -84,32 +84,17 @@ const MainPage = () => {
 
       {/* Sidebar: bottom sheet on mobile, side panel on md+ */}
       <aside
-        className={`border-t md:border-t-0 md:border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shrink-0 transition-all duration-300 ${
-          isOnline
-            ? "h-[40vh] md:h-auto md:w-80"
-            : sidebarCollapsed
-              ? "h-10 md:h-auto md:w-4"
-              : "h-[40vh] md:h-auto md:w-80"
+        className={`border-t md:border-t-0 md:border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shrink-0 transition-all duration-300 z-10 ${
+          sidebarCollapsed
+            ? "h-10 md:h-auto md:w-4"
+            : "h-[85vh] md:h-auto md:w-80"
         }`}
       >
-        {isOnline ? (
-          /* Online mode: always show online sidebar, no collapse */
-          <div className="h-full overflow-hidden">
-            <Suspense
-              fallback={
-                <div className="animate-pulse p-4 text-center text-gray-400 dark:text-gray-500">
-                  Loading...
-                </div>
-              }
-            >
-              <OnlineSidebarWidget />
-            </Suspense>
-          </div>
-        ) : sidebarCollapsed ? (
+        {sidebarCollapsed ? (
           <div className="h-full flex flex-row md:flex-col items-center justify-center md:justify-start md:pt-3">
             <button
               onClick={() => toggleSidebar(false)}
-              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 w-full md:w-auto flex justify-center"
               aria-label="Expand sidebar"
             >
               {/* Mobile: chevron up, Desktop: chevron left */}
@@ -179,7 +164,7 @@ const MainPage = () => {
                 </div>
               }
             >
-              <SidebarWidget />
+              {isOnline ? <OnlineSidebarWidget /> : <SidebarWidget />}
             </Suspense>
           </div>
         )}
