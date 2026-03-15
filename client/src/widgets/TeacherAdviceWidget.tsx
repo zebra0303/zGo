@@ -293,42 +293,42 @@ const TeacherAdviceWidget = ({
 
   return (
     <div
-      className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-col mb-4 overflow-hidden text-center ${
+      className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm flex flex-col mb-4 overflow-hidden text-center ${
         sideBySide ? "w-72 sticky top-4 mt-6 shrink-0 -ml-3.5" : "w-full"
       }`}
     >
       <div className="flex justify-center items-center mb-3 shrink-0">
-        <h2 className="font-bold text-gray-700 flex items-center gap-2">
+        <h2 className="font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
           <img
             src="/igo_logo.png"
             alt="iGo"
-            className="w-6 h-6 object-contain"
+            className="w-6 h-6 object-contain rounded-full"
           />
           {t("teacherMode")}
         </h2>
       </div>
       <div className="space-y-3 flex-1">
         {teacherCritique && (
-          <div className="bg-rose-50 border border-rose-100 text-rose-900 p-3 rounded-lg shadow-inner relative overflow-hidden">
-            <h3 className="font-bold text-[10px] flex items-center gap-1 mb-2 text-rose-700 uppercase tracking-wider">
+          <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800 text-rose-900 dark:text-rose-200 p-3 rounded-lg shadow-inner relative overflow-hidden">
+            <h3 className="font-bold text-[10px] flex items-center gap-1 mb-2 text-rose-700 dark:text-rose-300 uppercase tracking-wider">
               <span className="mr-1">⚠️</span>{" "}
               {t("teacherAnalysis").replace("⚠️ ", "")}
             </h3>
 
             <div className="flex gap-2 mb-3">
-              <div className="flex-1 bg-white/50 rounded p-1.5 border border-rose-200/50">
-                <div className="text-[8px] text-rose-400 font-bold uppercase">
+              <div className="flex-1 bg-white/50 dark:bg-gray-700/50 rounded p-1.5 border border-rose-200/50 dark:border-rose-700/50">
+                <div className="text-[8px] text-rose-400 dark:text-rose-400 font-bold uppercase">
                   {t("myMove")}
                 </div>
-                <div className="text-xs font-black text-rose-900">
+                <div className="text-xs font-black text-rose-900 dark:text-rose-300">
                   {lastCritiquedMove || "-"}
                 </div>
               </div>
-              <div className="flex-1 bg-blue-50/50 rounded p-1.5 border border-blue-200/50">
-                <div className="text-[8px] text-blue-400 font-bold uppercase">
+              <div className="flex-1 bg-blue-50/50 dark:bg-blue-900/30 rounded p-1.5 border border-blue-200/50 dark:border-blue-700/50">
+                <div className="text-[8px] text-blue-400 dark:text-blue-400 font-bold uppercase">
                   {t("recommendedMove")}
                 </div>
-                <div className="text-xs font-black text-blue-900">
+                <div className="text-xs font-black text-blue-900 dark:text-blue-300">
                   {ignoredRecommendation && ignoredRecommendation.length > 0
                     ? ignoredRecommendation
                         .map((r) => coordsToGtp(r.x, r.y, boardSize))
@@ -338,13 +338,13 @@ const TeacherAdviceWidget = ({
               </div>
             </div>
 
-            <p className="text-xs leading-relaxed italic border-t border-rose-100 pt-2 mt-1">
+            <p className="text-xs leading-relaxed italic border-t border-rose-100 dark:border-rose-800 pt-2 mt-1">
               "{teacherCritique}"
             </p>
           </div>
         )}
 
-        <div className="text-xs bg-blue-50 text-blue-900 p-3 rounded-lg border border-blue-100 h-full">
+        <div className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-900 dark:text-blue-200 p-3 rounded-lg border border-blue-100 dark:border-blue-800 h-full">
           {isFetchingHint ? (
             <div className="flex items-center gap-2 h-full">
               <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
@@ -354,7 +354,7 @@ const TeacherAdviceWidget = ({
             <div className="leading-relaxed">
               {aiData?.recommendations && aiData.recommendations.length > 0 ? (
                 <>
-                  <span className="font-bold text-blue-800 block mb-1">
+                  <span className="font-bold text-blue-800 dark:text-blue-300 block mb-1">
                     {t("recommendationPrefix")}
                     {aiData.recommendations
                       .map((r: { gtpMove: string }) => r.gtpMove)

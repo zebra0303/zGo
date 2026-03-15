@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import { startKataGo } from "./katago/engine";
 import aiRouter from "./routes/ai";
 import matchesRouter from "./routes/matches";
+import settingsRouter from "./routes/settings";
 
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
@@ -21,6 +22,7 @@ app.use(express.static(path.join(__dirname, "../../client/dist")));
 // Routes
 app.use("/api/ai", aiRouter);
 app.use("/api/matches", matchesRouter);
+app.use("/api/settings", settingsRouter);
 
 // SPA fallback
 app.get(/.*/, (_req, res) => {

@@ -81,5 +81,36 @@
   "askUndo": "무르기를 사용하시겠습니까? (대국당 1회)",
   "doUndo": "무르기",
   "askNewGame": "새 대국을 시작하시겠습니까?",
-  "doNewGame": "새 대국"
+  "doNewGame": "새 대국",
+  "auth": {
+    "setupTitle": "비밀번호 설정",
+    "setupDesc": "서비스 접근을 위한 비밀번호를 설정해주세요.",
+    "loginTitle": "로그인",
+    "loginDesc": "비밀번호를 입력해주세요.",
+    "password": "비밀번호",
+    "login": "로그인",
+    "setup": "설정",
+    "setupComplete": "비밀번호 설정이 완료되었습니다. 로그인해주세요."
+  },
+  "admin": {
+    "title": "관리",
+    "logout": "로그아웃",
+    "langTitle": "언어",
+    "themeTitle": "테마",
+    "themeLight": "라이트",
+    "themeDark": "다크",
+    "colorTitle": "강조 색상",
+    "fontTitle": "폰트",
+    "fontSystem": "시스템 기본",
+    "changePassword": "비밀번호 변경",
+    "currentPassword": "현재 비밀번호",
+    "newPassword": "새 비밀번호",
+    "confirmPassword": "새 비밀번호 확인",
+    "saveSettings": "설정 저장",
+    "saved": "저장되었습니다.",
+    "fieldsRequired": "모든 필드를 입력해주세요.",
+    "passwordMinLength": "비밀번호는 4자 이상이어야 합니다.",
+    "passwordMismatch": "새 비밀번호가 일치하지 않습니다.",
+    "passwordChanged": "비밀번호가 변경되었습니다."
+  }
 }

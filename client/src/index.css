@@ -5,9 +5,42 @@
 :root {
   --wood-bg: #dcb35c;
   --board-line: #1a1a1a;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 body {
   margin: 0;
-  background-color: #f3f4f6; /* bg-gray-100 */
+  background-color: #f3f4f6;
+  font-family: var(--font-family);
+}
+
+.dark body {
+  background-color: #111827;
+}
+
+/* Primary color utility classes driven by --primary CSS variable */
+.bg-accent {
+  background-color: var(--primary);
+}
+.bg-accent-hover:hover {
+  background-color: var(--primary);
+  filter: brightness(0.9);
+}
+.text-accent {
+  color: var(--primary);
+}
+.border-accent {
+  border-color: var(--primary);
+}
+.ring-accent:focus {
+  --tw-ring-color: var(--primary);
+}
+.toggle-accent {
+  background-color: var(--primary);
+}
+.text-accent-foreground {
+  color: var(--primary-foreground);
 }

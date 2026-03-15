@@ -16,7 +16,7 @@ const SettingsPanel = ({
   onResetSaveStatus,
   onShowConfirm,
 }: SettingsPanelProps) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const {
     gameMode,
     aiDifficulty,
@@ -39,11 +39,6 @@ const SettingsPanel = ({
     undoMove,
   } = useGameStore();
 
-  const changeLanguage = (lng: string) => {
-    i18n.changeLanguage(lng);
-    setGameConfig({ language: lng as "ko" | "en" });
-  };
-
   // Confirm before resetting if a game is in progress
   const handleResetGame = (
     beforeReset?: () => void,
@@ -62,27 +57,21 @@ const SettingsPanel = ({
     }
   };
 
+  const selectClass =
+    "bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded p-1 text-xs text-gray-900 dark:text-gray-100";
+  const labelClass = "font-medium text-gray-600 dark:text-gray-300";
+  const dividerClass = "border-t border-gray-50 dark:border-gray-700";
+
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-3">
-      <h2 className="font-bold text-gray-700 flex items-center gap-2 mb-2">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm space-y-3">
+      <h2 className="font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2 mb-2">
         <span className="text-xl">⚙️</span> {t("settings").replace("⚙️ ", "")}
       </h2>
 
-      <div className="flex items-center justify-between text-sm">
-        <span className="font-medium text-gray-600">{t("language")}</span>
-        <select
-          id="setting-language"
-          value={i18n.language}
-          onChange={(e) => changeLanguage(e.target.value)}
-          className="bg-gray-50 border border-gray-200 rounded p-1 text-xs"
-        >
-          <option value="ko">한국어 (KO)</option>
-          <option value="en">English (EN)</option>
-        </select>
-      </div>
-
-      <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-50">
-        <span className="font-medium text-gray-600">{t("mode")}</span>
+      <div
+        className={`flex items-center justify-between text-sm pt-1 ${dividerClass}`}
+      >
+        <span className={labelClass}>{t("mode")}</span>
         <select
           id="setting-mode"
           value={gameMode}
@@ -90,15 +79,17 @@ const SettingsPanel = ({
             const val = e.target.value as "PvP" | "PvAI";
             handleResetGame(() => setGameConfig({ gameMode: val }));
           }}
-          className="bg-gray-50 border border-gray-200 rounded p-1 text-xs"
+          className={selectClass}
         >
           <option value="PvP">{t("pvp")}</option>
           <option value="PvAI">{t("pvai")}</option>
         </select>
       </div>
 
-      <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-50">
-        <span className="font-medium text-gray-600">{t("boardSize")}</span>
+      <div
+        className={`flex items-center justify-between text-sm pt-1 ${dividerClass}`}
+      >
+        <span className={labelClass}>{t("boardSize")}</span>
         <select
           id="setting-board-size"
           value={boardSize}
@@ -117,7 +108,7 @@ const SettingsPanel = ({
               }
             });
           }}
-          className="bg-gray-50 border border-gray-200 rounded p-1 text-xs"
+          className={selectClass}
         >
           <option value="5">5x5</option>
           <option value="6">6x6</option>
@@ -132,8 +123,10 @@ const SettingsPanel = ({
         </select>
       </div>
 
-      <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-50">
-        <span className="font-medium text-gray-600">{t("handicap")}</span>
+      <div
+        className={`flex items-center justify-between text-sm pt-1 ${dividerClass}`}
+      >
+        <span className={labelClass}>{t("handicap")}</span>
         <select
           id="setting-handicap"
           value={handicap}
@@ -141,7 +134,7 @@ const SettingsPanel = ({
             const val = Number(e.target.value);
             handleResetGame(() => setGameConfig({ handicap: val }));
           }}
-          className="bg-gray-50 border border-gray-200 rounded p-1 text-xs"
+          className={selectClass}
           disabled={boardSize <= 9}
         >
           <option value="0">0</option>
@@ -158,9 +151,9 @@ const SettingsPanel = ({
       </div>
 
       {gameMode === "PvAI" && (
-        <div className="space-y-3 pt-1 border-t border-gray-50">
+        <div className={`space-y-3 pt-1 ${dividerClass}`}>
           <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-gray-600">{t("myStone")}</span>
+            <span className={labelClass}>{t("myStone")}</span>
             <select
               id="setting-player-color"
               value={humanPlayerColor}
@@ -168,7 +161,7 @@ const SettingsPanel = ({
                 const val = e.target.value as "BLACK" | "WHITE";
                 handleResetGame(() => setGameConfig({ humanPlayerColor: val }));
               }}
-              className="bg-gray-50 border border-gray-200 rounded p-1 text-xs"
+              className={selectClass}
             >
               <option value="BLACK">{t("blackFirst")}</option>
               <option value="WHITE">{t("whiteSecond")}</option>
@@ -176,10 +169,10 @@ const SettingsPanel = ({
           </div>
           <div className="space-y-1">
             <div className="flex justify-between text-[10px]">
-              <span className="text-gray-600">{t("aiDifficulty")}</span>
-              <span className="font-bold text-blue-600">
-                Lv. {aiDifficulty}
+              <span className="text-gray-600 dark:text-gray-400">
+                {t("aiDifficulty")}
               </span>
+              <span className="font-bold text-accent">Lv. {aiDifficulty}</span>
             </div>
             <input
               type="range"
@@ -189,16 +182,18 @@ const SettingsPanel = ({
               onChange={(e) =>
                 setGameConfig({ aiDifficulty: Number(e.target.value) })
               }
-              className="w-full accent-blue-600 h-1"
+              className="w-full accent-[var(--primary)] h-1"
             />
           </div>
         </div>
       )}
 
-      <div className="space-y-1 pt-1 border-t border-gray-50">
+      <div className={`space-y-1 pt-1 ${dividerClass}`}>
         <div className="flex justify-between text-[10px]">
-          <span className="text-gray-600">{t("boardZoom")}</span>
-          <span className="font-bold text-blue-600">
+          <span className="text-gray-600 dark:text-gray-400">
+            {t("boardZoom")}
+          </span>
+          <span className="font-bold text-accent">
             {Math.round(boardScale * 100)}%
           </span>
         </div>
@@ -211,15 +206,15 @@ const SettingsPanel = ({
           onChange={(e) =>
             setGameConfig({ boardScale: Number(e.target.value) })
           }
-          className="w-full accent-blue-600 h-1"
+          className="w-full accent-[var(--primary)] h-1"
         />
       </div>
 
       <div className="flex justify-between items-center py-1">
-        <span className="text-sm font-medium text-gray-600">{t("sound")}</span>
+        <span className={`text-sm ${labelClass}`}>{t("sound")}</span>
         <button
           onClick={() => setGameConfig({ soundEnabled: !soundEnabled })}
-          className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${soundEnabled ? "bg-blue-600" : "bg-gray-300"}`}
+          className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${soundEnabled ? "toggle-accent" : "bg-gray-300 dark:bg-gray-600"}`}
           aria-label={t("sound")}
           aria-pressed={soundEnabled}
         >
@@ -230,12 +225,12 @@ const SettingsPanel = ({
       </div>
 
       {soundEnabled && (
-        <div className="space-y-1 pt-1 border-t border-gray-50 mt-1">
+        <div className={`space-y-1 pt-1 ${dividerClass} mt-1`}>
           <div className="flex justify-between text-[10px]">
-            <span className="text-gray-600">
+            <span className="text-gray-600 dark:text-gray-400">
               {t("volume", { defaultValue: "Volume" })}
             </span>
-            <span className="font-bold text-blue-600">
+            <span className="font-bold text-accent">
               {Math.round(soundVolume * 100)}%
             </span>
           </div>
@@ -248,17 +243,19 @@ const SettingsPanel = ({
             onChange={(e) =>
               setGameConfig({ soundVolume: parseFloat(e.target.value) })
             }
-            className="w-full accent-blue-600 h-1"
+            className="w-full accent-[var(--primary)] h-1"
             aria-label={t("volume", { defaultValue: "Volume" })}
           />
         </div>
       )}
 
-      <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-50 mt-1">
-        <span className="font-medium text-gray-600">{t("teacherMode")}</span>
+      <div
+        className={`flex items-center justify-between text-sm pt-1 ${dividerClass} mt-1`}
+      >
+        <span className={labelClass}>{t("teacherMode")}</span>
         <button
           onClick={toggleTeacherMode}
-          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isTeacherMode ? "bg-blue-600" : "bg-gray-300"}`}
+          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isTeacherMode ? "toggle-accent" : "bg-gray-300 dark:bg-gray-600"}`}
           aria-label={t("teacherMode")}
           aria-pressed={isTeacherMode}
         >
@@ -269,10 +266,12 @@ const SettingsPanel = ({
       </div>
 
       {isTeacherMode && (
-        <div className="space-y-1 pt-1 border-t border-gray-50 mt-1">
+        <div className={`space-y-1 pt-1 ${dividerClass} mt-1`}>
           <div className="flex justify-between text-[10px]">
-            <span className="text-gray-600">{t("teacherLevel")}</span>
-            <span className="font-bold text-blue-600">{teacherVisits}</span>
+            <span className="text-gray-600 dark:text-gray-400">
+              {t("teacherLevel")}
+            </span>
+            <span className="font-bold text-accent">{teacherVisits}</span>
           </div>
           <input
             type="range"
@@ -283,15 +282,15 @@ const SettingsPanel = ({
             onChange={(e) =>
               setGameConfig({ teacherVisits: Number(e.target.value) })
             }
-            className="w-full accent-blue-600 h-1"
+            className="w-full accent-[var(--primary)] h-1"
           />
         </div>
       )}
 
-      <div className="flex gap-2 pt-2 border-t border-gray-50">
+      <div className={`flex gap-2 pt-2 ${dividerClass}`}>
         <button
           onClick={() => handleResetGame(undefined, onResetSaveStatus)}
-          className="flex-1 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-lg text-[10px] border border-red-200 uppercase tracking-tighter"
+          className="flex-1 py-2 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-bold rounded-lg text-[10px] border border-red-200 dark:border-red-800 uppercase tracking-tighter"
         >
           {t("newGame")}
         </button>
@@ -302,7 +301,7 @@ const SettingsPanel = ({
                 playPassSound(soundEnabled, soundVolume);
                 passTurn();
               }}
-              className="flex-1 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold rounded-lg text-[10px] border border-gray-300 uppercase tracking-tighter"
+              className="flex-1 py-2 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold rounded-lg text-[10px] border border-gray-300 dark:border-gray-600 uppercase tracking-tighter"
             >
               {t("pass")}
             </button>
@@ -310,7 +309,7 @@ const SettingsPanel = ({
               onClick={() => {
                 onShowConfirm(t("askResign"), resignGame, t("doResign"));
               }}
-              className="flex-1 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold rounded-lg text-[10px] border border-gray-300 uppercase tracking-tighter"
+              className="flex-1 py-2 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold rounded-lg text-[10px] border border-gray-300 dark:border-gray-600 uppercase tracking-tighter"
             >
               {t("resign")}
             </button>
@@ -322,8 +321,8 @@ const SettingsPanel = ({
                 disabled={undoUsedInGame || currentNode.moveIndex < 2}
                 className={`flex-1 py-2 font-bold rounded-lg text-[10px] border uppercase tracking-tighter ${
                   undoUsedInGame || currentNode.moveIndex < 2
-                    ? "bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed"
-                    : "bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-300"
+                    ? "bg-gray-100 dark:bg-gray-700 text-gray-300 dark:text-gray-500 border-gray-200 dark:border-gray-600 cursor-not-allowed"
+                    : "bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700"
                 }`}
               >
                 {t("undo")}

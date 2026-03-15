@@ -145,7 +145,10 @@ const getHandicapStones = (boardSize: number, handicap: number) => {
   return coords;
 };
 
-const setupInitialBoard = (boardSize: number, handicap: number): BoardState => {
+export const setupInitialBoard = (
+  boardSize: number,
+  handicap: number,
+): BoardState => {
   const board = createEmptyBoard(boardSize);
   const stones = getHandicapStones(boardSize, handicap);
   stones.forEach(({ x, y }) => {
@@ -741,6 +744,8 @@ export const useGameStore = create<GameState>()(
         const { root, current } = reconstructTree(
           persistedState.flatTree,
           persistedState.currentNodeId,
+          persistedState.boardSize ?? currentState.boardSize,
+          persistedState.handicap ?? currentState.handicap,
         );
         return {
           ...currentState,

@@ -1,18 +1,21 @@
 import { HistoryNode } from "@/entities/match/model/store";
 import { PlayerColor, BoardState } from "@/shared/types/board";
+import { applyMove } from "@/entities/board/lib/goLogic";
+import { setupInitialBoard } from "@/entities/match/model/store";
 
 export interface FlatNode {
   id: string;
   x: number | null;
   y: number | null;
   color: PlayerColor | null;
-  board: BoardState;
   capturedByBlack: number;
   capturedByWhite: number;
   winRate: number;
   childrenIds: string[];
   parentId: string | null;
   moveIndex: number;
+  // Legacy: board field may exist in older persisted data
+  board?: BoardState;
 }
 
 export const flattenTree = (root: HistoryNode): FlatNode[] => {
@@ -26,7 +29,7 @@ export const flattenTree = (root: HistoryNode): FlatNode[] => {
       x: node.x,
       y: node.y,
       color: node.color,
-      board: node.board,
+      // board excluded to reduce localStorage size (~100x reduction)
       capturedByBlack: node.capturedByBlack,
       capturedByWhite: node.capturedByWhite,
       winRate: node.winRate,
@@ -40,20 +43,43 @@ export const flattenTree = (root: HistoryNode): FlatNode[] => {
   return flattened;
 };
 
+// Replay moves from root to rebuild board states after deserialization
+const replayBoards = (
+  node: HistoryNode,
+  boardSize: number,
+  handicap: number,
+) => {
+  for (const child of node.children) {
+    if (child.x !== null && child.y !== null && child.color) {
+      const result = applyMove(node.board, child.x, child.y, child.color);
+      child.board = result.newBoard;
+    } else {
+      // Pass move: inherit parent board
+      child.board = node.board;
+    }
+    replayBoards(child, boardSize, handicap);
+  }
+};
+
 export const reconstructTree = (
   nodes: FlatNode[],
   currentNodeId: string,
+  boardSize: number = 19,
+  handicap: number = 0,
 ): { root: HistoryNode; current: HistoryNode } => {
+  const initialBoard = setupInitialBoard(boardSize, handicap);
   const nodeMap = new Map<string, HistoryNode>();
 
-  // First pass: create all nodes without links
+  // First pass: create all nodes without links or boards
   nodes.forEach((fn) => {
+    const isRoot = fn.id === "root";
     nodeMap.set(fn.id, {
       id: fn.id,
       x: fn.x,
       y: fn.y,
       color: fn.color,
-      board: fn.board,
+      // Root gets initial board; others get populated during replay
+      board: isRoot ? initialBoard : ([] as unknown as BoardState),
       capturedByBlack: fn.capturedByBlack,
       capturedByWhite: fn.capturedByWhite,
       winRate: fn.winRate,
@@ -76,6 +102,10 @@ export const reconstructTree = (
   });
 
   const root = nodeMap.get("root")!;
+
+  // Third pass: replay moves to rebuild board states
+  replayBoards(root, boardSize, handicap);
+
   const current = nodeMap.get(currentNodeId) || root;
 
   return { root, current };

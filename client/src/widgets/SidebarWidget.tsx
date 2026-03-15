@@ -26,6 +26,7 @@ import GameStatusPanel from "@/widgets/sidebar/GameStatusPanel";
 import SettingsPanel from "@/widgets/sidebar/SettingsPanel";
 
 const MatchHistory = lazy(() => import("@/widgets/sidebar/MatchHistory"));
+const AdminPanel = lazy(() => import("@/widgets/sidebar/AdminPanel"));
 
 const SidebarWidget = () => {
   const { t } = useTranslation();
@@ -152,7 +153,9 @@ const SidebarWidget = () => {
     }
   }, [isReviewMode]);
 
-  const [activeTab, setActiveTab] = useState<"game" | "history">("game");
+  const [activeTab, setActiveTab] = useState<"game" | "history" | "admin">(
+    "game",
+  );
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "saved" | "error"
   >("idle");
@@ -545,10 +548,15 @@ const SidebarWidget = () => {
 
   const resetSaveStatus = useCallback(() => setSaveStatus("idle"), []);
 
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem("admin_token");
+    window.location.reload();
+  }, []);
+
   return (
-    <div className="h-full flex flex-col p-6 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.1)] bg-white overflow-hidden">
-      <div className="mb-6 text-center shrink-0">
-        <h1 className="text-3xl font-extrabold text-gray-800 mb-1 tracking-tight flex items-center justify-center gap-2">
+    <div className="h-full flex flex-col p-4 md:p-6 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.1)] bg-white dark:bg-gray-900 overflow-hidden">
+      <div className="mb-3 md:mb-6 text-center shrink-0">
+        <h1 className="text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-gray-100 mb-1 tracking-tight flex items-center justify-center gap-2">
           <img
             src="/zgo_logo.png"
             alt="zGo Logo"
@@ -556,21 +564,29 @@ const SidebarWidget = () => {
           />
           zGo
         </h1>
-        <p className="text-sm text-gray-500 font-medium">{t("subtitle")}</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+          {t("subtitle")}
+        </p>
       </div>
 
-      <div className="flex bg-gray-100 p-1 rounded-lg mb-6 shrink-0">
+      <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg mb-6 shrink-0">
         <button
           onClick={() => setActiveTab("game")}
-          className={`flex-1 py-1.5 text-sm font-bold rounded-md transition-all ${activeTab === "game" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+          className={`flex-1 py-1.5 text-sm font-bold rounded-md transition-all ${activeTab === "game" ? "bg-white dark:bg-gray-700 text-accent shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"}`}
         >
           {t("tabGame")}
         </button>
         <button
           onClick={() => setActiveTab("history")}
-          className={`flex-1 py-1.5 text-sm font-bold rounded-md transition-all ${activeTab === "history" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+          className={`flex-1 py-1.5 text-sm font-bold rounded-md transition-all ${activeTab === "history" ? "bg-white dark:bg-gray-700 text-accent shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"}`}
         >
           {t("tabHistory")}
+        </button>
+        <button
+          onClick={() => setActiveTab("admin")}
+          className={`flex-1 py-1.5 text-sm font-bold rounded-md transition-all ${activeTab === "admin" ? "bg-white dark:bg-gray-700 text-accent shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"}`}
+        >
+          ⚙️ {t("admin.title")}
         </button>
       </div>
 
@@ -583,14 +599,14 @@ const SidebarWidget = () => {
             />
           </div>
 
-          <div className="flex-1 overflow-y-auto space-y-4 pr-2 pb-4 scrollbar-thin scrollbar-thumb-gray-200">
+          <div className="flex-1 overflow-y-auto space-y-4 pr-2 pb-4 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700">
             <SettingsPanel
               onResetSaveStatus={resetSaveStatus}
               onShowConfirm={showConfirm}
             />
           </div>
         </div>
-      ) : (
+      ) : activeTab === "history" ? (
         <Suspense
           fallback={
             <div className="flex-1 flex items-center justify-center text-gray-400 animate-pulse">
@@ -608,6 +624,18 @@ const SidebarWidget = () => {
             onShowAlert={showAlert}
           />
         </Suspense>
+      ) : (
+        <div className="flex-1 overflow-y-auto pr-2 pb-4 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700">
+          <Suspense
+            fallback={
+              <div className="flex-1 flex items-center justify-center text-gray-400 animate-pulse">
+                Loading...
+              </div>
+            }
+          >
+            <AdminPanel onLogout={handleLogout} />
+          </Suspense>
+        </div>
       )}
 
       <CustomDialog

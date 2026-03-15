@@ -57,12 +57,12 @@ const ReviewPanelWidget = () => {
   const hasDeadStones = deadStones && deadStones.length > 0;
 
   return (
-    <div className="w-full bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
+    <div className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 shadow-sm">
       {/* Win rate header + graph */}
       {hasWinRateData && (
         <>
           <div className="flex justify-between items-center mb-1.5">
-            <h2 className="font-bold text-gray-700 text-xs flex items-center gap-1.5">
+            <h2 className="font-bold text-gray-700 dark:text-gray-200 text-xs flex items-center gap-1.5">
               📊 {t("winRate")}
               {isAnalyzing && analysisProgress && (
                 <span className="text-[10px] font-normal text-blue-500 animate-pulse">
@@ -86,7 +86,7 @@ const ReviewPanelWidget = () => {
           </div>
 
           <div
-            className="w-full h-16 bg-gray-50 rounded border border-gray-100 relative overflow-hidden cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+            className="w-full h-16 bg-gray-50 dark:bg-gray-900 rounded border border-gray-100 dark:border-gray-700 relative overflow-hidden cursor-pointer focus:outline-none focus:ring-2 ring-accent mb-2"
             role="slider"
             aria-label={t("winRateTimeline", "승률 타임라인 그래프")}
             aria-valuemin={0}
@@ -175,7 +175,7 @@ const ReviewPanelWidget = () => {
         <button
           onClick={goToPreviousMove}
           disabled={currentNode.moveIndex === 0}
-          className="p-1.5 w-9 h-8 flex items-center justify-center bg-white hover:bg-gray-50 disabled:opacity-30 rounded-lg border shadow-sm transition-colors text-gray-700 font-bold text-sm shrink-0"
+          className="p-1.5 w-10 h-10 flex items-center justify-center bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-30 rounded-lg border dark:border-gray-600 shadow-sm transition-colors text-gray-700 dark:text-gray-200 font-bold text-sm shrink-0"
           aria-label={t("prevMove", "이전 수")}
         >
           &lt;
@@ -193,12 +193,12 @@ const ReviewPanelWidget = () => {
               setCurrentNode(fullPath[targetIndex].id);
             }
           }}
-          className="flex-1 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600 min-w-0"
+          className="flex-1 h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-600 min-w-0"
           aria-label={t("reviewTimeline", "복기 타임라인")}
         />
 
         <div
-          className="text-xs font-mono font-semibold text-gray-600 px-2 py-1 bg-gray-100 rounded border border-gray-200 shrink-0"
+          className="text-xs font-mono font-semibold text-gray-600 dark:text-gray-300 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 shrink-0"
           aria-live="polite"
           aria-atomic="true"
         >
@@ -208,7 +208,7 @@ const ReviewPanelWidget = () => {
         <button
           onClick={() => goToNextMove()}
           disabled={currentNode.children.length === 0}
-          className="p-1.5 w-9 h-8 flex items-center justify-center bg-white hover:bg-gray-50 disabled:opacity-30 rounded-lg border shadow-sm transition-colors text-gray-700 font-bold text-sm shrink-0"
+          className="p-1.5 w-10 h-10 flex items-center justify-center bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-30 rounded-lg border dark:border-gray-600 shadow-sm transition-colors text-gray-700 dark:text-gray-200 font-bold text-sm shrink-0"
           aria-label={t("nextMove", "다음 수")}
         >
           &gt;

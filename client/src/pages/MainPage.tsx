@@ -49,7 +49,7 @@ const MainPage = () => {
 
   return (
     <div className="flex flex-col md:flex-row h-screen w-full">
-      <main className="flex-1 flex items-center justify-center bg-gray-50 p-4 overflow-auto">
+      <main className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-800 p-2 md:p-4 overflow-auto min-h-0">
         <div
           className={`flex w-full max-w-5xl mx-auto justify-center ${
             canShowAdviceSide
@@ -57,7 +57,7 @@ const MainPage = () => {
               : "flex-col items-center"
           }`}
         >
-          <div className="flex flex-col items-center shrink-0">
+          <div className="flex flex-col items-center shrink-0 max-w-full">
             <Suspense
               fallback={
                 <div className="animate-pulse text-gray-400">
@@ -74,19 +74,22 @@ const MainPage = () => {
         </div>
       </main>
 
-      {/* Sidebar: collapsible on md+ */}
+      {/* Sidebar: bottom sheet on mobile, side panel on md+ */}
       <aside
-        className={`border-l border-gray-200 bg-white shrink-0 transition-all duration-300 ${
-          sidebarCollapsed ? "hidden md:block md:w-4" : "w-full md:w-80"
+        className={`border-t md:border-t-0 md:border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shrink-0 transition-all duration-300 ${
+          sidebarCollapsed
+            ? "h-10 md:h-auto md:w-4"
+            : "h-[40vh] md:h-auto md:w-80"
         }`}
       >
         {sidebarCollapsed ? (
-          <div className="h-full flex flex-col items-center pt-3">
+          <div className="h-full flex flex-row md:flex-col items-center justify-center md:justify-start md:pt-3">
             <button
               onClick={() => toggleSidebar(false)}
-              className="p-1 rounded-l-md hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600 -ml-2"
+              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               aria-label="Expand sidebar"
             >
+              {/* Mobile: chevron up, Desktop: chevron left */}
               <svg
                 width="14"
                 height="14"
@@ -95,18 +98,32 @@ const MainPage = () => {
                 stroke="currentColor"
                 strokeWidth="2.5"
                 strokeLinecap="round"
+                className="md:block hidden"
               >
                 <path d="M13 4L7 10L13 16" />
+              </svg>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                className="md:hidden"
+              >
+                <path d="M4 13L10 7L16 13" />
               </svg>
             </button>
           </div>
         ) : (
-          <div className="h-full relative">
+          <div className="h-full relative overflow-hidden">
             <button
               onClick={() => toggleSidebar(true)}
-              className="hidden md:flex absolute top-3 left-1 z-10 p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
+              className="flex absolute top-2 left-1 z-10 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               aria-label="Collapse sidebar"
             >
+              {/* Mobile: chevron down, Desktop: chevron right */}
               <svg
                 width="16"
                 height="16"
@@ -115,13 +132,26 @@ const MainPage = () => {
                 stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
+                className="md:block hidden"
               >
                 <path d="M7 4L13 10L7 16" />
+              </svg>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                className="md:hidden"
+              >
+                <path d="M4 7L10 13L16 7" />
               </svg>
             </button>
             <Suspense
               fallback={
-                <div className="animate-pulse p-4 text-center text-gray-400">
+                <div className="animate-pulse p-4 text-center text-gray-400 dark:text-gray-500">
                   Loading Menu...
                 </div>
               }

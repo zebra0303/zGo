@@ -181,10 +181,18 @@ export const analyzeGame = async (
   const decoder = new TextDecoder();
   let buffer = "";
 
+  const CHUNK_TIMEOUT = 30_000; // 30s per chunk before giving up
   try {
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      const { done, value } = await reader.read();
+      const readPromise = reader.read();
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new AppError("Analysis timed out.", 408, "TIMEOUT")),
+          CHUNK_TIMEOUT,
+        ),
+      );
+      const { done, value } = await Promise.race([readPromise, timeout]);
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");

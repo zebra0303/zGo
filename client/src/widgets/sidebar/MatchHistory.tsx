@@ -68,7 +68,7 @@ const MatchHistory = ({
   );
 
   return (
-    <div className="flex-1 overflow-y-auto space-y-6 pr-1 scrollbar-thin scrollbar-thumb-gray-200">
+    <div className="flex-1 overflow-y-auto space-y-6 pr-1 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700">
       <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-4 text-white shadow-md">
         <h2 className="text-sm font-bold mb-3">{t("aiStats")}</h2>
         <div className="grid grid-cols-2 gap-2">
@@ -93,13 +93,13 @@ const MatchHistory = ({
         </div>
       </div>
       <div className="space-y-3">
-        <h2 className="font-bold text-gray-700 mb-2 flex items-center gap-2">
+        <h2 className="font-bold text-gray-700 dark:text-gray-200 mb-2 flex items-center gap-2">
           {t("matchList")}
         </h2>
         {matches?.map((match) => (
           <div
             key={match.id}
-            className="bg-white border rounded-xl p-3 shadow-sm hover:border-blue-300 cursor-pointer flex justify-between items-center group relative"
+            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 shadow-sm hover:border-blue-300 dark:hover:border-blue-600 cursor-pointer flex justify-between items-center group relative"
           >
             <div
               className="flex-1"
@@ -143,7 +143,7 @@ const MatchHistory = ({
               }}
             >
               <div className="flex justify-between mb-1">
-                <span className="font-bold text-sm">
+                <span className="font-bold text-sm text-gray-900 dark:text-gray-100">
                   {match.mode === "PvAI"
                     ? `AI Lv.${match.aiDifficulty}`
                     : t("friendlyMatch")}
@@ -152,11 +152,11 @@ const MatchHistory = ({
                   className={`text-[10px] font-bold ${
                     match.mode === "PvAI"
                       ? match.humanColor === match.winner
-                        ? "text-blue-600"
-                        : "text-red-500"
+                        ? "text-accent"
+                        : "text-red-500 dark:text-red-400"
                       : match.winner === "BLACK"
-                        ? "text-gray-800"
-                        : "text-gray-400"
+                        ? "text-gray-800 dark:text-gray-200"
+                        : "text-gray-400 dark:text-gray-500"
                   }`}
                 >
                   {match.mode === "PvAI"
@@ -168,7 +168,7 @@ const MatchHistory = ({
                       : t("whiteWins")}
                 </span>
               </div>
-              <div className="text-[10px] text-gray-500 flex justify-between">
+              <div className="text-[10px] text-gray-500 dark:text-gray-400 flex justify-between">
                 <span>{new Date(match.date).toLocaleDateString()}</span>
                 <span>{t("reviewGo")}</span>
               </div>
@@ -190,7 +190,7 @@ const MatchHistory = ({
                   t("deleteConfirm"),
                 );
               }}
-              className="ml-3 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              className="ml-3 p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
               title="삭제"
             >
               <svg

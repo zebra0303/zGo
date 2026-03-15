@@ -28,13 +28,13 @@ const CustomDialog: React.FC<CustomDialogProps> = ({
       />
 
       {/* Dialog Card */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-4">
             <div
               className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
                 type === "alert"
-                  ? "bg-blue-50 text-blue-600"
+                  ? "bg-blue-50 dark:bg-blue-900/30 text-accent"
                   : "bg-amber-50 text-amber-600"
               }`}
             >
@@ -73,18 +73,22 @@ const CustomDialog: React.FC<CustomDialogProps> = ({
               )}
             </div>
             {title && (
-              <h3 className="text-lg font-bold text-gray-900">{title}</h3>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                {title}
+              </h3>
             )}
           </div>
 
-          <p className="text-gray-600 leading-relaxed">{message}</p>
+          <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+            {message}
+          </p>
         </div>
 
-        <div className="bg-gray-50 p-4 flex gap-3">
+        <div className="bg-gray-50 dark:bg-gray-900 p-4 flex gap-3">
           {type === "confirm" && (
             <button
               onClick={onCancel}
-              className="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-100 transition-colors text-sm"
+              className="flex-1 px-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-bold rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors text-sm"
             >
               취소
             </button>
@@ -93,7 +97,7 @@ const CustomDialog: React.FC<CustomDialogProps> = ({
             onClick={onConfirm}
             className={`flex-1 px-4 py-2.5 text-white font-bold rounded-xl transition-all shadow-sm text-sm ${
               type === "alert"
-                ? "bg-blue-600 hover:bg-blue-700 shadow-blue-200"
+                ? "bg-accent bg-accent-hover shadow-sm"
                 : "bg-amber-600 hover:bg-amber-700 shadow-amber-200"
             }`}
           >

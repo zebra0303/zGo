@@ -81,5 +81,36 @@
   "askUndo": "Use your one undo for this game?",
   "doUndo": "Undo Move",
   "askNewGame": "Start a new game?",
-  "doNewGame": "New Game"
+  "doNewGame": "New Game",
+  "auth": {
+    "setupTitle": "Set Password",
+    "setupDesc": "Set a password to access this service.",
+    "loginTitle": "Login",
+    "loginDesc": "Enter your password.",
+    "password": "Password",
+    "login": "Login",
+    "setup": "Setup",
+    "setupComplete": "Password set successfully. Please log in."
+  },
+  "admin": {
+    "title": "Admin",
+    "logout": "Logout",
+    "langTitle": "Language",
+    "themeTitle": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "colorTitle": "Accent Color",
+    "fontTitle": "Font",
+    "fontSystem": "System Default",
+    "changePassword": "Change Password",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm New Password",
+    "saveSettings": "Save Settings",
+    "saved": "Settings saved.",
+    "fieldsRequired": "All fields are required.",
+    "passwordMinLength": "Password must be at least 4 characters.",
+    "passwordMismatch": "Passwords do not match.",
+    "passwordChanged": "Password changed successfully."
+  }
 }

@@ -263,9 +263,11 @@ const BoardCore: React.FC = () => {
 
   return (
     <svg
+      viewBox={`0 0 ${BOARD_PIXEL_SIZE} ${BOARD_PIXEL_SIZE}`}
       width={BOARD_PIXEL_SIZE}
       height={BOARD_PIXEL_SIZE}
-      className="cursor-pointer select-none"
+      className="cursor-pointer select-none max-w-full h-auto"
+      style={{ touchAction: "manipulation" }}
       onClick={handleBoardClick}
       role="grid"
       aria-label="Go Board"

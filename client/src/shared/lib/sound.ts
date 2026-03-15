@@ -1,3 +1,6 @@
+// Audio object pool: reuse instead of creating new instances per play
+const audioPool = new Map<string, HTMLAudioElement>();
+
 export const playSound = (
   path: string,
   enabled: boolean,
@@ -6,8 +9,13 @@ export const playSound = (
   if (!enabled) return;
 
   try {
-    const audio = new Audio(path);
+    let audio = audioPool.get(path);
+    if (!audio) {
+      audio = new Audio(path);
+      audioPool.set(path, audio);
+    }
     audio.volume = Math.max(0, Math.min(1, volume));
+    audio.currentTime = 0;
     audio.play().catch((e) => {
       // Browsers often block audio until first user interaction
       console.log(`Audio play blocked or failed (${path}):`, e);

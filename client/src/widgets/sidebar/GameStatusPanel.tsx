@@ -28,7 +28,7 @@ const GameStatusPanel = ({ saveStatus, onSaveMatch }: GameStatusPanelProps) => {
 
   if (isReviewMode) {
     return (
-      <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-xl shadow-sm flex flex-col gap-2 mb-4">
+      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 p-3 rounded-xl shadow-sm flex flex-col gap-2 mb-4">
         <div className="font-bold flex items-center justify-between">
           <span>{t("reviewModeOn")}</span>
           <button
@@ -56,7 +56,7 @@ const GameStatusPanel = ({ saveStatus, onSaveMatch }: GameStatusPanelProps) => {
 
   if (isGameOver) {
     return (
-      <div className="bg-red-50 text-red-800 p-4 rounded-xl mb-4 shadow-inner text-center font-bold text-lg border border-red-200">
+      <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 p-4 rounded-xl mb-4 shadow-inner text-center font-bold text-lg border border-red-200 dark:border-red-800">
         <div className="mb-2">{t("gameOver")}</div>
         {gameResultText ? (
           <div className="text-xl text-red-600 mb-3 drop-shadow-sm font-extrabold">
@@ -83,7 +83,7 @@ const GameStatusPanel = ({ saveStatus, onSaveMatch }: GameStatusPanelProps) => {
         <button
           onClick={onSaveMatch}
           disabled={saveStatus !== "idle"}
-          className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded transition-colors text-sm disabled:opacity-50"
+          className="w-full py-2 bg-accent bg-accent-hover text-accent-foreground font-bold rounded transition-colors text-sm disabled:opacity-50"
         >
           {saveStatus === "idle"
             ? t("saveRecord")
@@ -98,9 +98,11 @@ const GameStatusPanel = ({ saveStatus, onSaveMatch }: GameStatusPanelProps) => {
   }
 
   return (
-    <div className="bg-gray-100 p-4 rounded-xl mb-4 shadow-inner">
+    <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-xl mb-4 shadow-inner">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-gray-600 font-semibold">{t("currentTurn")}</span>
+        <span className="text-gray-600 dark:text-gray-300 font-semibold">
+          {t("currentTurn")}
+        </span>
         <div className="flex items-center gap-2">
           <div
             className={`w-4 h-4 rounded-full shadow-sm border ${currentPlayer === "BLACK" ? "bg-black border-gray-800" : "bg-white border-gray-300"}`}
@@ -110,7 +112,7 @@ const GameStatusPanel = ({ saveStatus, onSaveMatch }: GameStatusPanelProps) => {
           </span>
         </div>
       </div>
-      <div className="mt-3 pt-2 border-t border-gray-200 flex justify-between text-[10px] font-bold text-gray-500">
+      <div className="mt-3 pt-2 border-t border-gray-200 dark:border-gray-700 flex justify-between text-[10px] font-bold text-gray-500 dark:text-gray-400">
         <span>{t("capturedBlack", { count: capturedByBlack })}</span>
         <span>{t("capturedWhite", { count: capturedByWhite })}</span>
       </div>
