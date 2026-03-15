@@ -76,5 +76,10 @@
   "branchPoints": "Branches",
   "branchChipAriaLabel": "Move {{move}}, variation {{letter}} of {{total}}",
   "prevMove": "Previous move",
-  "nextMove": "Next move"
+  "nextMove": "Next move",
+  "undo": "Undo",
+  "askUndo": "Use your one undo for this game?",
+  "doUndo": "Undo Move",
+  "askNewGame": "Start a new game?",
+  "doNewGame": "New Game"
 }

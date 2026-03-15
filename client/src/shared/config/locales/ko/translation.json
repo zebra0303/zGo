@@ -76,5 +76,10 @@
   "branchPoints": "갈림길",
   "branchChipAriaLabel": "{{move}}수, {{total}}개 중 {{letter}} 변화",
   "prevMove": "이전 수",
-  "nextMove": "다음 수"
+  "nextMove": "다음 수",
+  "undo": "무르기",
+  "askUndo": "무르기를 사용하시겠습니까? (대국당 1회)",
+  "doUndo": "무르기",
+  "askNewGame": "새 대국을 시작하시겠습니까?",
+  "doNewGame": "새 대국"
 }

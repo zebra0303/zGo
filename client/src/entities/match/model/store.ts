@@ -54,6 +54,7 @@ interface GameState {
   isScoring: boolean;
   isAnalyzing: boolean;
   analysisProgress: { current: number; total: number } | null;
+  undoUsedInGame: boolean;
 
   placeStone: (x: number, y: number) => void;
   passTurn: () => void;
@@ -69,6 +70,7 @@ interface GameState {
   setAnalysisProgress: (
     progress: { current: number; total: number } | null,
   ) => void;
+  undoMove: () => void;
   goToPreviousMove: () => void;
   goToNextMove: (variationIndex?: number) => void;
   setMoveIndex: (index: number) => void;
@@ -227,6 +229,7 @@ export const useGameStore = create<GameState>()(
       isScoring: false,
       isAnalyzing: false,
       analysisProgress: null,
+      undoUsedInGame: false,
 
       placeStone: (x: number, y: number) => {
         const {
@@ -407,6 +410,34 @@ export const useGameStore = create<GameState>()(
       setAnalysisProgress: (
         progress: { current: number; total: number } | null,
       ) => set({ analysisProgress: progress }),
+
+      // Undo last human move in PvAI (goes back 2 moves: AI response + human move)
+      undoMove: () => {
+        const { gameTree, currentNode, handicap, undoUsedInGame } = get();
+        if (undoUsedInGame) return;
+        const path = getPathToNode(gameTree, currentNode.id);
+        if (!path || path.length < 3) return; // need at least root + human move + AI move
+        const targetNode = path[path.length - 3]; // 2 moves back
+        const getPlayer = (node: HistoryNode) =>
+          handicap > 0
+            ? node.moveIndex % 2 === 0
+              ? "WHITE"
+              : "BLACK"
+            : node.moveIndex % 2 === 0
+              ? "BLACK"
+              : "WHITE";
+        set({
+          currentNode: targetNode,
+          board: targetNode.board,
+          currentPlayer: getPlayer(targetNode),
+          ignoredRecommendation: null,
+          deadStones: null,
+          showDeadStones: false,
+          teacherCritique: null,
+          consecutivePasses: 0,
+          undoUsedInGame: true,
+        });
+      },
 
       goToPreviousMove: () => {
         const { gameTree, currentNode, handicap } = get();
@@ -670,6 +701,7 @@ export const useGameStore = create<GameState>()(
           isScoring: false,
           isAnalyzing: false,
           analysisProgress: null,
+          undoUsedInGame: false,
         });
       },
     }),

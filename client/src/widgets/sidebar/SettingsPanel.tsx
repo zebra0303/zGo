@@ -29,11 +29,14 @@ const SettingsPanel = ({
     isTeacherMode,
     teacherVisits,
     isGameOver,
+    undoUsedInGame,
+    currentNode,
     setGameConfig,
     resetGame,
     toggleTeacherMode,
     passTurn,
     resignGame,
+    undoMove,
   } = useGameStore();
 
   const changeLanguage = (lng: string) => {
@@ -41,9 +44,22 @@ const SettingsPanel = ({
     setGameConfig({ language: lng as "ko" | "en" });
   };
 
-  const handleResetGame = () => {
-    playNewGameSound(soundEnabled, soundVolume);
-    resetGame();
+  // Confirm before resetting if a game is in progress
+  const handleResetGame = (
+    beforeReset?: () => void,
+    afterReset?: () => void,
+  ) => {
+    const doReset = () => {
+      beforeReset?.();
+      playNewGameSound(soundEnabled, soundVolume);
+      resetGame();
+      afterReset?.();
+    };
+    if (currentNode.moveIndex > 0) {
+      onShowConfirm(t("askNewGame"), doReset, t("doNewGame"));
+    } else {
+      doReset();
+    }
   };
 
   return (
@@ -71,8 +87,8 @@ const SettingsPanel = ({
           id="setting-mode"
           value={gameMode}
           onChange={(e) => {
-            setGameConfig({ gameMode: e.target.value as "PvP" | "PvAI" });
-            handleResetGame();
+            const val = e.target.value as "PvP" | "PvAI";
+            handleResetGame(() => setGameConfig({ gameMode: val }));
           }}
           className="bg-gray-50 border border-gray-200 rounded p-1 text-xs"
         >
@@ -88,17 +104,18 @@ const SettingsPanel = ({
           value={boardSize}
           onChange={(e) => {
             const newSize = Number(e.target.value);
-            if (newSize <= 9 && handicap > 0) {
-              setGameConfig({ boardSize: newSize, handicap: 0 });
-            } else if (newSize > 9 && handicap > newSize - 9) {
-              setGameConfig({
-                boardSize: newSize,
-                handicap: Math.min(9, newSize - 9),
-              });
-            } else {
-              setGameConfig({ boardSize: newSize });
-            }
-            handleResetGame();
+            handleResetGame(() => {
+              if (newSize <= 9 && handicap > 0) {
+                setGameConfig({ boardSize: newSize, handicap: 0 });
+              } else if (newSize > 9 && handicap > newSize - 9) {
+                setGameConfig({
+                  boardSize: newSize,
+                  handicap: Math.min(9, newSize - 9),
+                });
+              } else {
+                setGameConfig({ boardSize: newSize });
+              }
+            });
           }}
           className="bg-gray-50 border border-gray-200 rounded p-1 text-xs"
         >
@@ -121,8 +138,8 @@ const SettingsPanel = ({
           id="setting-handicap"
           value={handicap}
           onChange={(e) => {
-            setGameConfig({ handicap: Number(e.target.value) });
-            handleResetGame();
+            const val = Number(e.target.value);
+            handleResetGame(() => setGameConfig({ handicap: val }));
           }}
           className="bg-gray-50 border border-gray-200 rounded p-1 text-xs"
           disabled={boardSize <= 9}
@@ -148,10 +165,8 @@ const SettingsPanel = ({
               id="setting-player-color"
               value={humanPlayerColor}
               onChange={(e) => {
-                setGameConfig({
-                  humanPlayerColor: e.target.value as "BLACK" | "WHITE",
-                });
-                handleResetGame();
+                const val = e.target.value as "BLACK" | "WHITE";
+                handleResetGame(() => setGameConfig({ humanPlayerColor: val }));
               }}
               className="bg-gray-50 border border-gray-200 rounded p-1 text-xs"
             >
@@ -275,10 +290,7 @@ const SettingsPanel = ({
 
       <div className="flex gap-2 pt-2 border-t border-gray-50">
         <button
-          onClick={() => {
-            handleResetGame();
-            onResetSaveStatus();
-          }}
+          onClick={() => handleResetGame(undefined, onResetSaveStatus)}
           className="flex-1 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-lg text-[10px] border border-red-200 uppercase tracking-tighter"
         >
           {t("newGame")}
@@ -302,6 +314,21 @@ const SettingsPanel = ({
             >
               {t("resign")}
             </button>
+            {gameMode === "PvAI" && (
+              <button
+                onClick={() => {
+                  onShowConfirm(t("askUndo"), undoMove, t("doUndo"));
+                }}
+                disabled={undoUsedInGame || currentNode.moveIndex < 2}
+                className={`flex-1 py-2 font-bold rounded-lg text-[10px] border uppercase tracking-tighter ${
+                  undoUsedInGame || currentNode.moveIndex < 2
+                    ? "bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed"
+                    : "bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-300"
+                }`}
+              >
+                {t("undo")}
+              </button>
+            )}
           </>
         )}
       </div>
