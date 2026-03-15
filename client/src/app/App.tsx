@@ -7,9 +7,11 @@ import {
   applyFontFamily,
   applyThemeMode,
 } from "@/shared/lib/themeUtils";
+import { useRoute } from "@/shared/lib/router";
 
 const MainPage = lazy(() => import("@/pages/MainPage"));
 const AuthPage = lazy(() => import("@/pages/AuthPage"));
+const OnlinePage = lazy(() => import("@/pages/OnlinePage"));
 
 // Fetch and apply server config (theme, color, font, language)
 const fetchAndApplyServerConfig = async (i18n: {
@@ -46,6 +48,7 @@ const fetchAndApplyServerConfig = async (i18n: {
 function App() {
   const language = useGameStore((state) => state.language);
   const { i18n } = useTranslation();
+  const route = useRoute();
   const [authState, setAuthState] = useState<
     "loading" | "setup" | "login" | "authenticated"
   >("loading");
@@ -116,6 +119,23 @@ function App() {
     [i18n],
   );
 
+  // Online pages bypass auth gate (anyone with the URL can access)
+  if (route.page === "online-room" || route.page === "online-farewell") {
+    return (
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-100">
+        <Suspense
+          fallback={
+            <div className="min-h-screen flex items-center justify-center">
+              <div className="animate-pulse text-gray-400">Loading...</div>
+            </div>
+          }
+        >
+          <OnlinePage />
+        </Suspense>
+      </div>
+    );
+  }
+
   if (authState === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
@@ -132,6 +152,23 @@ function App() {
           onAuthenticated={handleAuthenticated}
         />
       </Suspense>
+    );
+  }
+
+  // Authenticated — show main page or online create page
+  if (route.page === "online-create") {
+    return (
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-100">
+        <Suspense
+          fallback={
+            <div className="min-h-screen flex items-center justify-center">
+              <div className="animate-pulse text-gray-400">Loading...</div>
+            </div>
+          }
+        >
+          <OnlinePage />
+        </Suspense>
+      </div>
     );
   }
 

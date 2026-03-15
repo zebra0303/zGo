@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { useGameStore } from "@/entities/match/model/store";
+import { navigateTo } from "@/shared/lib/router";
 import { playPassSound, playNewGameSound } from "@/shared/lib/sound";
 
 interface SettingsPanelProps {
@@ -29,6 +30,7 @@ const SettingsPanel = ({
     isTeacherMode,
     teacherVisits,
     isGameOver,
+    isReviewMode,
     undoUsedInGame,
     currentNode,
     setGameConfig,
@@ -287,6 +289,16 @@ const SettingsPanel = ({
         </div>
       )}
 
+      {/* Online Game button */}
+      <div className={`pt-2 ${dividerClass}`}>
+        <button
+          onClick={() => navigateTo({ page: "online-create" })}
+          className="w-full py-2.5 bg-accent bg-accent-hover text-accent-foreground font-bold rounded-lg text-xs transition-all flex items-center justify-center gap-1.5"
+        >
+          🌐 {t("online.startOnline")}
+        </button>
+      </div>
+
       <div className={`flex gap-2 pt-2 ${dividerClass}`}>
         <button
           onClick={() => handleResetGame(undefined, onResetSaveStatus)}
@@ -294,7 +306,7 @@ const SettingsPanel = ({
         >
           {t("newGame")}
         </button>
-        {!isGameOver && (
+        {!isGameOver && !isReviewMode && (
           <>
             <button
               onClick={() => {
@@ -309,7 +321,12 @@ const SettingsPanel = ({
               onClick={() => {
                 onShowConfirm(t("askResign"), resignGame, t("doResign"));
               }}
-              className="flex-1 py-2 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold rounded-lg text-[10px] border border-gray-300 dark:border-gray-600 uppercase tracking-tighter"
+              disabled={currentNode.moveIndex < 1}
+              className={`flex-1 py-2 font-bold rounded-lg text-[10px] border uppercase tracking-tighter ${
+                currentNode.moveIndex < 1
+                  ? "bg-gray-100 dark:bg-gray-700 text-gray-300 dark:text-gray-500 border-gray-200 dark:border-gray-600 cursor-not-allowed"
+                  : "bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600"
+              }`}
             >
               {t("resign")}
             </button>

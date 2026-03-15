@@ -1,5 +1,9 @@
 import React, { useMemo, useCallback } from "react";
 import { useGameStore, getPathToNode } from "@/entities/match/model/store";
+import {
+  useOnlineStore,
+  getOnlineMyColor,
+} from "@/entities/online/model/store";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAIHint } from "@/shared/api/gameApi";
 import { playStoneSound } from "@/shared/lib/sound";
@@ -89,24 +93,34 @@ const BoardCore: React.FC = () => {
 
   const handleBoardClick = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
-      // In game mode, prevent clicking if it's AI's turn.
       // In review mode, allow clicking freely to explore variations.
-      if (
-        !isReviewMode &&
-        gameMode === "PvAI" &&
-        currentPlayer !== humanPlayerColor
-      )
-        return;
+      if (!isReviewMode) {
+        // In PvAI mode, prevent clicking if it's AI's turn.
+        if (gameMode === "PvAI" && currentPlayer !== humanPlayerColor) return;
+
+        // In Online mode, prevent clicking if it's not my turn.
+        if (gameMode === "Online") {
+          const myColor = getOnlineMyColor();
+          if (!myColor || currentPlayer !== myColor) return;
+        }
+      }
 
       const svg = e.currentTarget;
       const rect = svg.getBoundingClientRect();
-      const xPixel = e.clientX - rect.left - MARGIN;
-      const yPixel = e.clientY - rect.top - MARGIN;
+      // Convert screen coordinates to SVG coordinates (accounts for CSS scaling)
+      const scaleX = BOARD_PIXEL_SIZE / rect.width;
+      const scaleY = BOARD_PIXEL_SIZE / rect.height;
+      const xPixel = (e.clientX - rect.left) * scaleX - MARGIN;
+      const yPixel = (e.clientY - rect.top) * scaleY - MARGIN;
 
       const x = Math.round(xPixel / CELL_SIZE);
       const y = Math.round(yPixel / CELL_SIZE);
 
       if (x >= 0 && x < boardSize && y >= 0 && y < boardSize) {
+        // In online mode, send move via WebSocket (server validates and broadcasts)
+        if (gameMode === "Online" && !isReviewMode) {
+          useOnlineStore.getState().sendMove(x, y);
+        }
         placeStone(x, y);
         playStoneSound(soundEnabled, soundVolume);
       }
@@ -118,6 +132,7 @@ const BoardCore: React.FC = () => {
       humanPlayerColor,
       MARGIN,
       CELL_SIZE,
+      BOARD_PIXEL_SIZE,
       boardSize,
       placeStone,
       soundEnabled,
@@ -167,6 +182,7 @@ const BoardCore: React.FC = () => {
     enabled:
       isTeacherMode &&
       !isGameOver &&
+      gameMode !== "Online" &&
       (gameMode === "PvP" || currentPlayer === humanPlayerColor),
     staleTime: Infinity,
     refetchOnWindowFocus: false,

@@ -26,6 +26,7 @@ const TeacherAdviceWidget = ({
     aiDifficulty,
     humanPlayerColor,
     isGameOver,
+    isReviewMode,
     teacherVisits,
     ignoredRecommendation,
     teacherCritique,
@@ -93,7 +94,9 @@ const TeacherAdviceWidget = ({
     enabled:
       isTeacherMode &&
       !isGameOver &&
-      (gameMode === "PvP" || currentPlayer === humanPlayerColor),
+      (gameMode === "PvP" ||
+        isReviewMode ||
+        currentPlayer === humanPlayerColor),
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   });

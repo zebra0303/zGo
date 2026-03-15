@@ -24,10 +24,7 @@ interface MatchHistoryProps {
     handicap?: number,
     winner?: PlayerColor | "DRAW" | null,
   ) => void;
-  onStartReviewAnalysis: (
-    moves: ({ x: number; y: number } | null)[],
-    winRates?: number[],
-  ) => void;
+  onStartReviewAnalysis: () => void;
   onSetActiveTab: (tab: "game" | "history") => void;
   onShowConfirm: (
     message: string,
@@ -138,7 +135,7 @@ const MatchHistory = ({
                   parsedData.handicap,
                   winnerColor,
                 );
-                onStartReviewAnalysis(parsedData.moves, parsedData.winRates);
+                onStartReviewAnalysis();
                 onSetActiveTab("game");
               }}
             >
@@ -146,11 +143,13 @@ const MatchHistory = ({
                 <span className="font-bold text-sm text-gray-900 dark:text-gray-100">
                   {match.mode === "PvAI"
                     ? `AI Lv.${match.aiDifficulty}`
-                    : t("friendlyMatch")}
+                    : match.mode === "Online"
+                      ? `🌐 ${t("online.startOnline")}`
+                      : t("friendlyMatch")}
                 </span>
                 <span
                   className={`text-[10px] font-bold ${
-                    match.mode === "PvAI"
+                    match.mode === "PvAI" || match.mode === "Online"
                       ? match.humanColor === match.winner
                         ? "text-accent"
                         : "text-red-500 dark:text-red-400"
@@ -159,7 +158,7 @@ const MatchHistory = ({
                         : "text-gray-400 dark:text-gray-500"
                   }`}
                 >
-                  {match.mode === "PvAI"
+                  {match.mode === "PvAI" || match.mode === "Online"
                     ? match.humanColor === match.winner
                       ? t("win")
                       : t("lose")

@@ -5,6 +5,7 @@ import { queryClient } from "@/shared/api/queryClient";
 import { produce } from "immer";
 import { BoardState, PlayerColor } from "@/shared/types/board";
 import { flattenTree, reconstructTree } from "@/entities/match/lib/treeUtils";
+import { analyzeGame } from "@/shared/api/gameApi";
 
 export interface HistoryNode {
   id: string;
@@ -30,7 +31,7 @@ interface GameState {
   currentNode: HistoryNode;
 
   // Game Settings
-  gameMode: "PvP" | "PvAI";
+  gameMode: "PvP" | "PvAI" | "Online";
   aiDifficulty: number;
   humanPlayerColor: PlayerColor;
   language: "ko" | "en";
@@ -758,3 +759,84 @@ export const useGameStore = create<GameState>()(
     },
   ),
 );
+
+// Module-level abort controller for analysis
+let analysisAbort: AbortController | null = null;
+
+/**
+ * Start win rate analysis for the current game tree.
+ * Callable from any store (e.g., online store after entering review mode).
+ */
+export function startReviewAnalysis(): void {
+  const state = useGameStore.getState();
+  const tree = state.gameTree;
+
+  // Build moves array from main branch
+  const moves: ({ x: number; y: number } | null)[] = [null];
+  const nodeIds: string[] = [tree.id];
+  let node = tree;
+  while (node.children.length > 0) {
+    node = node.children[0];
+    nodeIds.push(node.id);
+    moves.push(
+      node.x !== null && node.y !== null ? { x: node.x, y: node.y } : null,
+    );
+  }
+
+  if (moves.length <= 1) return;
+
+  // Check if winRates already exist
+  const winRates = nodeIds.map((id) => {
+    const n = getNode(tree, id);
+    return n ? n.winRate : 50;
+  });
+  if (winRates.some((r) => r !== 50)) return;
+
+  // Abort previous analysis
+  analysisAbort?.abort();
+  const abortController = new AbortController();
+  analysisAbort = abortController;
+
+  const total = moves.length - 1;
+  state.setIsAnalyzing(true);
+  state.setAnalysisProgress({ current: 0, total });
+
+  let lastUpdateTime = performance.now();
+  let pendingUpdates: { nodeId: string; winRate: number }[] = [];
+
+  analyzeGame(
+    moves,
+    state.boardSize,
+    state.handicap,
+    (moveIndex, winRate) => {
+      if (nodeIds[moveIndex]) {
+        pendingUpdates.push({ nodeId: nodeIds[moveIndex], winRate });
+      }
+      const now = performance.now();
+      if (now - lastUpdateTime > 100 || moveIndex === total) {
+        const store = useGameStore.getState();
+        if (pendingUpdates.length > 0) {
+          store.updateWinRates(pendingUpdates);
+          pendingUpdates = [];
+        }
+        store.setAnalysisProgress({ current: moveIndex, total });
+        lastUpdateTime = now;
+      }
+    },
+    abortController.signal,
+  )
+    .then(() => {
+      const store = useGameStore.getState();
+      if (pendingUpdates.length > 0) {
+        store.updateWinRates(pendingUpdates);
+      }
+      store.setIsAnalyzing(false);
+      store.setAnalysisProgress(null);
+    })
+    .catch((err) => {
+      if (err.name !== "AbortError") console.error("Analysis failed:", err);
+      const store = useGameStore.getState();
+      store.setIsAnalyzing(false);
+      store.setAnalysisProgress(null);
+    });
+}

@@ -3,6 +3,7 @@ import { useGameStore } from "@/entities/match/model/store";
 
 const BoardWidget = lazy(() => import("@/widgets/BoardWidget"));
 const SidebarWidget = lazy(() => import("@/widgets/SidebarWidget"));
+const OnlineSidebarWidget = lazy(() => import("@/widgets/OnlineSidebarWidget"));
 const TeacherAdviceWidget = lazy(() => import("@/widgets/TeacherAdviceWidget"));
 
 const SIDEBAR_WIDTH_EXPANDED = 320; // md:w-80 = 20rem
@@ -38,6 +39,10 @@ const useCanShowAdviceSide = (sidebarCollapsed: boolean) => {
 };
 
 const MainPage = () => {
+  const gameMode = useGameStore((s) => s.gameMode);
+  const isReviewMode = useGameStore((s) => s.isReviewMode);
+  const isOnline = gameMode === "Online";
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return sessionStorage.getItem("sidebarCollapsed") === "true";
   });
@@ -52,7 +57,7 @@ const MainPage = () => {
       <main className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-800 p-2 md:p-4 overflow-auto min-h-0">
         <div
           className={`flex w-full max-w-5xl mx-auto justify-center ${
-            canShowAdviceSide
+            canShowAdviceSide && (!isOnline || isReviewMode)
               ? "flex-row items-start gap-4"
               : "flex-col items-center"
           }`}
@@ -68,21 +73,39 @@ const MainPage = () => {
               <BoardWidget />
             </Suspense>
           </div>
-          <Suspense fallback={null}>
-            <TeacherAdviceWidget sideBySide={canShowAdviceSide} />
-          </Suspense>
+          {/* Show teacher advice: always in offline mode, only in review for online */}
+          {(!isOnline || isReviewMode) && (
+            <Suspense fallback={null}>
+              <TeacherAdviceWidget sideBySide={canShowAdviceSide} />
+            </Suspense>
+          )}
         </div>
       </main>
 
       {/* Sidebar: bottom sheet on mobile, side panel on md+ */}
       <aside
         className={`border-t md:border-t-0 md:border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shrink-0 transition-all duration-300 ${
-          sidebarCollapsed
-            ? "h-10 md:h-auto md:w-4"
-            : "h-[40vh] md:h-auto md:w-80"
+          isOnline
+            ? "h-[40vh] md:h-auto md:w-80"
+            : sidebarCollapsed
+              ? "h-10 md:h-auto md:w-4"
+              : "h-[40vh] md:h-auto md:w-80"
         }`}
       >
-        {sidebarCollapsed ? (
+        {isOnline ? (
+          /* Online mode: always show online sidebar, no collapse */
+          <div className="h-full overflow-hidden">
+            <Suspense
+              fallback={
+                <div className="animate-pulse p-4 text-center text-gray-400 dark:text-gray-500">
+                  Loading...
+                </div>
+              }
+            >
+              <OnlineSidebarWidget />
+            </Suspense>
+          </div>
+        ) : sidebarCollapsed ? (
           <div className="h-full flex flex-row md:flex-col items-center justify-center md:justify-start md:pt-3">
             <button
               onClick={() => toggleSidebar(false)}

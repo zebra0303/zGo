@@ -7,14 +7,17 @@ import {
   Suspense,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { useGameStore, getPathToNode } from "@/entities/match/model/store";
+import {
+  useGameStore,
+  getPathToNode,
+  startReviewAnalysis,
+} from "@/entities/match/model/store";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   fetchAIMove,
   fetchAIScore,
   saveMatch,
   getMatches,
-  analyzeGame,
 } from "@/shared/api/gameApi";
 import {
   playStoneSound,
@@ -76,82 +79,7 @@ const SidebarWidget = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentNode.id, gameTree]);
 
-  const analysisAbortRef = useRef<AbortController | null>(null);
-
-  const startReviewAnalysis = useCallback(
-    (moves: ({ x: number; y: number } | null)[], winRates?: number[]) => {
-      if (winRates && winRates.some((r) => r !== 50)) return;
-      if (moves.length <= 1) return;
-
-      analysisAbortRef.current?.abort();
-      const abortController = new AbortController();
-      analysisAbortRef.current = abortController;
-
-      const total = moves.length - 1;
-      const storeState = useGameStore.getState();
-      const tree = storeState.gameTree;
-      const savedBoardSize = storeState.boardSize;
-      const savedHandicap = storeState.handicap;
-
-      storeState.setIsAnalyzing(true);
-      storeState.setAnalysisProgress({ current: 0, total });
-
-      const nodeIds: string[] = ["root"];
-      let node = tree;
-      while (node.children.length > 0) {
-        node = node.children[0];
-        nodeIds.push(node.id);
-      }
-
-      let lastUpdateTime = performance.now();
-      let pendingUpdates: { nodeId: string; winRate: number }[] = [];
-
-      analyzeGame(
-        moves,
-        savedBoardSize,
-        savedHandicap,
-        (moveIndex, winRate) => {
-          if (nodeIds[moveIndex]) {
-            pendingUpdates.push({ nodeId: nodeIds[moveIndex], winRate });
-          }
-
-          const now = performance.now();
-          if (now - lastUpdateTime > 100 || moveIndex === total) {
-            const store = useGameStore.getState();
-            if (pendingUpdates.length > 0) {
-              store.updateWinRates(pendingUpdates);
-              pendingUpdates = [];
-            }
-            store.setAnalysisProgress({ current: moveIndex, total });
-            lastUpdateTime = now;
-          }
-        },
-        abortController.signal,
-      )
-        .then(() => {
-          const store = useGameStore.getState();
-          if (pendingUpdates.length > 0) {
-            store.updateWinRates(pendingUpdates);
-          }
-          store.setIsAnalyzing(false);
-          store.setAnalysisProgress(null);
-        })
-        .catch((err) => {
-          if (err.name !== "AbortError") console.error("Analysis failed:", err);
-          const store = useGameStore.getState();
-          store.setIsAnalyzing(false);
-          store.setAnalysisProgress(null);
-        });
-    },
-    [],
-  );
-
-  // Cancel analysis when leaving review mode
-  useEffect(() => {
-    if (!isReviewMode) {
-      analysisAbortRef.current?.abort();
-    }
-  }, [isReviewMode]);
+  // startReviewAnalysis is imported from game store
 
   const [activeTab, setActiveTab] = useState<"game" | "history" | "admin">(
     "game",

@@ -30,6 +30,36 @@ db.exec(`CREATE TABLE IF NOT EXISTS system_settings (
   value TEXT NOT NULL
 )`);
 
+// Online rooms for multiplayer
+db.exec(`CREATE TABLE IF NOT EXISTS online_rooms (
+  id TEXT PRIMARY KEY,
+  status TEXT NOT NULL DEFAULT 'waiting',
+  board_size INTEGER NOT NULL DEFAULT 19,
+  handicap INTEGER NOT NULL DEFAULT 0,
+  host_nickname TEXT NOT NULL,
+  host_character TEXT NOT NULL,
+  host_color TEXT NOT NULL DEFAULT 'BLACK',
+  guest_nickname TEXT,
+  guest_character TEXT,
+  moves TEXT DEFAULT '[]',
+  current_player TEXT DEFAULT 'BLACK',
+  undo_host_used INTEGER DEFAULT 0,
+  undo_guest_used INTEGER DEFAULT 0,
+  winner TEXT,
+  result_text TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+)`);
+
+db.exec(`CREATE TABLE IF NOT EXISTS online_chat (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  room_id TEXT NOT NULL,
+  sender TEXT NOT NULL,
+  message TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (room_id) REFERENCES online_rooms(id)
+)`);
+
 console.log("Connected to the SQLite database at", dbPath);
 
 export default db;
