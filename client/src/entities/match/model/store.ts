@@ -6,6 +6,7 @@ import { produce } from "immer";
 import { BoardState, PlayerColor } from "@/shared/types/board";
 import { flattenTree, reconstructTree } from "@/entities/match/lib/treeUtils";
 import { analyzeGame } from "@/shared/api/gameApi";
+import { getPlayerForMove } from "@/shared/lib/goUtils";
 
 export interface HistoryNode {
   id: string;
@@ -431,18 +432,10 @@ export const useGameStore = create<GameState>()(
         const path = getPathToNode(gameTree, currentNode.id);
         if (!path || path.length < 3) return; // need at least root + human move + AI move
         const targetNode = path[path.length - 3]; // 2 moves back
-        const getPlayer = (node: HistoryNode) =>
-          handicap > 0
-            ? node.moveIndex % 2 === 0
-              ? "WHITE"
-              : "BLACK"
-            : node.moveIndex % 2 === 0
-              ? "BLACK"
-              : "WHITE";
         set({
           currentNode: targetNode,
           board: targetNode.board,
-          currentPlayer: getPlayer(targetNode),
+          currentPlayer: getPlayerForMove(targetNode.moveIndex, handicap),
           ignoredRecommendation: null,
           deadStones: null,
           showDeadStones: false,
@@ -460,14 +453,7 @@ export const useGameStore = create<GameState>()(
           set({
             currentNode: prevNode,
             board: prevNode.board,
-            currentPlayer:
-              handicap > 0
-                ? prevNode.moveIndex % 2 === 0
-                  ? "WHITE"
-                  : "BLACK"
-                : prevNode.moveIndex % 2 === 0
-                  ? "BLACK"
-                  : "WHITE",
+            currentPlayer: getPlayerForMove(prevNode.moveIndex, handicap),
             ignoredRecommendation: null,
             deadStones: null,
             showDeadStones: false,
@@ -482,14 +468,7 @@ export const useGameStore = create<GameState>()(
           set({
             currentNode: nextNode,
             board: nextNode.board,
-            currentPlayer:
-              handicap > 0
-                ? nextNode.moveIndex % 2 === 0
-                  ? "WHITE"
-                  : "BLACK"
-                : nextNode.moveIndex % 2 === 0
-                  ? "BLACK"
-                  : "WHITE",
+            currentPlayer: getPlayerForMove(nextNode.moveIndex, handicap),
             ignoredRecommendation: null,
             deadStones: null,
             showDeadStones: false,
@@ -509,49 +488,23 @@ export const useGameStore = create<GameState>()(
         set({
           currentNode: targetNode,
           board: targetNode.board,
-          currentPlayer:
-            handicap > 0
-              ? targetNode.moveIndex % 2 === 0
-                ? "WHITE"
-                : "BLACK"
-              : targetNode.moveIndex % 2 === 0
-                ? "BLACK"
-                : "WHITE",
+          currentPlayer: getPlayerForMove(targetNode.moveIndex, handicap),
           ignoredRecommendation: null,
           deadStones: null,
           showDeadStones: false,
         });
       },
 
+      // refactor: reuse shared getNode instead of inline findNode
       setCurrentNode: (nodeId: string) => {
         const { gameTree, handicap } = get();
-        let targetNode: HistoryNode | null = null;
-
-        const findNode = (node: HistoryNode) => {
-          if (node.id === nodeId) {
-            targetNode = node;
-            return true;
-          }
-          for (const child of node.children) {
-            if (findNode(child)) return true;
-          }
-          return false;
-        };
-        findNode(gameTree);
+        const targetNode = getNode(gameTree, nodeId);
 
         if (targetNode) {
-          const tNode = targetNode as HistoryNode;
           set({
-            currentNode: tNode,
-            board: tNode.board,
-            currentPlayer:
-              handicap > 0
-                ? tNode.moveIndex % 2 === 0
-                  ? "WHITE"
-                  : "BLACK"
-                : tNode.moveIndex % 2 === 0
-                  ? "BLACK"
-                  : "WHITE",
+            currentNode: targetNode,
+            board: targetNode.board,
+            currentPlayer: getPlayerForMove(targetNode.moveIndex, handicap),
             ignoredRecommendation: null,
             deadStones: null,
             showDeadStones: false,
@@ -602,14 +555,8 @@ export const useGameStore = create<GameState>()(
         let current = rootNode;
 
         moves.slice(1).forEach((move, i) => {
-          const color =
-            handicap > 0
-              ? i % 2 === 0
-                ? "WHITE"
-                : "BLACK"
-              : i % 2 === 0
-                ? "BLACK"
-                : "WHITE";
+          // refactor: i is 0-based forEach index; maps to getPlayerForMove(i, handicap)
+          const color = getPlayerForMove(i, handicap);
           const prevBoard = i > 0 ? current.board : null;
 
           let newBoard = current.board;
@@ -656,14 +603,7 @@ export const useGameStore = create<GameState>()(
           board: current.board,
           boardSize,
           handicap,
-          currentPlayer:
-            handicap > 0
-              ? current.moveIndex % 2 === 0
-                ? "WHITE"
-                : "BLACK"
-              : current.moveIndex % 2 === 0
-                ? "BLACK"
-                : "WHITE",
+          currentPlayer: getPlayerForMove(current.moveIndex, handicap),
           isReviewMode: true,
           isGameOver: false,
           ignoredRecommendation: null,

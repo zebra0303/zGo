@@ -7,6 +7,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { fetchAIHint } from "@/shared/api/gameApi";
 import { playStoneSound } from "@/shared/lib/sound";
+import { buildMoveHistory } from "@/shared/lib/goUtils";
 import { useShallow } from "zustand/react/shallow";
 import { useRenderProfile } from "@/shared/lib/useRenderProfile";
 
@@ -152,27 +153,16 @@ const BoardCore: React.FC = () => {
       handicap,
     ],
     queryFn: ({ signal }) => {
-      // Get history ONLY inside queryFn to keep queryKey stable
-      const getMoveHistory = () => {
-        const path = getPathToNode(gameTree, currentNode.id) || [currentNode];
-        const moves: ({ x: number; y: number } | null)[] = [];
-        for (let i = 1; i < path.length; i++) {
-          const node = path[i];
-          moves.push(
-            node.x !== null && node.y !== null
-              ? { x: node.x, y: node.y }
-              : null,
-          );
-        }
-        return moves;
-      };
+      // refactor: reuse shared buildMoveHistory instead of inline logic
+      const path = getPathToNode(gameTree, currentNode.id) || [currentNode];
+      const moves = buildMoveHistory(path);
 
       return fetchAIHint(
         board,
         currentPlayer,
         aiDifficulty,
         teacherVisits,
-        getMoveHistory(),
+        moves,
         signal,
         language,
         boardSize,

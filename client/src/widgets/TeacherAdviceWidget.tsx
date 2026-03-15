@@ -7,6 +7,7 @@ import {
 } from "@/entities/match/model/store";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAIHint, API_BASE_URL } from "@/shared/api/gameApi";
+import { getPlayerForMove } from "@/shared/lib/goUtils";
 
 const coordsToGtp = (x: number, y: number, boardSize: number) =>
   "ABCDEFGHJKLMNOPQRST"[x] + (boardSize - y);
@@ -168,14 +169,7 @@ const TeacherAdviceWidget = ({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             board: parentNode.board,
-            currentPlayer:
-              handicap > 0
-                ? parentNode.moveIndex % 2 === 0
-                  ? "WHITE"
-                  : "BLACK"
-                : parentNode.moveIndex % 2 === 0
-                  ? "BLACK"
-                  : "WHITE",
+            currentPlayer: getPlayerForMove(parentNode.moveIndex, handicap),
             isHintRequest: true,
             aiDifficulty,
             teacherVisits,
@@ -244,14 +238,8 @@ const TeacherAdviceWidget = ({
       ? recommendationsByNodeId.current[parentNode.id]
       : null;
 
-    const moveColor =
-      handicap > 0
-        ? currentNode.moveIndex % 2 === 1
-          ? "WHITE"
-          : "BLACK"
-        : currentNode.moveIndex % 2 === 1
-          ? "BLACK"
-          : "WHITE";
+    // refactor: derive who placed this stone from parent's turn
+    const moveColor = getPlayerForMove(currentNode.moveIndex - 1, handicap);
 
     if (gameMode === "PvAI" && moveColor !== humanPlayerColor) {
       return;

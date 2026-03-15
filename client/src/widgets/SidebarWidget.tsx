@@ -1,11 +1,4 @@
-import {
-  useEffect,
-  useState,
-  useCallback,
-  useRef,
-  lazy,
-  Suspense,
-} from "react";
+import { useEffect, useState, useCallback, lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import {
   useGameStore,
@@ -13,20 +6,13 @@ import {
   startReviewAnalysis,
 } from "@/entities/match/model/store";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import {
-  fetchAIMove,
-  fetchAIScore,
-  saveMatch,
-  getMatches,
-} from "@/shared/api/gameApi";
-import {
-  playStoneSound,
-  playWinSound,
-  playLoseSound,
-} from "@/shared/lib/sound";
+import { saveMatch, getMatches } from "@/shared/api/gameApi";
 import CustomDialog from "@/shared/ui/CustomDialog";
 import GameStatusPanel from "@/widgets/sidebar/GameStatusPanel";
 import SettingsPanel from "@/widgets/sidebar/SettingsPanel";
+// refactor: AI turn and scoring logic extracted into dedicated hooks (SRP)
+import { useAITurn } from "@/features/board/lib/useAITurn";
+import { useGameScoring } from "@/features/board/lib/useGameScoring";
 
 const MatchHistory = lazy(() => import("@/widgets/sidebar/MatchHistory"));
 const AdminPanel = lazy(() => import("@/widgets/sidebar/AdminPanel"));
@@ -34,52 +20,24 @@ const AdminPanel = lazy(() => import("@/widgets/sidebar/AdminPanel"));
 const SidebarWidget = () => {
   const { t } = useTranslation();
   const {
-    board,
-    currentPlayer,
     currentNode,
     gameMode,
     aiDifficulty,
     humanPlayerColor,
-    placeStone,
-    passTurn,
-    resignGame,
     isGameOver,
     isReviewMode,
     loadMatch,
-    soundEnabled,
-    soundVolume,
-    consecutivePasses,
-    updateWinRate,
-    language,
     boardSize,
     handicap,
-    setDeadStones,
     gameResultText,
     winner,
     setGameResultText,
-    setWinner,
-    setIsScoring,
     gameTree,
   } = useGameStore();
 
-  const playedGameOverSoundRef = useRef(false);
-  const scoringNodeRef = useRef<string | null>(null);
-
-  // Helper to get moves up to current node
-  const getMoveHistory = useCallback(() => {
-    const path = getPathToNode(gameTree, currentNode.id) || [currentNode];
-    const moves: ({ x: number; y: number } | null)[] = [];
-    for (let i = 1; i < path.length; i++) {
-      const node = path[i];
-      moves.push(
-        node.x !== null && node.y !== null ? { x: node.x, y: node.y } : null,
-      );
-    }
-    return moves;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentNode.id, gameTree]);
-
-  // startReviewAnalysis is imported from game store
+  // refactor: extracted hooks handle AI auto-play, scoring, and sounds
+  const { getMoveHistory } = useAITurn();
+  useGameScoring();
 
   const [activeTab, setActiveTab] = useState<"game" | "history" | "admin">(
     "game",
@@ -131,132 +89,11 @@ const SidebarWidget = () => {
     [t],
   );
 
-  // 대국 기록 가져오기
   const { data: matchesData, refetch: refetchMatches } = useQuery({
     queryKey: ["matches"],
     queryFn: () => getMatches(),
     enabled: activeTab === "history",
   });
-
-  // AI 자동 착수 로직
-  // Uses a ref to avoid re-triggering the effect when gameTree changes
-  // (e.g., from updateWinRate in TeacherAdvice), which would abort the fetch.
-  const aiTurnRef = useRef<{
-    getMoveHistory: typeof getMoveHistory;
-    updateWinRate: typeof updateWinRate;
-    showAlert: typeof showAlert;
-    currentNodeId: string;
-  }>({
-    getMoveHistory,
-    updateWinRate,
-    showAlert,
-    currentNodeId: currentNode.id,
-  });
-  aiTurnRef.current = {
-    getMoveHistory,
-    updateWinRate,
-    showAlert,
-    currentNodeId: currentNode.id,
-  };
-
-  useEffect(() => {
-    let isActive = true;
-    const abortController = new AbortController();
-
-    const playAITurn = async () => {
-      if (
-        isGameOver ||
-        isReviewMode ||
-        gameMode !== "PvAI" ||
-        currentPlayer === humanPlayerColor
-      )
-        return;
-
-      const moveHistory = aiTurnRef.current.getMoveHistory();
-
-      try {
-        const response = await fetchAIMove(
-          board,
-          currentPlayer,
-          aiDifficulty,
-          moveHistory,
-          abortController.signal,
-          language,
-          boardSize,
-          handicap,
-        );
-        if (!isActive) return;
-
-        if (response.winRate) {
-          const blackWinRate =
-            currentPlayer === "BLACK"
-              ? response.winRate
-              : 100 - response.winRate;
-          aiTurnRef.current.updateWinRate(
-            aiTurnRef.current.currentNodeId,
-            blackWinRate,
-          );
-        }
-
-        if (response.pass) {
-          passTurn();
-          aiTurnRef.current.showAlert(t("aiPassed"));
-        } else if (response.resign) {
-          resignGame();
-          aiTurnRef.current.showAlert(t("aiResignedMsg"), t("congrats"));
-        } else if (response.move) {
-          placeStone(response.move.x, response.move.y);
-          playStoneSound(soundEnabled, soundVolume);
-        }
-      } catch (err) {
-        const error = err as Error;
-        if (
-          error?.name !== "AbortError" &&
-          !error?.message?.includes("abort")
-        ) {
-          console.error("AI Move Error:", error);
-        }
-      }
-    };
-
-    if (
-      !isGameOver &&
-      !isReviewMode &&
-      gameMode === "PvAI" &&
-      currentPlayer !== humanPlayerColor
-    ) {
-      const timer = setTimeout(() => playAITurn(), 1500);
-      return () => {
-        isActive = false;
-        clearTimeout(timer);
-        abortController.abort();
-      };
-    }
-    return () => {
-      isActive = false;
-      abortController.abort();
-    };
-    // Intentionally excludes getMoveHistory, updateWinRate, showAlert, currentNode.id
-    // to prevent gameTree changes (from updateWinRate) from aborting in-flight AI requests.
-    // These are accessed via aiTurnRef instead.
-  }, [
-    gameMode,
-    currentPlayer,
-    humanPlayerColor,
-    board,
-    isGameOver,
-    isReviewMode,
-    placeStone,
-    passTurn,
-    resignGame,
-    soundEnabled,
-    soundVolume,
-    aiDifficulty,
-    t,
-    language,
-    boardSize,
-    handicap,
-  ]);
 
   const saveMutation = useMutation({
     mutationFn: saveMatch,
@@ -268,153 +105,13 @@ const SidebarWidget = () => {
     onError: () => setSaveStatus("error"),
   });
 
-  // Game-over / end-of-branch scoring effect
-  useEffect(() => {
-    const abortController = new AbortController();
-    const isEndOfBranch =
-      isReviewMode &&
-      currentNode.children.length === 0 &&
-      currentNode.id !== "root";
-
-    if (isGameOver || isEndOfBranch) {
-      if (scoringNodeRef.current === currentNode.id) return;
-      scoringNodeRef.current = currentNode.id;
-
-      const moveHistory = getMoveHistory();
-
-      let isNaturalEnd = false;
-      if (isGameOver && consecutivePasses >= 2) {
-        isNaturalEnd = true;
-      } else if (isEndOfBranch) {
-        const lastMove = moveHistory[moveHistory.length - 1];
-        const prevMove =
-          moveHistory.length > 1
-            ? moveHistory[moveHistory.length - 2]
-            : undefined;
-        if (lastMove === null && prevMove === null) {
-          isNaturalEnd = true;
-        }
-      }
-
-      if (!isNaturalEnd) {
-        const loserColor = currentPlayer === "BLACK" ? "BLACK" : "WHITE";
-        const winnerColor = currentPlayer === "BLACK" ? "WHITE" : "BLACK";
-        const loserName = loserColor === "BLACK" ? t("black") : t("white");
-        const winnerName = winnerColor === "BLACK" ? t("black") : t("white");
-
-        setWinner(winnerColor);
-        setGameResultText(
-          t("resignWin", { loser: loserName, winner: winnerName }),
-        );
-
-        fetchAIScore(moveHistory, boardSize, handicap, abortController.signal)
-          .then((data) => {
-            if (data.deadStones) {
-              setDeadStones(data.deadStones);
-            }
-          })
-          .catch(() => {});
-      } else {
-        setIsScoring(true);
-        fetchAIScore(moveHistory, boardSize, handicap, abortController.signal)
-          .then((data) => {
-            if (data.error === "NOT_FINISHED") {
-              setGameResultText(
-                t("calcError") +
-                  ": " +
-                  t("scoringNotReady", {
-                    defaultValue: "대국이 아직 종료되지 않았습니다",
-                  }),
-              );
-            } else if (data.score) {
-              const winnerColor = data.score.startsWith("B")
-                ? "BLACK"
-                : "WHITE";
-              const winnerName =
-                winnerColor === "BLACK" ? t("black") : t("white");
-
-              setWinner(winnerColor);
-              const diffMatch = data.score.match(/\+([0-9.]+)/);
-              const diff = diffMatch ? diffMatch[1] : "";
-              setGameResultText(t("winByScore", { winner: winnerName, diff }));
-            } else {
-              setGameResultText(t("calcError"));
-            }
-
-            if (data.deadStones) {
-              setDeadStones(data.deadStones);
-            }
-          })
-          .catch((err) => {
-            // Ignore AbortError from cleanup (e.g. React StrictMode double-mount)
-            if (err?.name === "AbortError") return;
-            console.error(err);
-            setGameResultText(t("calcFail"));
-          })
-          .finally(() => setIsScoring(false));
-      }
-    } else {
-      if (gameResultText !== null) setGameResultText(null);
-      if (scoringNodeRef.current !== null) scoringNodeRef.current = null;
-    }
-
-    return () => abortController.abort();
-  }, [
-    isGameOver,
-    isReviewMode,
-    currentNode.id,
-    currentNode.children.length,
-    consecutivePasses,
-    currentPlayer,
-    getMoveHistory,
-    t,
-    boardSize,
-    handicap,
-    setDeadStones,
-    setGameResultText,
-    setWinner,
-    setIsScoring,
-    gameResultText,
-  ]);
-
-  // Reset status when move node changes
+  // Reset save status when move node changes during active play
   useEffect(() => {
     if (!isGameOver && !isReviewMode) {
       setSaveStatus("idle");
       setGameResultText(null);
-      playedGameOverSoundRef.current = false;
     }
   }, [currentNode.id, isGameOver, isReviewMode, setGameResultText]);
-
-  // Handle Game Over Sounds
-  useEffect(() => {
-    if (
-      isGameOver &&
-      !isReviewMode &&
-      !playedGameOverSoundRef.current &&
-      winner
-    ) {
-      if (gameMode === "PvAI") {
-        if (winner === humanPlayerColor) {
-          playWinSound(soundEnabled, soundVolume);
-        } else {
-          playLoseSound(soundEnabled, soundVolume);
-        }
-      } else {
-        // PvP Mode: Play win sound when game ends
-        playWinSound(soundEnabled, soundVolume);
-      }
-      playedGameOverSoundRef.current = true;
-    }
-  }, [
-    isGameOver,
-    isReviewMode,
-    winner,
-    gameMode,
-    humanPlayerColor,
-    soundEnabled,
-    soundVolume,
-  ]);
 
   const handleSaveMatch = useCallback(() => {
     let winnerColor: "BLACK" | "WHITE" =
