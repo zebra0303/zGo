@@ -50,6 +50,13 @@ interface GameState {
   ignoredRecommendation: { x: number; y: number }[] | null;
   teacherCritique: string | null;
   deadStones: { x: number; y: number }[] | null;
+  reviewChat: {
+    chat: { sender: string; message: string; createdAt: string }[];
+    hostNickname?: string;
+    hostCharacter?: string;
+    guestNickname?: string;
+    guestCharacter?: string;
+  } | null;
   gameResultText: string | null;
   winner: PlayerColor | "DRAW" | null;
   isScoring: boolean;
@@ -85,6 +92,7 @@ interface GameState {
     savedBoardSize?: number,
     savedHandicap?: number,
     winner?: PlayerColor | "DRAW" | null,
+    reviewChat?: GameState["reviewChat"],
   ) => void;
   setGameConfig: (
     config: Partial<
@@ -228,6 +236,7 @@ export const useGameStore = create<GameState>()(
       ignoredRecommendation: null,
       teacherCritique: null,
       deadStones: null,
+      reviewChat: null,
       gameResultText: null,
       winner: null,
       isScoring: false,
@@ -585,6 +594,7 @@ export const useGameStore = create<GameState>()(
         savedBoardSize?: number,
         savedHandicap?: number,
         winner?: PlayerColor | "DRAW" | null,
+        reviewChat?: GameState["reviewChat"],
       ) => {
         const boardSize = savedBoardSize || get().boardSize;
         const handicap = savedHandicap ?? get().handicap;
@@ -658,6 +668,7 @@ export const useGameStore = create<GameState>()(
           isGameOver: false,
           ignoredRecommendation: null,
           deadStones: null,
+          reviewChat: reviewChat || null,
           showDeadStones: true, // Auto-enable when entering review
           gameResultText: resultText || null, // Clear on load or set loaded text
           winner: winner || null,
@@ -700,6 +711,7 @@ export const useGameStore = create<GameState>()(
           ignoredRecommendation: null,
           teacherVisits: 330,
           deadStones: null,
+          reviewChat: null,
           gameResultText: null,
           winner: null,
           isScoring: false,
@@ -729,7 +741,10 @@ export const useGameStore = create<GameState>()(
         const { gameTree, currentNode, ...rest } = state;
         const persistable = Object.fromEntries(
           Object.entries(rest).filter(
-            ([k]) => k !== "isAnalyzing" && k !== "analysisProgress",
+            ([k]) =>
+              k !== "isAnalyzing" &&
+              k !== "analysisProgress" &&
+              k !== "reviewChat",
           ),
         );
 

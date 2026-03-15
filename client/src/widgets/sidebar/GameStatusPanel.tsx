@@ -1,8 +1,12 @@
-import React from "react";
+import React, { lazy, Suspense, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useGameStore } from "@/entities/match/model/store";
 import { playNewGameSound } from "@/shared/lib/sound";
 import { formatGameResultText } from "@/shared/lib/formatUtils";
+
+const ChatHistoryModal = lazy(
+  () => import("@/widgets/sidebar/ChatHistoryModal"),
+);
 
 interface GameStatusPanelProps {
   saveStatus: "idle" | "saving" | "saved" | "error";
@@ -20,40 +24,76 @@ const GameStatusPanel = ({ saveStatus, onSaveMatch }: GameStatusPanelProps) => {
     isScoring,
     deadStones,
     resetGame,
+    reviewChat,
     soundEnabled,
     soundVolume,
   } = useGameStore();
+  const [showChatModal, setShowChatModal] = useState(false);
 
   const capturedByBlack = currentNode.capturedByBlack;
   const capturedByWhite = currentNode.capturedByWhite;
 
   if (isReviewMode) {
     return (
-      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 p-3 rounded-xl shadow-sm flex flex-col gap-2 mb-4">
-        <div className="font-bold flex items-center justify-between">
-          <span>{t("reviewModeOn")}</span>
-          <button
-            onClick={() => {
-              playNewGameSound(soundEnabled, soundVolume);
-              resetGame();
-            }}
-            className="text-xs text-amber-900 dark:text-amber-50 bg-amber-200 dark:bg-amber-800 hover:bg-amber-300 dark:hover:bg-amber-700 px-2 py-1 rounded transition-colors"
-          >
-            {t("backToGame")}
-          </button>
-        </div>
-        {currentNode.children.length === 0 &&
-          currentNode.id !== "root" &&
-          (gameResultText || isScoring) && (
-            <div className="text-sm font-extrabold text-amber-900 bg-amber-100/50 rounded p-1.5 text-center">
-              {isScoring
-                ? t("resultScoring")
-                : t("result", {
-                    text: formatGameResultText(gameResultText, t),
-                  })}
-            </div>
+      <>
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 p-3 rounded-xl shadow-sm flex flex-col gap-3 mb-4">
+          <div className="font-bold flex items-center justify-between">
+            <span>{t("reviewModeOn")}</span>
+            <button
+              onClick={() => {
+                playNewGameSound(soundEnabled, soundVolume);
+                resetGame();
+              }}
+              className="text-xs text-amber-900 dark:text-amber-50 bg-amber-200 dark:bg-amber-800 hover:bg-amber-300 dark:hover:bg-amber-700 px-2 py-1 rounded transition-colors"
+            >
+              {t("backToGame")}
+            </button>
+          </div>
+          {currentNode.children.length === 0 &&
+            currentNode.id !== "root" &&
+            (gameResultText || isScoring) && (
+              <div className="text-sm font-extrabold text-amber-900 bg-amber-100/50 rounded p-1.5 text-center">
+                {isScoring
+                  ? t("resultScoring")
+                  : t("result", {
+                      text: formatGameResultText(gameResultText, t),
+                    })}
+              </div>
+            )}
+          {reviewChat && reviewChat.chat.length > 0 && (
+            <button
+              onClick={() => setShowChatModal(true)}
+              className="w-full text-xs text-amber-900 dark:text-amber-50 bg-amber-200/60 dark:bg-amber-800/60 hover:bg-amber-300 dark:hover:bg-amber-700 py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              {t("online.chatHistory")} ({reviewChat.chat.length})
+            </button>
           )}
-      </div>
+        </div>
+        {showChatModal && reviewChat && (
+          <Suspense fallback={null}>
+            <ChatHistoryModal
+              chat={reviewChat.chat}
+              hostNickname={reviewChat.hostNickname}
+              hostCharacter={reviewChat.hostCharacter}
+              guestNickname={reviewChat.guestNickname}
+              guestCharacter={reviewChat.guestCharacter}
+              onClose={() => setShowChatModal(false)}
+            />
+          </Suspense>
+        )}
+      </>
     );
   }
 

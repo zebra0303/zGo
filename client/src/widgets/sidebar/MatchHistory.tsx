@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { PlayerColor } from "@/shared/types/board";
 import { getMatchById, deleteMatch } from "@/shared/api/gameApi";
+import { formatGameResultText } from "@/shared/lib/formatUtils";
 
 interface MatchRecord {
   id: string | number;
@@ -23,6 +24,13 @@ interface MatchHistoryProps {
     boardSize?: number,
     handicap?: number,
     winner?: PlayerColor | "DRAW" | null,
+    reviewChat?: {
+      chat: { sender: string; message: string; createdAt: string }[];
+      hostNickname?: string;
+      hostCharacter?: string;
+      guestNickname?: string;
+      guestCharacter?: string;
+    } | null,
   ) => void;
   onStartReviewAnalysis: () => void;
   onSetActiveTab: (tab: "game" | "history") => void;
@@ -111,6 +119,19 @@ const MatchHistory = ({
                   winnerColor =
                     parsedData.resultWinner || (match.winner as PlayerColor);
                 }
+
+                // Build reviewChat from saved online match data
+                const reviewChat =
+                  parsedData.chat && parsedData.chat.length > 0
+                    ? {
+                        chat: parsedData.chat,
+                        hostNickname: parsedData.hostNickname,
+                        hostCharacter: parsedData.hostCharacter,
+                        guestNickname: parsedData.guestNickname,
+                        guestCharacter: parsedData.guestCharacter,
+                      }
+                    : null;
+
                 onLoadMatch(
                   parsedData.moves,
                   parsedData.winRates,
@@ -118,6 +139,7 @@ const MatchHistory = ({
                   parsedData.boardSize,
                   parsedData.handicap,
                   winnerColor,
+                  reviewChat,
                 );
                 onStartReviewAnalysis();
                 onSetActiveTab("game");

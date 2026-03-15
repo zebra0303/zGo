@@ -154,6 +154,9 @@
     "scoreWin": "승리하셨습니다!",
     "scoreLose": "패배하셨습니다.",
     "farewellTitle": "대국은 즐거우셨나요?",
-    "farewellMessage": "함께 바둑을 둬주셔서 감사합니다.\n좋은 하루 보내세요!"
+    "farewellMessage": "함께 바둑을 둬주셔서 감사합니다.\n좋은 하루 보내세요!",
+    "chatHistory": "나눈 대화",
+    "noChat": "대화 내역이 없습니다.",
+    "loadMoreChat": "이전 메시지 더 보기"
   }
 }

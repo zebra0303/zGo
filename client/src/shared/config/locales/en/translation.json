@@ -154,6 +154,9 @@
     "scoreWin": "You win!",
     "scoreLose": "You lost.",
     "farewellTitle": "Did you enjoy the game?",
-    "farewellMessage": "Thanks for playing Go with us.\nHave a great day!"
+    "farewellMessage": "Thanks for playing Go with us.\nHave a great day!",
+    "chatHistory": "Chat History",
+    "noChat": "No chat messages.",
+    "loadMoreChat": "Load older messages"
   }
 }

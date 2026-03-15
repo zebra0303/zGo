@@ -276,7 +276,21 @@ function getMovesFromTree(): ({ x: number; y: number } | null)[] {
 function enterReviewMode(winner?: PlayerColor): void {
   setTimeout(() => {
     const gs = useGameStore.getState();
+    const os = useOnlineStore.getState();
     const moves = getMovesFromTree();
+
+    // Build reviewChat from live online session
+    const reviewChat =
+      os.chatMessages.length > 0
+        ? {
+            chat: os.chatMessages,
+            hostNickname: os.roomInfo?.hostNickname,
+            hostCharacter: os.roomInfo?.hostCharacter,
+            guestNickname: os.roomInfo?.guestNickname ?? undefined,
+            guestCharacter: os.roomInfo?.guestCharacter ?? undefined,
+          }
+        : null;
+
     gs.loadMatch(
       [null, ...moves],
       undefined,
@@ -284,6 +298,7 @@ function enterReviewMode(winner?: PlayerColor): void {
       gs.boardSize,
       gs.handicap,
       winner,
+      reviewChat,
     );
     // Auto-trigger win rate analysis
     startReviewAnalysis();
@@ -304,6 +319,7 @@ function autoSaveAndReview(
   winner: PlayerColor | undefined,
 ): void {
   const gs = useGameStore.getState();
+  const os = useOnlineStore.getState();
   const moves = getMovesFromTree();
   saveMatch({
     mode: "Online",
@@ -316,6 +332,12 @@ function autoSaveAndReview(
       resultWinner: winner,
       boardSize: gs.boardSize,
       handicap: gs.handicap,
+      // Include chat and player info for review
+      chat: os.chatMessages,
+      hostNickname: os.roomInfo?.hostNickname,
+      hostCharacter: os.roomInfo?.hostCharacter,
+      guestNickname: os.roomInfo?.guestNickname,
+      guestCharacter: os.roomInfo?.guestCharacter,
     }),
   }).catch(() => {});
 
@@ -474,6 +496,7 @@ function handleWsMessage(
 
             // Save match with determined winner
             const finalWinner = winnerColor === "DRAW" ? null : winnerColor;
+            const os = useOnlineStore.getState();
             saveMatch({
               mode: "Online",
               aiDifficulty: null,
@@ -485,6 +508,12 @@ function handleWsMessage(
                 resultWinner: finalWinner,
                 boardSize: gs.boardSize,
                 handicap: gs.handicap,
+                // Include chat and player info for review
+                chat: os.chatMessages,
+                hostNickname: os.roomInfo?.hostNickname,
+                hostCharacter: os.roomInfo?.hostCharacter,
+                guestNickname: os.roomInfo?.guestNickname,
+                guestCharacter: os.roomInfo?.guestCharacter,
               }),
             }).catch(() => {});
 
