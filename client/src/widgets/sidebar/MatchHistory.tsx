@@ -103,29 +103,13 @@ const MatchHistory = ({
               onClick={async () => {
                 const f = await getMatchById(match.id);
                 const parsedData = JSON.parse(f.match.sgfData);
-                let resultText = parsedData.resultText;
+                const resultText =
+                  formatGameResultText(parsedData.resultText, t) || "";
+
                 let winnerColor: PlayerColor | "DRAW" | null = null;
                 if (parsedData.resultWinner || match.winner) {
-                  const winner =
+                  winnerColor =
                     parsedData.resultWinner || (match.winner as PlayerColor);
-                  const scoreMatch = parsedData.resultText?.match(/([0-9.]+)/);
-                  if (
-                    scoreMatch &&
-                    !parsedData.resultText?.includes(t("resign") || "기권")
-                  ) {
-                    const winnerName =
-                      winner === "BLACK" ? t("black") : t("white");
-                    resultText = t("winByScore", {
-                      winner: winnerName,
-                      diff: scoreMatch[1],
-                    });
-                  } else {
-                    const loser = winner === "BLACK" ? t("white") : t("black");
-                    const winnerName =
-                      winner === "BLACK" ? t("black") : t("white");
-                    resultText = t("resignWin", { loser, winner: winnerName });
-                  }
-                  winnerColor = winner;
                 }
                 onLoadMatch(
                   parsedData.moves,

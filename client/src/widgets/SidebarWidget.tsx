@@ -566,6 +566,18 @@ const SidebarWidget = () => {
         </div>
       )}
 
+      <div className="mt-4 text-center text-xs text-gray-400 shrink-0">
+        Powered by{" "}
+        <a
+          href="https://github.com/zebra0303/zGo"
+          target="_blank"
+          rel="noreferrer"
+          className="text-accent hover:underline"
+        >
+          zGo
+        </a>
+      </div>
+
       <CustomDialog
         isOpen={dialog.isOpen}
         type={dialog.type}

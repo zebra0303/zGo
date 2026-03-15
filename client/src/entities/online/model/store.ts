@@ -439,21 +439,26 @@ function handleWsMessage(
             }
 
             let winnerColor: PlayerColor | "DRAW" | null = null;
+            let finalResultText: string | undefined = undefined;
+
             if (data.score) {
               if (data.score === "0" || data.score === "D+0") {
                 // Draw
                 winnerColor = "DRAW";
+                finalResultText = "Draw";
                 gs.setWinner("DRAW");
-                gs.setGameResultText("Draw");
+                gs.setGameResultText(finalResultText);
                 playWinSound(soundEnabled, soundVolume);
                 set({ notification: "draw" });
               } else {
                 winnerColor = data.score.startsWith("B") ? "BLACK" : "WHITE";
-                gs.setWinner(winnerColor);
                 const diffMatch = data.score.match(/\+([0-9.]+)/);
                 const diff = diffMatch ? diffMatch[1] : "";
                 const winnerName = winnerColor === "BLACK" ? "Black" : "White";
-                gs.setGameResultText(`${winnerName} +${diff}`);
+                finalResultText = `${winnerName} +${diff}`;
+
+                gs.setWinner(winnerColor);
+                gs.setGameResultText(finalResultText);
 
                 const isWinner = myColor === winnerColor;
                 if (isWinner) playWinSound(soundEnabled, soundVolume);
@@ -461,7 +466,8 @@ function handleWsMessage(
                 set({ notification: isWinner ? "score_win" : "score_lose" });
               }
             } else {
-              gs.setGameResultText("Cannot calculate result");
+              finalResultText = "Cannot calculate result";
+              gs.setGameResultText(finalResultText);
             }
 
             gs.setIsScoring(false);
@@ -475,7 +481,7 @@ function handleWsMessage(
               winner: finalWinner,
               sgfData: JSON.stringify({
                 moves: [null, ...moves],
-                resultText: gs.gameResultText || undefined,
+                resultText: finalResultText,
                 resultWinner: finalWinner,
                 boardSize: gs.boardSize,
                 handicap: gs.handicap,

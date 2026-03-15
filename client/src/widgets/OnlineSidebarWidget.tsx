@@ -9,6 +9,7 @@ import { navigateTo } from "@/shared/lib/router";
 import { CHARACTERS } from "@/entities/online/model/types";
 import { playPassSound } from "@/shared/lib/sound";
 import { fetchAIScore } from "@/shared/api/gameApi";
+import { formatGameResultText } from "@/shared/lib/formatUtils";
 import CustomDialog from "@/shared/ui/CustomDialog";
 
 // Quick emoji panel — lightweight, no external library needed
@@ -40,7 +41,7 @@ const isEmojiOnly = (text: string) =>
   EMOJI_REGEX.test(text.trim()) && text.trim().length <= 8;
 
 const OnlineSidebarWidget = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const {
     roomInfo,
@@ -75,6 +76,9 @@ const OnlineSidebarWidget = () => {
     passTurn,
     toggleTeacherMode,
     setDeadStones,
+    gameResultText,
+    isScoring,
+    language,
   } = useGameStore();
 
   const myColor = getOnlineMyColor();
@@ -355,6 +359,23 @@ const OnlineSidebarWidget = () => {
         </div>
       </div>
 
+      {isReviewMode && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 p-3 rounded-xl shadow-sm flex flex-col gap-2 mb-4 shrink-0">
+          <div className="font-bold flex items-center justify-center">
+            <span>{t("reviewModeOn")}</span>
+          </div>
+          {(gameResultText || isScoring) && (
+            <div className="text-sm font-extrabold text-amber-900 dark:text-amber-100 bg-amber-100/50 dark:bg-amber-900/40 rounded p-1.5 text-center">
+              {isScoring
+                ? t("resultScoring")
+                : t("result", {
+                    text: formatGameResultText(gameResultText, t),
+                  })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Game info + Captured stones */}
       <div className="flex justify-between items-center text-[10px] text-gray-500 dark:text-gray-400 mb-3 shrink-0 px-1">
         <div className="flex gap-3">
@@ -433,6 +454,25 @@ const OnlineSidebarWidget = () => {
               className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${soundEnabled ? "translate-x-4" : "translate-x-0.5"}`}
             />
           </button>
+        </div>
+
+        {/* Language Selection */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] text-gray-600 dark:text-gray-400 shrink-0">
+            Language
+          </span>
+          <select
+            value={language}
+            onChange={(e) => {
+              const lang = e.target.value as "ko" | "en";
+              i18n.changeLanguage(lang);
+              setGameConfig({ language: lang });
+            }}
+            className="px-2 py-0.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded text-xs text-gray-900 dark:text-gray-100"
+          >
+            <option value="ko">한국어</option>
+            <option value="en">English</option>
+          </select>
         </div>
 
         {/* Teacher mode toggle — only in review mode */}
@@ -592,6 +632,18 @@ const OnlineSidebarWidget = () => {
       >
         {t("online.leave", { defaultValue: "Leave Game" })}
       </button>
+
+      <div className="mt-2 text-center text-xs text-gray-400 shrink-0">
+        Powered by{" "}
+        <a
+          href="https://github.com/zebra0303/zGo"
+          target="_blank"
+          rel="noreferrer"
+          className="text-accent hover:underline"
+        >
+          zGo
+        </a>
+      </div>
 
       <CustomDialog
         isOpen={dialog.isOpen}

@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { useGameStore } from "@/entities/match/model/store";
 import { playNewGameSound } from "@/shared/lib/sound";
+import { formatGameResultText } from "@/shared/lib/formatUtils";
 
 interface GameStatusPanelProps {
   saveStatus: "idle" | "saving" | "saved" | "error";
@@ -36,7 +37,7 @@ const GameStatusPanel = ({ saveStatus, onSaveMatch }: GameStatusPanelProps) => {
               playNewGameSound(soundEnabled, soundVolume);
               resetGame();
             }}
-            className="text-xs bg-amber-200 hover:bg-amber-300 px-2 py-1 rounded transition-colors"
+            className="text-xs text-amber-900 dark:text-amber-50 bg-amber-200 dark:bg-amber-800 hover:bg-amber-300 dark:hover:bg-amber-700 px-2 py-1 rounded transition-colors"
           >
             {t("backToGame")}
           </button>
@@ -47,7 +48,9 @@ const GameStatusPanel = ({ saveStatus, onSaveMatch }: GameStatusPanelProps) => {
             <div className="text-sm font-extrabold text-amber-900 bg-amber-100/50 rounded p-1.5 text-center">
               {isScoring
                 ? t("resultScoring")
-                : t("result", { text: gameResultText })}
+                : t("result", {
+                    text: formatGameResultText(gameResultText, t),
+                  })}
             </div>
           )}
       </div>
@@ -60,7 +63,7 @@ const GameStatusPanel = ({ saveStatus, onSaveMatch }: GameStatusPanelProps) => {
         <div className="mb-2">{t("gameOver")}</div>
         {gameResultText ? (
           <div className="text-xl text-red-600 mb-3 drop-shadow-sm font-extrabold">
-            {gameResultText}
+            {formatGameResultText(gameResultText, t)}
           </div>
         ) : isScoring ? (
           <div className="text-sm text-gray-500 mb-3">{t("scoring")}</div>

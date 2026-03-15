@@ -13,6 +13,29 @@ const MainPage = lazy(() => import("@/pages/MainPage"));
 
 type RoomView = "loading" | "join" | "waiting" | "playing" | "error";
 
+const FloatingLanguageToggle = () => {
+  const { i18n } = useTranslation();
+  const language = useGameStore((s) => s.language);
+  const setGameConfig = useGameStore((s) => s.setGameConfig);
+
+  return (
+    <div className="absolute top-4 right-4 z-50">
+      <select
+        value={language}
+        onChange={(e) => {
+          const lang = e.target.value as "ko" | "en";
+          i18n.changeLanguage(lang);
+          setGameConfig({ language: lang });
+        }}
+        className="px-2 py-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-accent"
+      >
+        <option value="ko">한국어</option>
+        <option value="en">English</option>
+      </select>
+    </div>
+  );
+};
+
 const OnlinePage = () => {
   const { t } = useTranslation();
   const route = useRoute();
@@ -20,7 +43,8 @@ const OnlinePage = () => {
   // Create room page
   if (route.page === "online-create") {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 relative">
+        <FloatingLanguageToggle />
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 max-w-sm w-full">
           <div className="flex items-center justify-between mb-5">
             <h1 className="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
@@ -57,7 +81,8 @@ const FarewellPage = () => {
   const { t } = useTranslation();
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900 relative">
+      <FloatingLanguageToggle />
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 max-w-sm w-full text-center">
         <img
           src="/zgo_logo.png"
@@ -193,7 +218,8 @@ const RoomPage = ({ roomId }: { roomId: string }) => {
 
   if (view === "error") {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 relative">
+        <FloatingLanguageToggle />
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 max-w-sm w-full text-center">
           <div className="text-4xl mb-4">😔</div>
           <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-2">
@@ -218,7 +244,8 @@ const RoomPage = ({ roomId }: { roomId: string }) => {
 
   if (view === "join") {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 relative">
+        <FloatingLanguageToggle />
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 max-w-sm w-full">
           {/* Room info header */}
           {roomInfo && (
@@ -253,7 +280,8 @@ const RoomPage = ({ roomId }: { roomId: string }) => {
 
   if (view === "waiting") {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 relative">
+        <FloatingLanguageToggle />
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 max-w-sm w-full">
           <WaitingRoom roomId={roomId} onGameStart={handleGameStart} />
         </div>
