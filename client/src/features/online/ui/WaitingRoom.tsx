@@ -20,31 +20,43 @@ const WaitingRoom = ({ roomId, onGameStart }: WaitingRoomProps) => {
 
   const shareUrl = `${window.location.origin}/#/online/room/${roomId}`;
 
-  const fetchRoom = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/online/rooms/${roomId}`);
-      if (!res.ok) return;
-      const data = (await res.json()) as RoomInfo;
-      setRoomInfo(data);
+  const fetchRoom = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/online/rooms/${roomId}`, {
+          signal,
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as RoomInfo;
+        if (signal?.aborted) return;
+        setRoomInfo(data);
 
-      // If guest has joined, start the game
-      if (data.status === "playing") {
-        useOnlineStore.getState().setRoomInfo(data);
-        if (roomToken) {
-          connectWs(roomId, roomToken);
+        // If guest has joined, start the game
+        if (data.status === "playing") {
+          useOnlineStore.getState().setRoomInfo(data);
+          if (roomToken) {
+            connectWs(roomId, roomToken);
+          }
+          onGameStart();
         }
-        onGameStart();
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") {
+          // Ignore
+        }
       }
-    } catch {
-      // Ignore
-    }
-  }, [roomId, roomToken, connectWs, onGameStart]);
+    },
+    [roomId, roomToken, connectWs, onGameStart],
+  );
 
   // Poll for room status while waiting
   useEffect(() => {
-    fetchRoom();
-    const interval = setInterval(fetchRoom, 2000);
-    return () => clearInterval(interval);
+    const abortController = new AbortController();
+    fetchRoom(abortController.signal);
+    const interval = setInterval(() => fetchRoom(abortController.signal), 2000);
+    return () => {
+      clearInterval(interval);
+      abortController.abort();
+    };
   }, [fetchRoom]);
 
   const handleCopy = async () => {

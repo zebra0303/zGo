@@ -49,15 +49,22 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
 
   // Fetch current config from server on mount
   useEffect(() => {
-    fetch(`${API_BASE_URL}/settings/config`)
+    const abortController = new AbortController();
+    fetch(`${API_BASE_URL}/settings/config`, { signal: abortController.signal })
       .then((res) => res.json())
       .then((data) => {
+        if (abortController.signal.aborted) return;
         if (data.language) setLanguage(data.language);
         if (data.theme) setTheme(data.theme);
         if (data.primary_color) setPrimaryColor(data.primary_color);
         if (data.font_family) setFontFamily(data.font_family);
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          console.error("Failed to fetch config", err);
+        }
+      });
+    return () => abortController.abort();
   }, []);
 
   const applyTheme = useCallback(

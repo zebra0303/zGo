@@ -112,6 +112,8 @@ const RoomPage = ({ roomId }: { roomId: string }) => {
 
   // Fetch room info on mount (restore session if needed)
   useEffect(() => {
+    const abortController = new AbortController();
+
     const fetchRoom = async () => {
       try {
         // Restore session from sessionStorage if store is empty (e.g. after page refresh)
@@ -120,12 +122,15 @@ const RoomPage = ({ roomId }: { roomId: string }) => {
           useOnlineStore.getState().restoreSession();
         }
 
-        const res = await fetch(`${API_BASE_URL}/online/rooms/${roomId}`);
+        const res = await fetch(`${API_BASE_URL}/online/rooms/${roomId}`, {
+          signal: abortController.signal,
+        });
         if (!res.ok) {
-          setView("error");
+          if (!abortController.signal.aborted) setView("error");
           return;
         }
         const data = (await res.json()) as RoomInfo;
+        if (abortController.signal.aborted) return;
         setLocalRoomInfo(data);
 
         // Re-read state after restore
@@ -151,11 +156,15 @@ const RoomPage = ({ roomId }: { roomId: string }) => {
         } else {
           setView("error");
         }
-      } catch {
-        setView("error");
+      } catch (err) {
+        const error = err as Error;
+        if (error.name !== "AbortError") {
+          setView("error");
+        }
       }
     };
     fetchRoom();
+    return () => abortController.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 

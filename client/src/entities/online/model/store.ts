@@ -5,7 +5,7 @@ import {
   ConnectionStatus,
   RoomInfo,
 } from "./types";
-import * as wsClient from "@/features/online/lib/wsClient";
+import * as wsClient from "@/shared/api/wsClient";
 import {
   useGameStore,
   startReviewAnalysis,

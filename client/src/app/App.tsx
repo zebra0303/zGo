@@ -14,13 +14,15 @@ const AuthPage = lazy(() => import("@/pages/AuthPage"));
 const OnlinePage = lazy(() => import("@/pages/OnlinePage"));
 
 // Fetch and apply server config (theme, color, font, language)
-const fetchAndApplyServerConfig = async (i18n: {
-  changeLanguage: (lang: string) => void;
-}) => {
+const fetchAndApplyServerConfig = async (
+  i18n: { changeLanguage: (lang: string) => void },
+  signal?: AbortSignal,
+) => {
   try {
-    const res = await fetch(`${API_BASE_URL}/settings/config`);
+    const res = await fetch(`${API_BASE_URL}/settings/config`, { signal });
     if (!res.ok) return;
     const config = await res.json();
+    if (signal?.aborted) return;
 
     if (config.theme) {
       applyThemeMode(config.theme as "dark" | "light");
@@ -40,8 +42,10 @@ const fetchAndApplyServerConfig = async (i18n: {
         .getState()
         .setGameConfig({ language: config.language as "ko" | "en" });
     }
-  } catch {
-    // Silently ignore config fetch errors
+  } catch (err) {
+    if ((err as Error).name !== "AbortError") {
+      // Silently ignore config fetch errors
+    }
   }
 };
 
@@ -74,12 +78,18 @@ function App() {
 
   // Auth gate: check status + try token refresh + apply server config
   useEffect(() => {
+    const abortController = new AbortController();
+
     const init = async () => {
-      await fetchAndApplyServerConfig(i18n);
+      await fetchAndApplyServerConfig(i18n, abortController.signal);
+      if (abortController.signal.aborted) return;
 
       try {
-        const statusRes = await fetch(`${API_BASE_URL}/settings/status`);
+        const statusRes = await fetch(`${API_BASE_URL}/settings/status`, {
+          signal: abortController.signal,
+        });
         const statusData = await statusRes.json();
+        if (abortController.signal.aborted) return;
         const isSetup = statusData.isSetup;
 
         const token = localStorage.getItem("admin_token");
@@ -88,26 +98,33 @@ function App() {
             const refreshRes = await fetch(`${API_BASE_URL}/settings/refresh`, {
               method: "POST",
               headers: { Authorization: `Bearer ${token}` },
+              signal: abortController.signal,
             });
             if (refreshRes.ok) {
               const { token: newToken } = await refreshRes.json();
+              if (abortController.signal.aborted) return;
               localStorage.setItem("admin_token", newToken);
               setAuthState("authenticated");
               return;
             }
-          } catch {
-            // Token expired or invalid
+          } catch (err) {
+            if ((err as Error).name !== "AbortError") {
+              // Token expired or invalid
+            }
           }
           localStorage.removeItem("admin_token");
         }
 
         setAuthState(isSetup ? "login" : "setup");
-      } catch {
-        // Server unreachable — show login
-        setAuthState("login");
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") {
+          // Server unreachable — show login
+          setAuthState("login");
+        }
       }
     };
     init();
+    return () => abortController.abort();
   }, [i18n]);
 
   const handleAuthenticated = useCallback(
