@@ -68,45 +68,58 @@ export const useAITurn = () => {
 
       const moveHistory = stableRef.current.getMoveHistory();
 
-      try {
-        const response = await fetchAIMove(
-          board,
-          currentPlayer,
-          aiDifficulty,
-          moveHistory,
-          abortController.signal,
-          language,
-          boardSize,
-          handicap,
-        );
-        if (!isActive) return;
-
-        if (response.winRate) {
-          const blackWinRate =
-            currentPlayer === "BLACK"
-              ? response.winRate
-              : 100 - response.winRate;
-          stableRef.current.updateWinRate(
-            stableRef.current.currentNodeId,
-            blackWinRate,
+      const MAX_RETRIES = 3;
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          const response = await fetchAIMove(
+            board,
+            currentPlayer,
+            aiDifficulty,
+            moveHistory,
+            abortController.signal,
+            language,
+            boardSize,
+            handicap,
           );
-        }
+          if (!isActive) return;
 
-        if (response.pass) {
-          passTurn();
-        } else if (response.resign) {
-          resignGame();
-        } else if (response.move) {
-          placeStone(response.move.x, response.move.y);
-          playStoneSound(soundEnabled, soundVolume);
-        }
-      } catch (err) {
-        const error = err as Error;
-        if (
-          error?.name !== "AbortError" &&
-          !error?.message?.includes("abort")
-        ) {
-          console.error("AI Move Error:", error);
+          if (response.winRate) {
+            const blackWinRate =
+              currentPlayer === "BLACK"
+                ? response.winRate
+                : 100 - response.winRate;
+            stableRef.current.updateWinRate(
+              stableRef.current.currentNodeId,
+              blackWinRate,
+            );
+          }
+
+          if (response.pass) {
+            passTurn();
+          } else if (response.resign) {
+            resignGame();
+          } else if (response.move) {
+            placeStone(response.move.x, response.move.y);
+            playStoneSound(soundEnabled, soundVolume);
+          }
+          return;
+        } catch (err) {
+          const error = err as Error;
+          if (
+            error?.name === "AbortError" ||
+            error?.message?.includes("abort")
+          ) {
+            return;
+          }
+          if (attempt < MAX_RETRIES) {
+            console.warn(
+              `AI Move attempt ${attempt + 1} failed, retrying in ${3 + attempt * 2}s...`,
+            );
+            await new Promise((r) => setTimeout(r, (3 + attempt * 2) * 1000));
+            if (!isActive) return;
+          } else {
+            console.error("AI Move Error after retries:", error);
+          }
         }
       }
     };

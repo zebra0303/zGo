@@ -52,7 +52,13 @@ export const getEngineState = () => ({
 });
 
 const processNextCommand = () => {
-  if (commandQueue.length === 0 || isProcessingQueue || !katagoProcess) return;
+  if (
+    commandQueue.length === 0 ||
+    isProcessingQueue ||
+    !katagoProcess ||
+    !isKatagoReady
+  )
+    return;
   const task = commandQueue[0];
   if (task.pending) return;
   isProcessingQueue = true;
@@ -114,6 +120,7 @@ export const startKataGo = () => {
       if (!isKatagoReady && output.includes("GTP ready")) {
         console.log("KataGo Engine is fully loaded and ready.");
         isKatagoReady = true;
+        processNextCommand();
       }
       const winrateMatch = output.match(/winrate\s*[:=]?\s*([0-9.]+)/i);
       if (winrateMatch) latestWinRate = parseFloat(winrateMatch[1]) * 100;
