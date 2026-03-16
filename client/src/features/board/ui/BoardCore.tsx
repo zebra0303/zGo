@@ -9,7 +9,6 @@ import { fetchAIHint } from "@/shared/api/gameApi";
 import { playStoneSound } from "@/shared/lib/sound";
 import { buildMoveHistory } from "@/shared/lib/goUtils";
 import { useShallow } from "zustand/react/shallow";
-import { useRenderProfile } from "@/shared/lib/useRenderProfile";
 
 const BASE_CELL_SIZE = 30; // 픽셀 단위 격자 크기
 const BASE_MARGIN = 20; // 바둑판 여백
@@ -35,8 +34,6 @@ const getStarPoints = (size: number) => {
 };
 
 const BoardCore: React.FC = () => {
-  useRenderProfile("BoardCore");
-
   // perf: useShallow prevents re-renders when unrelated store fields change
   const {
     boardSize,
@@ -239,7 +236,7 @@ const BoardCore: React.FC = () => {
               fill={stone === "BLACK" ? "#000000" : "#ffffff"}
               stroke={stone === "WHITE" ? "#cccccc" : "#333333"}
               strokeWidth="1"
-              className="drop-shadow-md transition-all duration-200"
+              className="transition-opacity duration-200"
             />
             {isLastMove && !isDead && (
               <circle

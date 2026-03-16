@@ -130,7 +130,7 @@ export const useAITurn = () => {
       gameMode === "PvAI" &&
       currentPlayer !== humanPlayerColor
     ) {
-      const timer = setTimeout(() => playAITurn(), 1500);
+      const timer = setTimeout(() => playAITurn(), 600);
       return () => {
         isActive = false;
         clearTimeout(timer);
