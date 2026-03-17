@@ -14,7 +14,7 @@ const getNode = (root, id) => {
   return null;
 };
 
-let nextState = produce(state, draft => {
+let nextState = produce(state, (draft) => {
   let currentInTree = getNode(draft.tree, draft.current.id);
   const child = { id: "c1", val: 50, children: [] };
   currentInTree.children.push(child);
@@ -22,7 +22,7 @@ let nextState = produce(state, draft => {
 });
 
 // Now update the child's value without re-linking
-let nextState2 = produce(nextState, draft => {
+let nextState2 = produce(nextState, (draft) => {
   let node = getNode(draft.tree, draft.current.id);
   node.val = 99;
   // intentionally forget to re-link draft.current
@@ -32,8 +32,11 @@ console.log("Tree val:", nextState2.tree.children[0].val); // Should be 99
 console.log("Current val:", nextState2.current.val); // Will it be 99 or 50?
 
 // Now see if we update draft.current, does the tree update?
-let nextState3 = produce(nextState2, draft => {
+let nextState3 = produce(nextState2, (draft) => {
   draft.current.val = 100;
 });
-console.log("Tree val after draft.current edit:", nextState3.tree.children[0].val); // Will it be 100 or 99?
+console.log(
+  "Tree val after draft.current edit:",
+  nextState3.tree.children[0].val,
+); // Will it be 100 or 99?
 console.log("Current val after draft.current edit:", nextState3.current.val); // Should be 100

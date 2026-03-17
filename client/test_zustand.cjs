@@ -26,8 +26,9 @@ const store = createStore(
               children: [],
             };
             currentInTree.children.push(newNode);
-            draft.currentNode = currentInTree.children[currentInTree.children.length - 1];
-          })
+            draft.currentNode =
+              currentInTree.children[currentInTree.children.length - 1];
+          }),
         );
       },
       updateWinRate: (nodeId, winRate) => {
@@ -38,14 +39,14 @@ const store = createStore(
               node.winRate = winRate;
             }
             draft.currentNode = getNode(draft.gameTree, draft.currentNode.id);
-          })
+          }),
         );
       },
     }),
     {
       name: "test-storage",
-    }
-  )
+    },
+  ),
 );
 
 store.setState({

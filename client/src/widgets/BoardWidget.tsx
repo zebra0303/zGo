@@ -102,9 +102,16 @@ const OnlineBoardOverlay = () => {
   );
 };
 
+import { useAITurn } from "@/features/board/lib/useAITurn";
+import { useGameScoring } from "@/features/board/lib/useGameScoring";
+
 const BoardWidget = () => {
   const { isReviewMode, gameMode } = useGameStore();
   const isOnline = gameMode === "Online";
+
+  // Mount AI and scoring logic here so they remain active even when sidebar is collapsed
+  useAITurn();
+  useGameScoring();
 
   return (
     <div className="flex flex-col items-center gap-4 px-2 md:px-4 py-4 md:py-6 max-w-full">

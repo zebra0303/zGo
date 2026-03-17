@@ -10,9 +10,9 @@ const getNode = (root, id) => {
     if (f) return f;
   }
   return null;
-}
+};
 
-let nextState = produce(state, draft => {
+let nextState = produce(state, (draft) => {
   let node = getNode(draft.tree, draft.current.id);
   node.val = 1;
   draft.current = node; // re-link
@@ -21,7 +21,7 @@ let nextState = produce(state, draft => {
 console.log(nextState.tree.val, nextState.current.val);
 console.log(nextState.tree === nextState.current);
 
-nextState = produce(nextState, draft => {
+nextState = produce(nextState, (draft) => {
   let current = getNode(draft.tree, draft.current.id);
   let child = { id: 2, val: 2, children: [] };
   current.children.push(child);

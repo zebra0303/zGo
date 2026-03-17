@@ -10,9 +10,7 @@ import { saveMatch, getMatches } from "@/shared/api/gameApi";
 import CustomDialog from "@/shared/ui/CustomDialog";
 import GameStatusPanel from "@/widgets/sidebar/GameStatusPanel";
 import SettingsPanel from "@/widgets/sidebar/SettingsPanel";
-// refactor: AI turn and scoring logic extracted into dedicated hooks (SRP)
-import { useAITurn } from "@/features/board/lib/useAITurn";
-import { useGameScoring } from "@/features/board/lib/useGameScoring";
+import { buildMoveHistory } from "@/shared/lib/goUtils";
 
 const MatchHistory = lazy(() => import("@/widgets/sidebar/MatchHistory"));
 const AdminPanel = lazy(() => import("@/widgets/sidebar/AdminPanel"));
@@ -35,9 +33,11 @@ const SidebarWidget = () => {
     gameTree,
   } = useGameStore();
 
-  // refactor: extracted hooks handle AI auto-play, scoring, and sounds
-  const { getMoveHistory } = useAITurn();
-  useGameScoring();
+  const getMoveHistory = useCallback(() => {
+    const path = getPathToNode(gameTree, currentNode.id) || [currentNode];
+    return buildMoveHistory(path);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentNode.id, gameTree]);
 
   const [activeTab, setActiveTab] = useState<"game" | "history" | "admin">(
     "game",
