@@ -23,6 +23,9 @@ let responseBuffer = "";
 let latestWinRate = 50.0;
 let currentMultiRecommendations: MoveRecommendation[] = [];
 let currentMaxVisits: number | null = null;
+let currentBoardSize: number | null = null;
+let currentHandicap: number | null = null;
+let currentMoves: string[] = [];
 
 // API queue state
 const apiRequestQueue: { execute: () => Promise<void> }[] = [];
@@ -45,6 +48,24 @@ export const getEngineState = () => ({
   },
   set maxVisits(v: number | null) {
     currentMaxVisits = v;
+  },
+  get boardSize() {
+    return currentBoardSize;
+  },
+  set boardSize(v: number | null) {
+    currentBoardSize = v;
+  },
+  get handicap() {
+    return currentHandicap;
+  },
+  set handicap(v: number | null) {
+    currentHandicap = v;
+  },
+  get moves() {
+    return currentMoves;
+  },
+  set moves(v: string[]) {
+    currentMoves = v;
   },
   resetRecommendations() {
     currentMultiRecommendations = [];
