@@ -28,7 +28,7 @@ let currentMaxVisits: number | null = null;
 const apiRequestQueue: { execute: () => Promise<void> }[] = [];
 let isProcessingApiQueue = false;
 let processedApiCount = 0;
-const MAX_API_CALLS_BEFORE_RESTART = 10000;
+const MAX_API_CALLS_BEFORE_RESTART = 500;
 
 export const getEngineState = () => ({
   get isReady() {
