@@ -5,7 +5,12 @@ import {
   enqueueApiTask,
   getApiQueueState,
 } from "../katago/engine";
-import { coordsToGtp, gtpToCoords, getHandicapStones, Coords } from "../katago/coords";
+import {
+  coordsToGtp,
+  gtpToCoords,
+  getHandicapStones,
+  Coords,
+} from "../katago/coords";
 import { getMoveTactics, getDetailedExplanation } from "../katago/tactics";
 
 const router = Router();
@@ -37,49 +42,114 @@ interface ScoreBody {
 }
 
 const VISITS_MAP: Record<number, number> = {
-  1: 1, 2: 1, 3: 1, 4: 1, 5: 1,
-  6: 2, 7: 2, 8: 3, 9: 3, 10: 5,
-  11: 10, 12: 20, 13: 30, 14: 50, 15: 75,
-  16: 100, 17: 150, 18: 200, 19: 250, 20: 300,
-  21: 400, 22: 500, 23: 600, 24: 700, 25: 800,
-  26: 1000, 27: 1200, 28: 1500, 29: 2000, 30: 2500,
+  1: 1,
+  2: 1,
+  3: 1,
+  4: 1,
+  5: 1,
+  6: 2,
+  7: 2,
+  8: 3,
+  9: 3,
+  10: 5,
+  11: 10,
+  12: 20,
+  13: 30,
+  14: 50,
+  15: 75,
+  16: 100,
+  17: 150,
+  18: 200,
+  19: 250,
+  20: 300,
+  21: 400,
+  22: 500,
+  23: 600,
+  24: 700,
+  25: 800,
+  26: 1000,
+  27: 1200,
+  28: 1500,
+  29: 2000,
+  30: 2500,
 };
 
-/** Replay moves on KataGo board from scratch */
+/** Replay moves incrementally or from scratch */
 const setupBoard = async (
   boardSize: number,
   handicap: number,
   moves?: (Coords | null)[],
 ) => {
-  await sendCommand(`boardsize ${boardSize}`);
-  await sendCommand(`komi 6.5`);
-  await sendCommand("clear_board");
-
-  if (handicap > 0) {
-    const stones = getHandicapStones(boardSize, handicap);
-    const handicapGtp = stones
-      .map((s) => coordsToGtp(s.x, s.y, boardSize))
-      .join(" ");
-    if (handicapGtp) await sendCommand(`set_free_handicap ${handicapGtp}`);
-  }
+  const engine = getEngineState();
+  const moveCommands: string[] = [];
 
   if (moves && Array.isArray(moves)) {
     for (let i = 0; i < moves.length; i++) {
       const move = moves[i];
       const moveColor =
-        handicap > 0
-          ? i % 2 === 0 ? "W" : "B"
-          : i % 2 === 0 ? "B" : "W";
+        handicap > 0 ? (i % 2 === 0 ? "W" : "B") : i % 2 === 0 ? "B" : "W";
       const cmd = move
         ? `play ${moveColor} ${coordsToGtp(move.x, move.y, boardSize)}`
         : `play ${moveColor} pass`;
+      moveCommands.push(cmd);
+    }
+  }
+
+  const needsFullReset =
+    engine.boardSize !== boardSize ||
+    engine.handicap !== handicap ||
+    engine.moves.length > moveCommands.length;
+
+  let matchingPrefixCount = 0;
+  if (!needsFullReset) {
+    for (let i = 0; i < engine.moves.length; i++) {
+      if (engine.moves[i] === moveCommands[i]) {
+        matchingPrefixCount++;
+      } else {
+        break;
+      }
+    }
+  }
+
+  if (needsFullReset || matchingPrefixCount < engine.moves.length) {
+    // Full reset
+    await sendCommand(`boardsize ${boardSize}`);
+    await sendCommand(`komi 6.5`);
+    await sendCommand("clear_board");
+
+    if (handicap > 0) {
+      const stones = getHandicapStones(boardSize, handicap);
+      const handicapGtp = stones
+        .map((s) => coordsToGtp(s.x, s.y, boardSize))
+        .join(" ");
+      if (handicapGtp) await sendCommand(`set_free_handicap ${handicapGtp}`);
+    }
+
+    // Play all moves
+    for (const cmd of moveCommands) {
       try {
         await sendCommand(cmd);
       } catch (e) {
         console.warn(`Ignoring illegal move: ${cmd}`, (e as Error).message);
       }
     }
+  } else {
+    // Incremental update - play only new moves
+    for (let i = matchingPrefixCount; i < moveCommands.length; i++) {
+      try {
+        await sendCommand(moveCommands[i]);
+      } catch (e) {
+        console.warn(
+          `Ignoring illegal move: ${moveCommands[i]}`,
+          (e as Error).message,
+        );
+      }
+    }
   }
+
+  engine.boardSize = boardSize;
+  engine.handicap = handicap;
+  engine.moves = moveCommands;
 };
 
 router.post("/move", async (req: Request, res: Response) => {
@@ -170,10 +240,20 @@ router.post("/move", async (req: Request, res: Response) => {
         if (!isFollowed) {
           const lastBestMove = lastRecommendations[0];
           const uT = getMoveTactics(
-            lastUserMove.x, lastUserMove.y, board, color, language, boardSize,
+            lastUserMove.x,
+            lastUserMove.y,
+            board,
+            color,
+            language,
+            boardSize,
           );
           const bT = getMoveTactics(
-            lastBestMove.x, lastBestMove.y, board, color, language, boardSize,
+            lastBestMove.x,
+            lastBestMove.y,
+            board,
+            color,
+            language,
+            boardSize,
           );
           if (bT.urgency < uT.urgency)
             critique =
@@ -215,7 +295,12 @@ router.post("/move", async (req: Request, res: Response) => {
               winRate: r.winrate,
               visits: r.visits,
               explanation: getDetailedExplanation(
-                loc.x, loc.y, board, color, language, boardSize,
+                loc.x,
+                loc.y,
+                board,
+                color,
+                language,
+                boardSize,
               ),
             };
           });
@@ -227,7 +312,12 @@ router.post("/move", async (req: Request, res: Response) => {
             winRate: engine.winRate,
             visits: 100,
             explanation: getDetailedExplanation(
-              coords.x, coords.y, board, color, language, boardSize,
+              coords.x,
+              coords.y,
+              board,
+              color,
+              language,
+              boardSize,
             ),
           });
 
@@ -248,8 +338,20 @@ router.post("/move", async (req: Request, res: Response) => {
       } else {
         const response = await sendCommand(`genmove ${color}`);
         const lowRes = response.toLowerCase();
-        if (lowRes === "pass") { res.json({ pass: true }); return; }
-        if (lowRes === "resign") { res.json({ resign: true }); return; }
+
+        if (lowRes === "pass") {
+          engine.moves.push(`play ${color} pass`);
+          res.json({ pass: true });
+          return;
+        }
+        if (lowRes === "resign") {
+          res.json({ resign: true });
+          return;
+        }
+
+        // Track the generated move to prevent re-playing it as an illegal move next turn
+        engine.moves.push(`play ${color} ${response}`);
+
         res.json({
           move: gtpToCoords(response, boardSize),
           winRate: engine.winRate,
@@ -260,7 +362,10 @@ router.post("/move", async (req: Request, res: Response) => {
       if (!res.headersSent)
         res
           .status(500)
-          .json({ error: "GTP command failed", details: (err as Error).message });
+          .json({
+            error: "GTP command failed",
+            details: (err as Error).message,
+          });
     }
   };
 
@@ -309,22 +414,23 @@ router.post("/analyze-game", (req: Request, res: Response) => {
         const handicapGtp = stones
           .map((s) => coordsToGtp(s.x, s.y, boardSize))
           .join(" ");
-        if (handicapGtp)
-          await sendCommand(`set_free_handicap ${handicapGtp}`);
+        if (handicapGtp) await sendCommand(`set_free_handicap ${handicapGtp}`);
       }
 
       if (!aborted)
-        res.write(
-          `data: ${JSON.stringify({ moveIndex: 0, winRate: 50 })}\n\n`,
-        );
+        res.write(`data: ${JSON.stringify({ moveIndex: 0, winRate: 50 })}\n\n`);
 
       for (let i = 1; i < moves.length; i++) {
         if (aborted) break;
         const move = moves[i];
         const color =
           handicap > 0
-            ? (i - 1) % 2 === 0 ? "W" : "B"
-            : (i - 1) % 2 === 0 ? "B" : "W";
+            ? (i - 1) % 2 === 0
+              ? "W"
+              : "B"
+            : (i - 1) % 2 === 0
+              ? "B"
+              : "W";
 
         if (move) {
           try {
@@ -362,8 +468,7 @@ router.post("/analyze-game", (req: Request, res: Response) => {
         );
       }
 
-      if (!aborted)
-        res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      if (!aborted) res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
 
       if (prevMaxVisits && prevMaxVisits !== 50) {
         try {
@@ -413,9 +518,7 @@ router.post("/score", async (req: Request, res: Response) => {
 
       let deadStones: Coords[] = [];
       try {
-        const deadStonesResponse = await sendCommand(
-          "final_status_list dead",
-        );
+        const deadStonesResponse = await sendCommand("final_status_list dead");
         if (deadStonesResponse?.trim()) {
           deadStones = deadStonesResponse
             .trim()
@@ -438,7 +541,10 @@ router.post("/score", async (req: Request, res: Response) => {
       if (!res.headersSent)
         res
           .status(500)
-          .json({ error: "GTP command failed", details: (err as Error).message });
+          .json({
+            error: "GTP command failed",
+            details: (err as Error).message,
+          });
     }
   };
 
