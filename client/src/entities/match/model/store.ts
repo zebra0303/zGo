@@ -678,6 +678,7 @@ export const useGameStore = create<GameState>()(
       }),
       partialize: (state) => {
         // Exclude non-serializable tree refs and transient analysis state
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { gameTree, currentNode, ...rest } = state;
         const persistable = Object.fromEntries(
           Object.entries(rest).filter(
@@ -688,21 +689,30 @@ export const useGameStore = create<GameState>()(
           ),
         );
 
-        return {
-          ...persistable,
-          flatTree: flattenTree(gameTree),
-          currentNodeId: currentNode.id,
-        };
+        return persistable;
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       merge: (persistedState: any, currentState) => {
-        if (!persistedState.flatTree) return currentState;
+        let savedTreeData = null;
+        try {
+          if (typeof localStorage !== "undefined") {
+            const raw = localStorage.getItem("zgo-game-tree");
+            if (raw) savedTreeData = JSON.parse(raw);
+          }
+        } catch (e) {
+          console.error("Failed to parse saved game tree", e);
+        }
+
+        if (!savedTreeData || !savedTreeData.flatTree)
+          return { ...currentState, ...persistedState };
+
         const { root, current } = reconstructTree(
-          persistedState.flatTree,
-          persistedState.currentNodeId,
+          savedTreeData.flatTree,
+          savedTreeData.currentNodeId,
           persistedState.boardSize ?? currentState.boardSize,
           persistedState.handicap ?? currentState.handicap,
         );
+
         return {
           ...currentState,
           ...persistedState,
@@ -714,6 +724,54 @@ export const useGameStore = create<GameState>()(
     },
   ),
 );
+
+// --- Manual throttled save for game tree to avoid blocking the main thread ---
+let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+let isSavePending = false;
+
+const saveGameTree = () => {
+  if (!isSavePending) return;
+  const state = useGameStore.getState();
+  try {
+    const flatTree = flattenTree(state.gameTree);
+    localStorage.setItem(
+      "zgo-game-tree",
+      JSON.stringify({ flatTree, currentNodeId: state.currentNode.id }),
+    );
+  } catch (e) {
+    console.error("Failed to save game tree", e);
+  }
+  isSavePending = false;
+};
+
+// Listen to store changes and schedule a save
+useGameStore.subscribe((state, prevState) => {
+  if (
+    state.gameTree !== prevState.gameTree ||
+    state.currentNode.id !== prevState.currentNode.id
+  ) {
+    isSavePending = true;
+    if (!saveTimeout) {
+      saveTimeout = setTimeout(() => {
+        saveGameTree();
+        saveTimeout = null;
+      }, 1000);
+    }
+  }
+});
+
+// Sync flush when page is hidden/unloaded to prevent data loss
+if (typeof window !== "undefined") {
+  window.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+        saveTimeout = null;
+      }
+      saveGameTree();
+    }
+  });
+}
 
 // Module-level abort controller for analysis
 let analysisAbort: AbortController | null = null;
