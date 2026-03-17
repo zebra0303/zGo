@@ -89,8 +89,11 @@ const BoardCore: React.FC = () => {
   const MARGIN = BASE_MARGIN * boardScale;
   const BOARD_PIXEL_SIZE = CELL_SIZE * (boardSize - 1) + MARGIN * 2;
 
-  const handleBoardClick = useCallback(
-    (e: React.MouseEvent<SVGSVGElement>) => {
+  const handleBoardPointerDown = useCallback(
+    (e: React.PointerEvent<SVGSVGElement>) => {
+      // Prevent default behavior to avoid triggering scroll or mouse events
+      e.preventDefault();
+
       // In review mode, allow clicking freely to explore variations.
       if (!isReviewMode) {
         // In PvAI mode, prevent clicking if it's AI's turn.
@@ -270,8 +273,8 @@ const BoardCore: React.FC = () => {
       width={BOARD_PIXEL_SIZE}
       height={BOARD_PIXEL_SIZE}
       className="cursor-pointer select-none max-w-full h-auto"
-      style={{ touchAction: "manipulation" }}
-      onClick={handleBoardClick}
+      style={{ touchAction: "none" }}
+      onPointerDown={handleBoardPointerDown}
       role="grid"
       aria-label="Go Board"
     >
