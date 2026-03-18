@@ -11,6 +11,7 @@ import { playPassSound } from "@/shared/lib/sound";
 import { fetchAIScore } from "@/shared/api/gameApi";
 import { formatGameResultText } from "@/shared/lib/formatUtils";
 import CustomDialog from "@/shared/ui/CustomDialog";
+import { useShallow } from "zustand/react/shallow";
 
 // Quick emoji panel — lightweight, no external library needed
 const QUICK_EMOJIS = [
@@ -57,7 +58,23 @@ const OnlineSidebarWidget = () => {
     sendLeave,
     sendChat,
     requestUndo,
-  } = useOnlineStore();
+  } = useOnlineStore(
+    useShallow((s) => ({
+      roomInfo: s.roomInfo,
+      myRole: s.myRole,
+      myNickname: s.myNickname,
+      myCharacter: s.myCharacter,
+      connectionStatus: s.connectionStatus,
+      chatMessages: s.chatMessages,
+      pendingUndoRequest: s.pendingUndoRequest,
+      notification: s.notification,
+      sendPass: s.sendPass,
+      sendResign: s.sendResign,
+      sendLeave: s.sendLeave,
+      sendChat: s.sendChat,
+      requestUndo: s.requestUndo,
+    })),
+  );
 
   const {
     currentPlayer,
@@ -79,7 +96,29 @@ const OnlineSidebarWidget = () => {
     gameResultText,
     isScoring,
     language,
-  } = useGameStore();
+  } = useGameStore(
+    useShallow((s) => ({
+      currentPlayer: s.currentPlayer,
+      currentNode: s.currentNode,
+      isGameOver: s.isGameOver,
+      isReviewMode: s.isReviewMode,
+      isTeacherMode: s.isTeacherMode,
+      winner: s.winner,
+      soundEnabled: s.soundEnabled,
+      soundVolume: s.soundVolume,
+      boardScale: s.boardScale,
+      boardSize: s.boardSize,
+      handicap: s.handicap,
+      gameTree: s.gameTree,
+      setGameConfig: s.setGameConfig,
+      passTurn: s.passTurn,
+      toggleTeacherMode: s.toggleTeacherMode,
+      setDeadStones: s.setDeadStones,
+      gameResultText: s.gameResultText,
+      isScoring: s.isScoring,
+      language: s.language,
+    })),
+  );
 
   const myColor = getOnlineMyColor();
   const isMyTurn = currentPlayer === myColor;

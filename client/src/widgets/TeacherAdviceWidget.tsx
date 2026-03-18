@@ -8,6 +8,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { fetchAIHint, API_BASE_URL } from "@/shared/api/gameApi";
 import { getPlayerForMove } from "@/shared/lib/goUtils";
+import { useShallow } from "zustand/react/shallow";
 
 const coordsToGtp = (x: number, y: number, boardSize: number) =>
   "ABCDEFGHJKLMNOPQRST"[x] + (boardSize - y);
@@ -18,6 +19,7 @@ const TeacherAdviceWidget = ({
   sideBySide?: boolean;
 }) => {
   const { t } = useTranslation();
+  // perf: useShallow prevents re-renders when unrelated store fields change
   const {
     board,
     currentPlayer,
@@ -36,7 +38,27 @@ const TeacherAdviceWidget = ({
     boardSize,
     handicap,
     gameTree,
-  } = useGameStore();
+  } = useGameStore(
+    useShallow((s) => ({
+      board: s.board,
+      currentPlayer: s.currentPlayer,
+      isTeacherMode: s.isTeacherMode,
+      currentNode: s.currentNode,
+      gameMode: s.gameMode,
+      aiDifficulty: s.aiDifficulty,
+      humanPlayerColor: s.humanPlayerColor,
+      isGameOver: s.isGameOver,
+      isReviewMode: s.isReviewMode,
+      teacherVisits: s.teacherVisits,
+      ignoredRecommendation: s.ignoredRecommendation,
+      teacherCritique: s.teacherCritique,
+      updateWinRate: s.updateWinRate,
+      language: s.language,
+      boardSize: s.boardSize,
+      handicap: s.handicap,
+      gameTree: s.gameTree,
+    })),
+  );
 
   const [lastCritiquedMove, setLastCritiquedMove] = useState<string | null>(
     null,

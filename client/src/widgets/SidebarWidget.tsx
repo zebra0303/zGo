@@ -11,12 +11,14 @@ import CustomDialog from "@/shared/ui/CustomDialog";
 import GameStatusPanel from "@/widgets/sidebar/GameStatusPanel";
 import SettingsPanel from "@/widgets/sidebar/SettingsPanel";
 import { buildMoveHistory } from "@/shared/lib/goUtils";
+import { useShallow } from "zustand/react/shallow";
 
 const MatchHistory = lazy(() => import("@/widgets/sidebar/MatchHistory"));
 const AdminPanel = lazy(() => import("@/widgets/sidebar/AdminPanel"));
 
 const SidebarWidget = () => {
   const { t } = useTranslation();
+  // perf: useShallow prevents re-renders when unrelated store fields change
   const {
     currentNode,
     gameMode,
@@ -31,7 +33,23 @@ const SidebarWidget = () => {
     winner,
     setGameResultText,
     gameTree,
-  } = useGameStore();
+  } = useGameStore(
+    useShallow((s) => ({
+      currentNode: s.currentNode,
+      gameMode: s.gameMode,
+      aiDifficulty: s.aiDifficulty,
+      humanPlayerColor: s.humanPlayerColor,
+      isGameOver: s.isGameOver,
+      isReviewMode: s.isReviewMode,
+      loadMatch: s.loadMatch,
+      boardSize: s.boardSize,
+      handicap: s.handicap,
+      gameResultText: s.gameResultText,
+      winner: s.winner,
+      setGameResultText: s.setGameResultText,
+      gameTree: s.gameTree,
+    })),
+  );
 
   const getMoveHistory = useCallback(() => {
     const path = getPathToNode(gameTree, currentNode.id) || [currentNode];
