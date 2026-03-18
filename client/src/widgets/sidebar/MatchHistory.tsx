@@ -104,10 +104,13 @@ const MatchHistory = ({
         {matches?.map((match) => (
           <div
             key={match.id}
-            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 shadow-sm hover:border-blue-300 dark:hover:border-blue-600 cursor-pointer flex justify-between items-center group relative"
+            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 shadow-sm hover:border-blue-300 dark:hover:border-blue-600 focus-within:ring-2 focus-within:ring-accent flex justify-between items-center group relative"
           >
             <div
-              className="flex-1"
+              role="button"
+              tabIndex={0}
+              aria-label={t("reviewGo")}
+              className="flex-1 cursor-pointer outline-none"
               onClick={async () => {
                 const f = await getMatchById(match.id);
                 const parsedData = JSON.parse(f.match.sgfData);
@@ -143,6 +146,44 @@ const MatchHistory = ({
                 );
                 onStartReviewAnalysis();
                 onSetActiveTab("game");
+              }}
+              onKeyDown={async (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  const f = await getMatchById(match.id);
+                  const parsedData = JSON.parse(f.match.sgfData);
+                  const resultText =
+                    formatGameResultText(parsedData.resultText, t) || "";
+
+                  let winnerColor: PlayerColor | "DRAW" | null = null;
+                  if (parsedData.resultWinner || match.winner) {
+                    winnerColor =
+                      parsedData.resultWinner || (match.winner as PlayerColor);
+                  }
+
+                  const reviewChat =
+                    parsedData.chat && parsedData.chat.length > 0
+                      ? {
+                          chat: parsedData.chat,
+                          hostNickname: parsedData.hostNickname,
+                          hostCharacter: parsedData.hostCharacter,
+                          guestNickname: parsedData.guestNickname,
+                          guestCharacter: parsedData.guestCharacter,
+                        }
+                      : null;
+
+                  onLoadMatch(
+                    parsedData.moves,
+                    parsedData.winRates,
+                    resultText,
+                    parsedData.boardSize,
+                    parsedData.handicap,
+                    winnerColor,
+                    reviewChat,
+                  );
+                  onStartReviewAnalysis();
+                  onSetActiveTab("game");
+                }
               }}
             >
               <div className="flex justify-between mb-1">
