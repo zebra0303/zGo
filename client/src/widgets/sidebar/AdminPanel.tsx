@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useGameStore } from "@/entities/match/model/store";
 import { API_BASE_URL } from "@/shared/api/gameApi";
+import { createMaskedError } from "@/shared/lib/errors/AppError";
 import {
   applyPrimaryColor,
   applyFontFamily,
@@ -113,7 +114,8 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
         setSaveMessage(data.error || "Save failed");
       }
     } catch (e: unknown) {
-      setSaveMessage((e as Error).message);
+      const maskedErr = createMaskedError(e, "Save failed");
+      setSaveMessage(maskedErr.message);
     } finally {
       setIsSaving(false);
       setTimeout(() => setSaveMessage(""), 3000);
@@ -171,7 +173,8 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
       setNewPassword("");
       setConfirmPassword("");
     } catch (e: unknown) {
-      setPasswordMessage((e as Error).message);
+      const maskedErr = createMaskedError(e, "Password change failed");
+      setPasswordMessage(maskedErr.message);
       setPasswordError(true);
     }
   };

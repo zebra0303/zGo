@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CharacterType } from "@/entities/online/model/types";
 import { useOnlineStore } from "@/entities/online/model/store";
+import { createMaskedError } from "@/shared/lib/errors/AppError";
 import CharacterSelector from "./CharacterSelector";
 
 interface JoinRoomFormProps {
@@ -49,7 +50,8 @@ const JoinRoomForm = ({
       await joinRoom(roomId, nickname.trim(), character);
       onJoined();
     } catch (err) {
-      setError((err as Error).message);
+      const maskedErr = createMaskedError(err, "Failed to join room");
+      setError(maskedErr.message);
     } finally {
       setIsSubmitting(false);
     }

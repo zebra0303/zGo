@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { API_BASE_URL } from "@/shared/api/gameApi";
+import { createMaskedError } from "@/shared/lib/errors/AppError";
 
 interface AuthPageProps {
   isSetup: boolean;
@@ -47,7 +48,8 @@ const AuthPage = ({ isSetup, onAuthenticated }: AuthPageProps) => {
         setError(t("auth.setupComplete"));
       }
     } catch (e: unknown) {
-      setError((e as Error).message);
+      const maskedErr = createMaskedError(e, "Authentication failed");
+      setError(maskedErr.message);
     } finally {
       setIsSubmitting(false);
     }
