@@ -87,6 +87,15 @@ const processNextCommand = () => {
   katagoProcess.stdin.write(`${task.command}\n`);
 };
 
+export const stopKataGo = () => {
+  if (katagoProcess) {
+    console.log("Stopping KataGo Engine...");
+    katagoProcess.kill("SIGTERM");
+    katagoProcess = null;
+    isKatagoReady = false;
+  }
+};
+
 export const startKataGo = () => {
   if (katagoProcess) {
     katagoProcess.kill();

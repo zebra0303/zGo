@@ -8,10 +8,7 @@ export interface Coords {
 export const coordsToGtp = (x: number, y: number, boardSize = 19): string =>
   GTP_COLUMNS[x] + (boardSize - y);
 
-export const gtpToCoords = (
-  gtp: string,
-  boardSize = 19,
-): Coords | null => {
+export const gtpToCoords = (gtp: string, boardSize = 19): Coords | null => {
   if (!gtp || ["pass", "resign"].includes(gtp.toLowerCase())) return null;
   return {
     x: GTP_COLUMNS.indexOf(gtp[0].toUpperCase()),
@@ -48,8 +45,7 @@ export const getHandicapStones = (
     else if (handicap === 4) coords = corners;
     else if (handicap === 5) coords = [...corners, center];
     else if (handicap === 6) coords = [...corners, sides[0], sides[1]];
-    else if (handicap === 7)
-      coords = [...corners, sides[0], sides[1], center];
+    else if (handicap === 7) coords = [...corners, sides[0], sides[1], center];
     else if (handicap === 8) coords = [...corners, ...sides];
     else if (handicap >= 9) coords = [...corners, ...sides, center];
   }

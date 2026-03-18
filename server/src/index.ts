@@ -5,7 +5,7 @@ import http from "http";
 import dotenv from "dotenv";
 import { WebSocketServer } from "ws";
 
-import { startKataGo } from "./katago/engine";
+import { startKataGo, stopKataGo } from "./katago/engine";
 import aiRouter from "./routes/ai";
 import matchesRouter from "./routes/matches";
 import settingsRouter from "./routes/settings";
@@ -55,5 +55,19 @@ server.on("upgrade", (request, socket, head) => {
 server.listen(PORT, () =>
   console.log(`Server is running on http://localhost:${PORT}`),
 );
+
+// Handle graceful shutdown to prevent KataGo zombie processes
+const gracefulShutdown = () => {
+  console.log("Shutting down server...");
+  stopKataGo();
+  server.close(() => {
+    console.log("HTTP server closed.");
+    process.exit(0);
+  });
+};
+
+process.on("SIGINT", gracefulShutdown); // Triggered by PM2 restart/stop or Ctrl+C
+process.on("SIGTERM", gracefulShutdown); // Triggered by docker or standard kill
+process.on("exit", () => stopKataGo()); // Fallback for standard process exit
 
 export default app;

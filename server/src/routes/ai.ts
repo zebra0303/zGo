@@ -360,12 +360,10 @@ router.post("/move", async (req: Request, res: Response) => {
     } catch (err) {
       console.error("API Error in /api/ai/move:", err);
       if (!res.headersSent)
-        res
-          .status(500)
-          .json({
-            error: "GTP command failed",
-            details: (err as Error).message,
-          });
+        res.status(500).json({
+          error: "GTP command failed",
+          details: (err as Error).message,
+        });
     }
   };
 
@@ -539,12 +537,10 @@ router.post("/score", async (req: Request, res: Response) => {
     } catch (err) {
       console.error("API Error in /api/ai/score:", err);
       if (!res.headersSent)
-        res
-          .status(500)
-          .json({
-            error: "GTP command failed",
-            details: (err as Error).message,
-          });
+        res.status(500).json({
+          error: "GTP command failed",
+          details: (err as Error).message,
+        });
     }
   };
 
