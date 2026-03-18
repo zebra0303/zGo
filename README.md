@@ -36,54 +36,66 @@ Whether you are a complete beginner or a seasoned professional, zGo provides an 
 
 ## Installation (Beginner Guide)
 
+Even if you have no programming experience, you can easily install and run zGo on your computer by following these steps.
+
 ### Prerequisites
 
-Install **Node.js** (LTS version) from [nodejs.org](https://nodejs.org/).
+1. **Install Node.js**: Go to the [Node.js Official Website](https://nodejs.org/), download the **LTS version** (Recommended for Most Users), and install it. (You can just click 'Next' through the default settings during installation.)
 
-### Step 1: Download & Navigate
+### Step 1: Download & Extract zGo
 
-Download this project, unzip it, and open a terminal in the project folder:
+1. Click the green **`<> Code`** button at the top right of this page, then click **`Download ZIP`**.
+2. Extract the downloaded `zGo-main.zip` file to a location you can easily find (e.g., your Desktop or Documents folder).
+
+### Step 2: Open Terminal and Navigate to the Folder
+
+Open a terminal (command line interface) where you can type commands:
+
+- **Windows**: Open the Start menu, search for `cmd` or `Command Prompt`, and open it.
+- **Mac**: Press `cmd + space`, search for `Terminal`, and open it.
+
+Once the terminal is open, navigate to the extracted folder. (Replace the path below with your actual folder location.)
 
 ```bash
-cd path/to/zGo
+cd Desktop/zGo-main
+# Example (Windows): cd Desktop\zGo-main
+# Example (Mac): cd Desktop/zGo-main
 ```
 
-### Step 2: Install Dependencies
+### Step 3: Install Required Packages
+
+Copy the following command, paste it into your terminal, and press Enter. (This may take 1-2 minutes.)
 
 ```bash
 npm install
 ```
 
-### Step 3: Download the KataGo AI Model
+### Step 4: Download the KataGo AI Model
 
-1. Go to [KataGo Archive](https://katagoarchive.org/g170/neuralnets/index.html).
-2. Download `g170e-b10c128-s1141046784-d204142634.bin.gz`.
-3. Rename it to `katago-model.bin.gz`.
-4. Place it in the `server/katago/` folder.
+We need to download the "brain" (model file) for the AI to play Go intelligently.
 
-### Step 4: Configure (Optional)
+1. Click this link to go to the [KataGo Archive](https://katagoarchive.org/g170/neuralnets/index.html).
+2. Find and download the file named `g170e-b10c128-s1141046784-d204142634.bin.gz`.
+3. Rename the downloaded file to **`katago-model.bin.gz`**.
+4. Move this renamed file into the zGo folder you extracted earlier, specifically into `server/katago/`.
+   - The final path should look like this: `zGo-main/server/katago/katago-model.bin.gz`
 
-Copy `.env.example` to `.env` and edit ports if needed (`PORT` for backend, `VITE_PORT` for frontend).
+### Step 5: Run the Game
 
-### Step 5: Run
-
-**Development Mode:**
-
-```bash
-npm run dev
-```
-
-**Production Mode:**
+You are all set! Type the following commands in your terminal one by one:
 
 ```bash
+# First, build the application (prepares it to run)
 npm run build
+
+# Once the build is complete, start the application
 npm start
 ```
 
-- Dev: [http://localhost:5550](http://localhost:5550) (or `VITE_PORT`)
-- Prod: [http://localhost:3330](http://localhost:3330) (or `PORT`)
+### Step 6: Play!
 
-On first access, you will be prompted to set an admin password.
+- Open your web browser (Chrome, Edge, Safari, etc.) and type **`http://localhost:3330`** in the address bar.
+- On your first visit, you will be prompted to set an admin password. Set your desired password, log in, and enjoy playing Go!
 
 ---
 
