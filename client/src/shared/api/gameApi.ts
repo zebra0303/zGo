@@ -232,3 +232,14 @@ export const deleteMatch = async (id: string | number) => {
     throw createMaskedError(error, "Failed to delete match.");
   }
 };
+
+export const restartEngine = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/ai/restart`, {
+      method: "POST",
+    });
+    return await handleApiResponse(response);
+  } catch (error) {
+    throw createMaskedError(error, "Failed to restart AI engine.");
+  }
+};

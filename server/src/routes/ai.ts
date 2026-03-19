@@ -4,6 +4,7 @@ import {
   getEngineState,
   enqueueApiTask,
   getApiQueueState,
+  startKataGo,
 } from "../katago/engine";
 import {
   coordsToGtp,
@@ -545,6 +546,21 @@ router.post("/score", async (req: Request, res: Response) => {
   };
 
   enqueueApiTask(executeScoreTask);
+});
+
+router.post("/restart", (req: Request, res: Response) => {
+  try {
+    startKataGo();
+    res.json({ success: true, message: "Engine restarted manually." });
+  } catch (err) {
+    console.error("API Error in /api/ai/restart:", err);
+    res
+      .status(500)
+      .json({
+        error: "Failed to restart engine",
+        details: (err as Error).message,
+      });
+  }
 });
 
 export default router;

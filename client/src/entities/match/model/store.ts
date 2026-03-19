@@ -64,6 +64,7 @@ interface GameState {
   isAnalyzing: boolean;
   analysisProgress: { current: number; total: number } | null;
   undoUsedInGame: boolean;
+  aiForceTurnCounter: number;
 
   placeStone: (x: number, y: number) => void;
   passTurn: () => void;
@@ -79,6 +80,7 @@ interface GameState {
   setAnalysisProgress: (
     progress: { current: number; total: number } | null,
   ) => void;
+  forceAITurn: () => void;
   undoMove: () => void;
   goToPreviousMove: () => void;
   goToNextMove: (variationIndex?: number) => void;
@@ -244,6 +246,10 @@ export const useGameStore = create<GameState>()(
       isAnalyzing: false,
       analysisProgress: null,
       undoUsedInGame: false,
+      aiForceTurnCounter: 0,
+
+      forceAITurn: () =>
+        set((state) => ({ aiForceTurnCounter: state.aiForceTurnCounter + 1 })),
 
       placeStone: (x: number, y: number) => {
         const {
@@ -658,6 +664,7 @@ export const useGameStore = create<GameState>()(
           isAnalyzing: false,
           analysisProgress: null,
           undoUsedInGame: false,
+          aiForceTurnCounter: 0,
         });
       },
     }),

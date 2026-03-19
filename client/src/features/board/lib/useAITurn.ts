@@ -33,6 +33,7 @@ export const useAITurn = () => {
     handicap,
     updateWinRate,
     gameTree,
+    aiForceTurnCounter,
   } = useGameStore();
 
   const getMoveHistory = useCallback(() => {
@@ -160,6 +161,7 @@ export const useAITurn = () => {
     language,
     boardSize,
     handicap,
+    aiForceTurnCounter,
   ]);
 
   return { getMoveHistory };
