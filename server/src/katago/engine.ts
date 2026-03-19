@@ -102,6 +102,13 @@ export const startKataGo = () => {
     isKatagoReady = false;
   }
 
+  // Reject all pending commands so the API queue doesn't hang forever
+  commandQueue.forEach((task) => {
+    task.reject(
+      new Error("KataGo Engine restarted manually. Command aborted."),
+    );
+  });
+
   // __dirname = src/katago/ (dev) or dist/katago/ (prod), so ../../katago/ = server/katago/
   const modelPath = path.join(__dirname, "../../katago/katago-model.bin.gz");
   const configPath = path.join(__dirname, "../../katago/gtp_config.cfg");
