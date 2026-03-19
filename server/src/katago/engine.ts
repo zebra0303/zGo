@@ -126,6 +126,9 @@ export const startKataGo = () => {
   commandQueue = [];
   isProcessingQueue = false;
   currentMaxVisits = null;
+  currentBoardSize = null;
+  currentHandicap = null;
+  currentMoves = [];
 
   katagoProcess.stdout.on("data", (data: Buffer) => {
     responseBuffer += data.toString();
