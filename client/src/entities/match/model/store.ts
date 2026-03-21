@@ -3,214 +3,19 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { applyMove } from "@/entities/board/lib/goLogic";
 import { queryClient } from "@/shared/api/queryClient";
 import { produce } from "immer";
-import { BoardState, PlayerColor } from "@/shared/types/board";
+import { PlayerColor } from "@/shared/types/board";
 import { flattenTree, reconstructTree } from "@/entities/match/lib/treeUtils";
 import { analyzeGame } from "@/shared/api/gameApi";
 import { getPlayerForMove } from "@/shared/lib/goUtils";
+import { HistoryNode, GameState } from "./types";
+import {
+  createEmptyBoard,
+  createInitialNode,
+  getNode,
+  getPathToNode,
+} from "../lib/boardUtils";
 
-export interface HistoryNode {
-  id: string;
-  x: number | null; // null for pass or initial node
-  y: number | null;
-  color: PlayerColor | null;
-  board: BoardState;
-  capturedByBlack: number;
-  capturedByWhite: number;
-  winRate: number;
-  children: HistoryNode[];
-  parent: HistoryNode | null;
-  moveIndex: number;
-}
-
-interface GameState {
-  board: BoardState;
-  currentPlayer: PlayerColor;
-  isTeacherMode: boolean;
-
-  // Tree-based History
-  gameTree: HistoryNode;
-  currentNode: HistoryNode;
-
-  // Game Settings
-  gameMode: "PvP" | "PvAI" | "Online";
-  aiDifficulty: number;
-  humanPlayerColor: PlayerColor;
-  language: "ko" | "en";
-  boardSize: number;
-  handicap: number;
-
-  // Game Status
-  consecutivePasses: number;
-  isGameOver: boolean;
-  isReviewMode: boolean;
-  showDeadStones: boolean;
-  boardScale: number;
-  soundEnabled: boolean;
-  soundVolume: number;
-  teacherVisits: number;
-  ignoredRecommendation: { x: number; y: number }[] | null;
-  teacherCritique: string | null;
-  deadStones: { x: number; y: number }[] | null;
-  reviewChat: {
-    chat: { sender: string; message: string; createdAt: string }[];
-    hostNickname?: string;
-    hostCharacter?: string;
-    guestNickname?: string;
-    guestCharacter?: string;
-  } | null;
-  gameResultText: string | null;
-  winner: PlayerColor | "DRAW" | null;
-  isScoring: boolean;
-  isAnalyzing: boolean;
-  analysisProgress: { current: number; total: number } | null;
-  undoUsedInGame: boolean;
-  aiForceTurnCounter: number;
-
-  placeStone: (x: number, y: number) => void;
-  passTurn: () => void;
-  resignGame: () => void;
-  toggleTeacherMode: () => void;
-  toggleDeadStones: () => void;
-  setTeacherCritique: (c: string | null) => void;
-  setDeadStones: (stones: { x: number; y: number }[] | null) => void;
-  setGameResultText: (text: string | null) => void;
-  setWinner: (winner: PlayerColor | "DRAW" | null) => void;
-  setIsScoring: (isScoring: boolean) => void;
-  setIsAnalyzing: (isAnalyzing: boolean) => void;
-  setAnalysisProgress: (
-    progress: { current: number; total: number } | null,
-  ) => void;
-  forceAITurn: () => void;
-  undoMove: () => void;
-  goToPreviousMove: () => void;
-  goToNextMove: (variationIndex?: number) => void;
-  setMoveIndex: (index: number) => void;
-  setCurrentNode: (nodeId: string) => void;
-  updateWinRate: (nodeId: string, winRate: number) => void;
-  updateWinRates: (updates: { nodeId: string; winRate: number }[]) => void;
-  loadMatch: (
-    moves: ({ x: number; y: number } | null)[],
-    winRates?: number[],
-    resultText?: string,
-    savedBoardSize?: number,
-    savedHandicap?: number,
-    winner?: PlayerColor | "DRAW" | null,
-    reviewChat?: GameState["reviewChat"],
-  ) => void;
-  setGameConfig: (
-    config: Partial<
-      Pick<
-        GameState,
-        | "gameMode"
-        | "aiDifficulty"
-        | "humanPlayerColor"
-        | "boardScale"
-        | "soundEnabled"
-        | "soundVolume"
-        | "teacherVisits"
-        | "language"
-        | "boardSize"
-        | "handicap"
-      >
-    >,
-  ) => void;
-  setIgnoredRecommendation: (coords: { x: number; y: number }[] | null) => void;
-  resetGame: () => void;
-}
-
-const createEmptyBoard = (size: number = 19): BoardState => {
-  return Array(size)
-    .fill(null)
-    .map(() => Array(size).fill(null));
-};
-
-const getHandicapStones = (boardSize: number, handicap: number) => {
-  let coords: { x: number; y: number }[] = [];
-  if (handicap > 1 && boardSize >= 9) {
-    const min = boardSize >= 13 ? 3 : 2;
-    const max = boardSize - 1 - min;
-    const mid = Math.floor(boardSize / 2);
-
-    const corners = [
-      { x: max, y: min },
-      { x: min, y: max },
-      { x: max, y: max },
-      { x: min, y: min },
-    ];
-    const sides = [
-      { x: min, y: mid },
-      { x: max, y: mid },
-      { x: mid, y: min },
-      { x: mid, y: max },
-    ];
-    const center = { x: mid, y: mid };
-
-    if (handicap === 2) coords = [corners[0], corners[1]];
-    else if (handicap === 3) coords = [corners[0], corners[1], corners[2]];
-    else if (handicap === 4) coords = corners;
-    else if (handicap === 5) coords = [...corners, center];
-    else if (handicap === 6) coords = [...corners, sides[0], sides[1]];
-    else if (handicap === 7) coords = [...corners, sides[0], sides[1], center];
-    else if (handicap === 8) coords = [...corners, ...sides];
-    else if (handicap >= 9) coords = [...corners, ...sides, center];
-  }
-  return coords;
-};
-
-export const setupInitialBoard = (
-  boardSize: number,
-  handicap: number,
-): BoardState => {
-  const board = createEmptyBoard(boardSize);
-  const stones = getHandicapStones(boardSize, handicap);
-  stones.forEach(({ x, y }) => {
-    if (board[y] && board[y][x] === null) {
-      board[y][x] = "BLACK";
-    }
-  });
-  return board;
-};
-
-const createInitialNode = (
-  boardSize: number,
-  handicap: number,
-): HistoryNode => {
-  const board = setupInitialBoard(boardSize, handicap);
-  return {
-    id: "root",
-    x: null,
-    y: null,
-    color: null,
-    board: board,
-    capturedByBlack: 0,
-    capturedByWhite: 0,
-    winRate: 50,
-    children: [],
-    parent: null,
-    moveIndex: 0,
-  };
-};
-
-export const getNode = (root: HistoryNode, id: string): HistoryNode | null => {
-  if (root.id === id) return root;
-  for (const child of root.children) {
-    const found = getNode(child, id);
-    if (found) return found;
-  }
-  return null;
-};
-
-export const getPathToNode = (
-  root: HistoryNode,
-  id: string,
-): HistoryNode[] | null => {
-  if (root.id === id) return [root];
-  for (const child of root.children) {
-    const path = getPathToNode(child, id);
-    if (path) return [root, ...path];
-  }
-  return null;
-};
+export { getPathToNode, getNode };
 
 export const useGameStore = create<GameState>()(
   persist(
@@ -821,8 +626,19 @@ export function startReviewAnalysis(): void {
   state.setIsAnalyzing(true);
   state.setAnalysisProgress({ current: 0, total });
 
-  let lastUpdateTime = performance.now();
   let pendingUpdates: { nodeId: string; winRate: number }[] = [];
+  let rafId: number | null = null;
+  let lastProcessedMoveIndex = 0;
+
+  const flushUpdates = () => {
+    const store = useGameStore.getState();
+    if (pendingUpdates.length > 0) {
+      store.updateWinRates(pendingUpdates);
+      pendingUpdates = [];
+    }
+    store.setAnalysisProgress({ current: lastProcessedMoveIndex, total });
+    rafId = null;
+  };
 
   analyzeGame(
     moves,
@@ -832,20 +648,17 @@ export function startReviewAnalysis(): void {
       if (nodeIds[moveIndex]) {
         pendingUpdates.push({ nodeId: nodeIds[moveIndex], winRate });
       }
-      const now = performance.now();
-      if (now - lastUpdateTime > 100 || moveIndex === total) {
-        const store = useGameStore.getState();
-        if (pendingUpdates.length > 0) {
-          store.updateWinRates(pendingUpdates);
-          pendingUpdates = [];
-        }
-        store.setAnalysisProgress({ current: moveIndex, total });
-        lastUpdateTime = now;
+      lastProcessedMoveIndex = moveIndex;
+
+      // Schedule UI update on next frame if not already scheduled
+      if (!rafId) {
+        rafId = requestAnimationFrame(flushUpdates);
       }
     },
     abortController.signal,
   )
     .then(() => {
+      if (rafId) cancelAnimationFrame(rafId);
       const store = useGameStore.getState();
       if (pendingUpdates.length > 0) {
         store.updateWinRates(pendingUpdates);
@@ -854,6 +667,7 @@ export function startReviewAnalysis(): void {
       store.setAnalysisProgress(null);
     })
     .catch((err) => {
+      if (rafId) cancelAnimationFrame(rafId);
       if (err.name !== "AbortError") console.error("Analysis failed:", err);
       const store = useGameStore.getState();
       store.setIsAnalyzing(false);

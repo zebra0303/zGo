@@ -12,25 +12,25 @@
 
 ### 대국
 
-- **AI 대국 (PvAI)**: 난이도(1~30)를 조절하며 KataGo와 대국. 9x9, 13x13, 19x19 바둑판 및 접바둑(2~9) 지원.
+- **AI 대국 (PvAI)**: 난이도(1~30)를 조절하며 KataGo와 대국. **Lv.1은 입문자를 위해 파라미터가 최적화**되어 의도적인 실수를 유도합니다. 9x9, 13x13, 19x19 바둑판 및 접바둑(2~9) 지원.
 - **친선 대국 (PvP)**: 같은 기기에서 두 사람이 함께 두는 로컬 대국.
-- **온라인 대국**: 고유 초대 링크로 방을 만들거나 참가. WebSocket 기반 실시간 대국, 캐릭터 아바타, 인게임 채팅, 이모지 반응, 무르기 요청(대국당 1회) 지원.
+- **온라인 대국**: 고유 초대 링크로 방을 만들거나 참가. WebSocket 기반 실시간 대국, 캐릭터 아바타, 인게임 채팅, 이모지 반응, 무르기 요청 지원.
 
 ### 학습
 
 - **선생님 모드**: AI가 실시간으로 최선의 수를 추천하고, 다른 곳에 두었을 때 왜 실수인지 한국어/영어로 해설 피드백 제공.
 - **복기 모드**: 완료된 대국을 승률 그래프, AI 분석, 변화도 탐색, 사석 판별과 함께 자유롭게 탐색.
-- **전체 분석**: SSE 스트리밍 기반 수순별 승률 분석 (배치 업데이트 최적화).
-- **대화 기록**: 온라인 대국 중 나눈 채팅을 복기 모드에서 모달로 확인 (30개씩 레이지 로딩).
+- **전체 분석**: SSE 스트리밍 기반 수순별 승률 분석. **rAF(requestAnimationFrame) 기반 프레임 동기화 업데이트**로 부드러운 UI 제공.
+- **대화 기록**: 온라인 대국 중 나눈 채팅을 복기 모드에서 확인.
 
 ### 시스템
 
-- **인증 시스템**: 비밀번호 기반 접근 제어 (JWT 토큰, 요청 제한, 잠금 보호).
-- **관리자 패널**: 사이드바에서 언어, 테마(라이트/다크), 강조 색상, 폰트, 비밀번호를 관리.
-- **PWA (Progressive Web App)**: 스마트폰 홈 화면에 앱으로 설치 가능. 서비스 워커 자동 업데이트 및 정적 자산 캐싱.
+- **인증 시스템**: **보안이 강화된 HttpOnly 쿠키 기반** 관리자 인증. 요청 제한 및 잠금 보호 지원.
+- **관리자 패널**: 사이드바에서 언어, 테마, 강조 색상, 폰트, 비밀번호를 관리.
+- **엔진 관리**: AI 응답이 없을 경우 바둑판 아래 버튼으로 **KataGo 엔진 즉시 재시작** 가능.
+- **PWA (Progressive Web App)**: 스마트폰 홈 화면에 앱으로 설치 가능. 서비스 워커 자동 업데이트 및 **지능형 HTTP 캐싱**으로 항상 최신 버전 유지.
 - **다국어 (i18n)**: 한국어/영어 완벽 지원. UI와 AI 해설 언어 즉시 전환.
-- **효과음**: 착수음, 패스, 승리/패배 사운드 (볼륨 조절 가능).
-- **다크 모드**: 모든 UI 컴포넌트에 다크 모드 지원.
+- **효과음**: 착수음, 패스, 승리/패배 사운드 제공.
 
 ---
 
@@ -111,10 +111,10 @@ npm start
 | **백엔드**       | Node.js, Express 5, TypeScript                                              |
 | **AI 엔진**      | KataGo (GTP 프로토콜, child_process 통신)                                   |
 | **데이터베이스** | better-sqlite3 (WAL 모드)                                                   |
-| **실시간 통신**  | WebSocket (ws), JWT 기반 룸 토큰                                            |
-| **인증**         | bcrypt + jsonwebtoken, express-rate-limit                                   |
+| **실시간 통신**  | WebSocket (ws)                                                              |
+| **인증**         | bcrypt + jsonwebtoken (HttpOnly 쿠키), express-rate-limit                   |
 | **PWA**          | vite-plugin-pwa (Workbox)                                                   |
-| **테스트**       | Vitest (105개 테스트)                                                       |
+| **테스트**       | Vitest (112개 테스트)                                                       |
 | **코드 품질**    | ESLint, Prettier, Husky, lint-staged                                        |
 
 ### 프로젝트 구조
@@ -131,23 +131,22 @@ zGo/
 │   │   │   ├── BoardWidget.tsx
 │   │   │   ├── SidebarWidget.tsx
 │   │   │   ├── OnlineSidebarWidget.tsx
-│   │   │   ├── ReviewControlWidget.tsx
-│   │   │   ├── WinRateGraphWidget.tsx
+│   │   │   ├── GameLayout.tsx      # 공통 게임 레이아웃 (공유 위젯)
+│   │   │   ├── ReviewPanelWidget.tsx
 │   │   │   └── TeacherAdviceWidget.tsx
 │   │   ├── features/               # 바둑판 인터랙션, 온라인 UI (방, 채팅)
-│   │   ├── entities/               # 게임 스토어, 온라인 스토어, 바둑 로직, 트리 유틸
-│   │   └── shared/                 # API 클라이언트, 타입, i18n, 사운드, 라우터
+│   │   ├── entities/               # 매치 & 온라인 스토어, 바둑 로직, 트리 타입
+│   │   └── shared/                 # API 클라이언트 (fetchWithAuth), 타입, i18n, 라우터
 │   └── vite.config.ts              # Vite + PWA 플러그인 설정
 ├── server/                         # Express 백엔드 (TypeScript)
 │   ├── src/
-│   │   ├── index.ts                # 진입점, 라우트 & WebSocket 마운트
-│   │   ├── db.ts                   # SQLite (matches, system_settings,
-│   │   │                           #   online_rooms, online_chat)
-│   │   ├── middleware/auth.ts      # JWT requireAdmin 미들웨어
+│   │   ├── index.ts                # 진입점, Cache-Control 헤더 설정
+│   │   ├── db.ts                   # SQLite (대국, 설정, 룸, 채팅)
+│   │   ├── middleware/auth.ts      # 쿠키 기반 requireAdmin 미들웨어
 │   │   ├── lib/goLogic.ts          # 서버 측 착수 검증
 │   │   ├── katago/                 # KataGo 프로세스 관리 & GTP
 │   │   ├── routes/
-│   │   │   ├── ai.ts              # /api/ai/* (착수, 분석, 계가)
+│   │   │   ├── ai.ts              # /api/ai/* (착수, 분석, 계가, 재시작)
 │   │   │   ├── matches.ts         # /api/matches CRUD
 │   │   │   ├── online.ts          # /api/online/* (방 생성, 참가, 매치)
 │   │   │   └── settings.ts        # /api/settings/* (인증, 설정)
@@ -159,67 +158,13 @@ zGo/
 └── package.json                    # 루트 스크립트
 ```
 
-### 실행 명령어
+### 성능 최적화 요약
 
-| 명령어          | 설명                                               |
-| --------------- | -------------------------------------------------- |
-| `npm run dev`   | 클라이언트(Vite)와 서버(tsx watch) 동시 실행       |
-| `npm run build` | 클라이언트(Vite) + 서버(tsc) 프로덕션 빌드         |
-| `npm start`     | 프로덕션 서버 실행                                 |
-| `npm test`      | 전체 테스트 실행 (클라이언트 71 + 서버 34 = 105개) |
-| `npm run lint`  | 클라이언트 코드 린트 검사                          |
-
-### API 엔드포인트
-
-#### AI
-
-| 메서드 | 경로                   | 인증 | 설명                             |
-| ------ | ---------------------- | ---- | -------------------------------- |
-| POST   | `/api/ai/move`         | -    | AI 착수 또는 선생님 힌트 (해설)  |
-| POST   | `/api/ai/analyze-game` | -    | 전체 대국 승률 분석 (SSE 스트림) |
-| POST   | `/api/ai/score`        | -    | 최종 계가 및 사석 판별           |
-
-#### 대국 기록
-
-| 메서드 | 경로               | 인증 | 설명           |
-| ------ | ------------------ | ---- | -------------- |
-| POST   | `/api/matches`     | -    | 대국 기록 저장 |
-| GET    | `/api/matches`     | -    | 전체 기록 조회 |
-| GET    | `/api/matches/:id` | -    | 특정 기록 조회 |
-| DELETE | `/api/matches/:id` | -    | 기록 삭제      |
-
-#### 온라인 대국
-
-| 메서드 | 경로                          | 인증 | 설명                    |
-| ------ | ----------------------------- | ---- | ----------------------- |
-| POST   | `/api/online/rooms`           | -    | 새 방 만들기            |
-| GET    | `/api/online/rooms/:id`       | -    | 방 정보 조회            |
-| POST   | `/api/online/rooms/:id/join`  | -    | 방 참가                 |
-| GET    | `/api/online/rooms/:id/match` | JWT  | 매치 데이터 + 채팅 조회 |
-| WS     | `/ws/online`                  | JWT  | 실시간 대국 통신        |
-
-#### 인증 & 설정
-
-| 메서드 | 경로                     | 인증 | 설명               |
-| ------ | ------------------------ | ---- | ------------------ |
-| GET    | `/api/settings/status`   | -    | 비밀번호 설정 여부 |
-| POST   | `/api/settings/setup`    | -    | 최초 비밀번호 설정 |
-| POST   | `/api/settings/login`    | -    | 로그인 (JWT 발급)  |
-| POST   | `/api/settings/refresh`  | JWT  | 토큰 갱신          |
-| PUT    | `/api/settings/password` | JWT  | 비밀번호 변경      |
-| GET    | `/api/settings/config`   | -    | 공개 설정 조회     |
-| PUT    | `/api/settings/config`   | JWT  | 설정 저장          |
-
-### 성능 최적화
-
-- **코드 분할**: `React.lazy` + Vite manual chunks (vendor-react, vendor-state, vendor-i18n, vendor-icons). 모든 청크 134kB 이하.
-- **메모이제이션**: 모든 무거운 컴포넌트에 `React.memo`, `useMemo`, `useCallback` 적용.
-- **Zustand 셀렉터**: BoardCore에 `useShallow` 적용하여 불필요한 리렌더링 방지.
-- **스로틀링**: 대국 분석 시 100ms 배치 업데이트로 상태 갱신 최적화.
-- **AbortController**: 모든 비동기 Effect에 정리 함수 적용하여 메모리 누수 방지.
-- **캐시 관리**: 선생님 추천 수 캐시 최대 50개 제한.
-- **PWA 캐싱**: 서비스 워커가 정적 자산(이미지, 폰트)을 캐싱하여 오프라인 지원.
-- **개발 프로파일링**: `useRenderProfile` 훅으로 느린 렌더(>16ms)를 개발 환경에서 감지.
+- **FSD 준수**: 계층 간 엄격한 분리로 순환 의존성을 방어하고 빌드 속도를 개선했습니다.
+- **렌더링 최적화**: **개별 바둑돌 단위 메모이제이션**(`Stone` 컴포넌트)을 통해 착수 시 바둑판 전체가 아닌 변경된 지점만 리렌더링됩니다.
+- **부드러운 UI**: `requestAnimationFrame`을 사용하여 승률 분석 업데이트를 브라우저 주사율과 동기화했습니다.
+- **안정성 확보**: 모든 비동기 Effect에 **`AbortController`와 `isMounted` 체크**를 전수 적용하여 메모리 누수와 잘못된 상태 업데이트를 차단했습니다.
+- **네트워크 효율**: **해시 기반 자산 캐싱**(1년)과 **HTML 캐시 방지**를 조합하여 로딩 속도 향상과 즉각적인 업데이트를 동시에 달성했습니다.
 
 ---
 

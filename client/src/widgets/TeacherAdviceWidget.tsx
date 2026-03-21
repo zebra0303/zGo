@@ -1,10 +1,7 @@
 import React, { useEffect, useRef, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  useGameStore,
-  getPathToNode,
-  HistoryNode,
-} from "@/entities/match/model/store";
+import { useGameStore, getPathToNode } from "@/entities/match/model/store";
+import { HistoryNode } from "@/entities/match/model/types";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAIHint, API_BASE_URL, fetchWithAuth } from "@/shared/api/gameApi";
 import { getPlayerForMove } from "@/shared/lib/goUtils";

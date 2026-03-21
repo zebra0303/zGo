@@ -1,7 +1,7 @@
-import { HistoryNode } from "@/entities/match/model/store";
+import { HistoryNode } from "@/entities/match/model/types";
 import { PlayerColor, BoardState } from "@/shared/types/board";
 import { applyMove } from "@/entities/board/lib/goLogic";
-import { setupInitialBoard } from "@/entities/match/model/store";
+import { setupInitialBoard } from "@/entities/match/lib/boardUtils";
 
 export interface FlatNode {
   id: string;

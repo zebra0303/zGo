@@ -1,9 +1,6 @@
 import { useMemo } from "react";
-import {
-  useGameStore,
-  getPathToNode,
-  HistoryNode,
-} from "@/entities/match/model/store";
+import { useGameStore, getPathToNode } from "@/entities/match/model/store";
+import { HistoryNode } from "@/entities/match/model/types";
 
 /**
  * Shared hook: builds the full main-branch path (ancestor + continuation)

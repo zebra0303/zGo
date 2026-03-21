@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { useRoute, navigateTo } from "@/shared/lib/router";
 import { useOnlineStore } from "@/entities/online/model/store";
@@ -8,8 +8,7 @@ import { API_BASE_URL, fetchWithAuth } from "@/shared/api/gameApi";
 import CreateRoomForm from "@/features/online/ui/CreateRoomForm";
 import JoinRoomForm from "@/features/online/ui/JoinRoomForm";
 import WaitingRoom from "@/features/online/ui/WaitingRoom";
-
-const MainPage = lazy(() => import("@/pages/MainPage"));
+import { GameLayout } from "@/widgets/GameLayout";
 
 type RoomView = "loading" | "join" | "waiting" | "playing" | "error";
 
@@ -106,9 +105,16 @@ const FarewellPage = () => {
 
 const RoomPage = ({ roomId }: { roomId: string }) => {
   const { t } = useTranslation();
-  const { connectWs, setRoomInfo } = useOnlineStore();
+  const { connectWs, disconnectWs, setRoomInfo } = useOnlineStore();
   const [view, setView] = useState<RoomView>("loading");
   const [roomInfo, setLocalRoomInfo] = useState<RoomInfo | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      disconnectWs();
+    };
+  }, [disconnectWs]);
 
   // Fetch room info on mount (restore session if needed)
   useEffect(() => {
@@ -312,7 +318,7 @@ const RoomPage = ({ roomId }: { roomId: string }) => {
         </div>
       }
     >
-      <MainPage />
+      <GameLayout />
     </Suspense>
   );
 };

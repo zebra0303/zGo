@@ -12,7 +12,7 @@ Whether you are a complete beginner or a seasoned professional, zGo provides an 
 
 ### Play
 
-- **Play vs AI (PvAI)**: Challenge KataGo with adjustable difficulty (1-30) on 9x9, 13x13, and 19x19 boards with handicap support (2-9 stones).
+- **Play vs AI (PvAI)**: Challenge KataGo with adjustable difficulty (1-30). **Level 1 is optimized for absolute beginners** with drastic handicaps and intentional sub-optimal play. Supports 9x9, 13x13, and 19x19 boards with handicap (2-9 stones).
 - **Player vs Player (PvP)**: Local friendly matches on the same device.
 - **Online Multiplayer**: Create or join rooms with unique invite links. Real-time play via WebSocket with character avatars, in-game chat, emoji reactions, and an undo request system (once per player per game).
 
@@ -20,17 +20,17 @@ Whether you are a complete beginner or a seasoned professional, zGo provides an 
 
 - **Teacher Mode**: AI suggests best moves in real-time and critiques your mistakes with detailed explanations (EN/KR).
 - **Review Mode**: Browse through completed games with a win rate graph, interactive AI analysis, variation explorer, and dead stone detection.
-- **Full-Game Analysis**: SSE streaming-based move-by-move win rate analysis with throttled batch updates.
+- **Full-Game Analysis**: SSE streaming-based move-by-move win rate analysis with **frame-aligned (rAF) batch updates** for ultimate smoothness.
 - **Chat History**: Review chat messages exchanged during online games via a lazy-loaded modal (30 messages at a time).
 
 ### System
 
-- **Authentication**: Password-based access control with JWT tokens, rate limiting, and account lockout protection.
+- **Authentication**: **Secure HttpOnly cookie-based** access control for admin accounts, with rate limiting and lockout protection.
 - **Admin Panel**: Manage language, theme (light/dark), accent color, font family, and password — all from the sidebar.
-- **PWA (Progressive Web App)**: Install zGo on your phone's home screen for a native app experience. Auto-updating service worker with asset caching.
+- **KataGo Management**: **One-click engine restart** directly from the board interface if the AI stops responding.
+- **PWA (Progressive Web App)**: Install zGo on your phone's home screen. Features auto-updating service workers and **smart HTTP caching** to ensure you always have the latest version.
 - **Multi-language (i18n)**: Full English and Korean support. Instantly switch the UI and AI explanations.
 - **Sound Effects**: Stone placement, pass, win/lose sounds with adjustable volume.
-- **Dark Mode**: Full dark mode support across all UI components.
 
 ---
 
@@ -111,10 +111,10 @@ This project follows the **FSD (Feature-Sliced Design)** architecture.
 | **Backend**      | Node.js, Express 5, TypeScript                                              |
 | **AI Engine**    | KataGo (GTP protocol via child_process)                                     |
 | **Database**     | better-sqlite3 (WAL mode)                                                   |
-| **Realtime**     | WebSocket (ws) with JWT room tokens                                         |
-| **Auth**         | bcrypt + jsonwebtoken, express-rate-limit                                   |
+| **Realtime**     | WebSocket (ws)                                                              |
+| **Auth**         | bcrypt + jsonwebtoken (HttpOnly Cookies), express-rate-limit                |
 | **PWA**          | vite-plugin-pwa (Workbox)                                                   |
-| **Testing**      | Vitest (105 tests)                                                          |
+| **Testing**      | Vitest (112 tests)                                                          |
 | **Code Quality** | ESLint, Prettier, Husky, lint-staged                                        |
 
 ### Project Structure
@@ -131,23 +131,22 @@ zGo/
 │   │   │   ├── BoardWidget.tsx
 │   │   │   ├── SidebarWidget.tsx
 │   │   │   ├── OnlineSidebarWidget.tsx
-│   │   │   ├── ReviewControlWidget.tsx
-│   │   │   ├── WinRateGraphWidget.tsx
+│   │   │   ├── GameLayout.tsx      # Shared layout for game pages
+│   │   │   ├── ReviewPanelWidget.tsx
 │   │   │   └── TeacherAdviceWidget.tsx
 │   │   ├── features/               # Board interaction, online UI (rooms, chat)
-│   │   ├── entities/               # Game store, online store, Go logic, tree utils
-│   │   └── shared/                 # API client, types, i18n, sounds, router
+│   │   ├── entities/               # Match & Online stores, Go logic, tree types
+│   │   └── shared/                 # API client (fetchWithAuth), types, i18n, router
 │   └── vite.config.ts              # Vite + PWA plugin config
 ├── server/                         # Express backend (TypeScript)
 │   ├── src/
-│   │   ├── index.ts                # Entry point, route & WebSocket mounting
-│   │   ├── db.ts                   # SQLite (matches, system_settings,
-│   │   │                           #   online_rooms, online_chat)
-│   │   ├── middleware/auth.ts      # JWT requireAdmin middleware
+│   │   ├── index.ts                # Entry point, Cache-Control headers
+│   │   ├── db.ts                   # SQLite (matches, settings, rooms, chat)
+│   │   ├── middleware/auth.ts      # Cookie-based requireAdmin middleware
 │   │   ├── lib/goLogic.ts          # Server-side move validation
 │   │   ├── katago/                 # KataGo process management & GTP
 │   │   ├── routes/
-│   │   │   ├── ai.ts              # /api/ai/* (move, analyze, score)
+│   │   │   ├── ai.ts              # /api/ai/* (move, analyze, score, restart)
 │   │   │   ├── matches.ts         # /api/matches CRUD
 │   │   │   ├── online.ts          # /api/online/* (rooms, join, match)
 │   │   │   └── settings.ts        # /api/settings/* (auth, config)
@@ -159,67 +158,13 @@ zGo/
 └── package.json                    # Root scripts
 ```
 
-### Scripts
-
-| Command         | Description                                                  |
-| --------------- | ------------------------------------------------------------ |
-| `npm run dev`   | Start both client (Vite) and server (tsx watch) concurrently |
-| `npm run build` | Build client (Vite) + server (tsc) for production            |
-| `npm start`     | Start the production server                                  |
-| `npm test`      | Run all tests (client 71 + server 34 = 105 tests)            |
-| `npm run lint`  | Lint the client codebase                                     |
-
-### API Endpoints
-
-#### AI
-
-| Method | Endpoint               | Auth | Description                               |
-| ------ | ---------------------- | ---- | ----------------------------------------- |
-| POST   | `/api/ai/move`         | -    | AI move or teacher hint with explanations |
-| POST   | `/api/ai/analyze-game` | -    | Full-game win rate analysis (SSE stream)  |
-| POST   | `/api/ai/score`        | -    | Final score calculation & dead stones     |
-
-#### Matches
-
-| Method | Endpoint           | Auth | Description         |
-| ------ | ------------------ | ---- | ------------------- |
-| POST   | `/api/matches`     | -    | Save a match record |
-| GET    | `/api/matches`     | -    | List all matches    |
-| GET    | `/api/matches/:id` | -    | Get match by ID     |
-| DELETE | `/api/matches/:id` | -    | Delete a match      |
-
-#### Online Multiplayer
-
-| Method | Endpoint                      | Auth | Description                  |
-| ------ | ----------------------------- | ---- | ---------------------------- |
-| POST   | `/api/online/rooms`           | -    | Create a new room            |
-| GET    | `/api/online/rooms/:id`       | -    | Get room info                |
-| POST   | `/api/online/rooms/:id/join`  | -    | Join an existing room        |
-| GET    | `/api/online/rooms/:id/match` | JWT  | Get match data with chat     |
-| WS     | `/ws/online`                  | JWT  | Real-time game communication |
-
-#### Auth & Settings
-
-| Method | Endpoint                 | Auth | Description              |
-| ------ | ------------------------ | ---- | ------------------------ |
-| GET    | `/api/settings/status`   | -    | Check if password is set |
-| POST   | `/api/settings/setup`    | -    | Initial password setup   |
-| POST   | `/api/settings/login`    | -    | Login (returns JWT)      |
-| POST   | `/api/settings/refresh`  | JWT  | Refresh token            |
-| PUT    | `/api/settings/password` | JWT  | Change password          |
-| GET    | `/api/settings/config`   | -    | Get public config        |
-| PUT    | `/api/settings/config`   | JWT  | Update config            |
-
 ### Performance Optimizations
 
-- **Code Splitting**: `React.lazy` + Vite manual chunks (vendor-react, vendor-state, vendor-i18n, vendor-icons). All chunks < 134kB.
-- **Memoization**: `React.memo`, `useMemo`, `useCallback` on all heavy components.
-- **Zustand Selectors**: `useShallow` on BoardCore to prevent unnecessary re-renders.
-- **Throttled Updates**: 100ms batched win rate updates during game analysis.
-- **AbortController**: All async effects cleaned up to prevent memory leaks.
-- **Cache Eviction**: Teacher recommendation cache capped at 50 entries.
-- **PWA Caching**: Service worker caches static assets (images, fonts) for offline use.
-- **Dev Profiling**: `useRenderProfile` hook logs slow renders (>16ms) in development.
+- **FSD Compliance**: Strict layer separation to prevent circular dependencies and improve build times.
+- **Rendering**: **Sub-component memoization** (`Stone` component) ensures only changed board intersections re-render.
+- **Smoothness**: `requestAnimationFrame` used for win rate analysis updates to maintain 60fps UI.
+- **Stability**: Comprehensive **`AbortController` and `isMounted` checks** in all async effects to prevent memory leaks and state updates on unmounted components.
+- **Network**: **Hashed asset caching** (1 year) combined with **`no-cache` for HTML** ensures instant updates without stale versions.
 
 ---
 

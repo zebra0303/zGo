@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useGameStore } from "@/entities/match/model/store";
 import { useOnlineStore } from "@/entities/online/model/store";
@@ -113,6 +113,14 @@ const BoardWidget = () => {
   const isOnline = gameMode === "Online";
   const [isRestarting, setIsRestarting] = useState(false);
 
+  // refactor: track mount status to prevent state updates after unmount
+  const isMounted = useRef(true);
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
   const handleRestartEngine = async () => {
     if (isRestarting) return;
     setIsRestarting(true);
@@ -122,7 +130,9 @@ const BoardWidget = () => {
     } catch (e) {
       console.error("Failed to restart engine:", e);
     } finally {
-      setTimeout(() => setIsRestarting(false), 1000);
+      setTimeout(() => {
+        if (isMounted.current) setIsRestarting(false);
+      }, 1000);
     }
   };
 

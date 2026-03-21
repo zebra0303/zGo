@@ -194,15 +194,27 @@ export const analyzeGame = async (
     // eslint-disable-next-line no-constant-condition
     while (true) {
       const readPromise = reader.read();
-      const timeout = new Promise<never>((_, reject) =>
-        setTimeout(
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(
           () => reject(new AppError("Analysis timed out.", 408, "TIMEOUT")),
           CHUNK_TIMEOUT,
-        ),
-      );
-      const { done, value } = await Promise.race([readPromise, timeout]);
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+        );
+      });
+
+      try {
+        const { done, value } = await Promise.race([
+          readPromise,
+          timeoutPromise,
+        ]);
+        if (timeoutId) clearTimeout(timeoutId);
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+      } catch (e) {
+        if (timeoutId) clearTimeout(timeoutId);
+        throw e;
+      }
+
       const lines = buffer.split("\n");
       buffer = lines.pop() || "";
       for (const line of lines) {

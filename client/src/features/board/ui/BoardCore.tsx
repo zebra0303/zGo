@@ -33,6 +33,45 @@ const getStarPoints = (size: number) => {
   return points;
 };
 
+interface StoneProps {
+  x: number;
+  y: number;
+  stone: "BLACK" | "WHITE" | null;
+  MARGIN: number;
+  CELL_SIZE: number;
+  isLastMove: boolean;
+  isDead: boolean;
+}
+
+const Stone: React.FC<StoneProps> = React.memo(
+  ({ x, y, stone, MARGIN, CELL_SIZE, isLastMove, isDead }) => {
+    if (!stone) return null;
+    return (
+      <g key={`stone-group-${x}-${y}`} className={isDead ? "opacity-40" : ""}>
+        <circle
+          cx={MARGIN + x * CELL_SIZE}
+          cy={MARGIN + y * CELL_SIZE}
+          r={CELL_SIZE / 2.2}
+          fill={stone === "BLACK" ? "#000000" : "#ffffff"}
+          stroke={stone === "WHITE" ? "#cccccc" : "#333333"}
+          strokeWidth="1"
+          className="transition-opacity duration-200"
+        />
+        {isLastMove && !isDead && (
+          <circle
+            cx={MARGIN + x * CELL_SIZE}
+            cy={MARGIN + y * CELL_SIZE}
+            r={CELL_SIZE / 6}
+            fill={
+              stone === "BLACK" ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.7)"
+            }
+          />
+        )}
+      </g>
+    );
+  },
+);
+
 const BoardCore: React.FC = () => {
   // perf: useShallow prevents re-renders when unrelated store fields change
   const {
@@ -228,32 +267,16 @@ const BoardCore: React.FC = () => {
           deadStones?.some((ds) => ds.x === x && ds.y === y);
 
         return (
-          <g
-            key={`stone-group-${x}-${y}`}
-            className={isDead ? "opacity-40" : ""}
-          >
-            <circle
-              cx={MARGIN + x * CELL_SIZE}
-              cy={MARGIN + y * CELL_SIZE}
-              r={CELL_SIZE / 2.2}
-              fill={stone === "BLACK" ? "#000000" : "#ffffff"}
-              stroke={stone === "WHITE" ? "#cccccc" : "#333333"}
-              strokeWidth="1"
-              className="transition-opacity duration-200"
-            />
-            {isLastMove && !isDead && (
-              <circle
-                cx={MARGIN + x * CELL_SIZE}
-                cy={MARGIN + y * CELL_SIZE}
-                r={CELL_SIZE / 6}
-                fill={
-                  stone === "BLACK"
-                    ? "rgba(255,255,255,0.7)"
-                    : "rgba(0,0,0,0.7)"
-                }
-              />
-            )}
-          </g>
+          <Stone
+            key={`stone-${x}-${y}`}
+            x={x}
+            y={y}
+            stone={stone}
+            MARGIN={MARGIN}
+            CELL_SIZE={CELL_SIZE}
+            isLastMove={isLastMove}
+            isDead={!!isDead}
+          />
         );
       }),
     );

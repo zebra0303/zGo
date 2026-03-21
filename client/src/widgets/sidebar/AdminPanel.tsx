@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useGameStore } from "@/entities/match/model/store";
 import { API_BASE_URL, fetchWithAuth } from "@/shared/api/gameApi";
@@ -27,7 +27,6 @@ const FONTS = [
 
 const AdminPanel = ({ onLogout }: AdminPanelProps) => {
   const { t, i18n } = useTranslation();
-  const token = localStorage.getItem("admin_token") || "";
 
   // Settings state
   const [language, setLanguage] = useState(i18n.language || "ko");
@@ -40,6 +39,14 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
   );
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
+
+  // refactor: track mount status to prevent state updates after unmount
+  const isMounted = useRef(true);
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   // Password change state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -56,7 +63,7 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
     })
       .then((res) => res.json())
       .then((data) => {
-        if (abortController.signal.aborted) return;
+        if (!isMounted.current || abortController.signal.aborted) return;
         if (data.language) setLanguage(data.language);
         if (data.theme) setTheme(data.theme);
         if (data.primary_color) setPrimaryColor(data.primary_color);
@@ -93,7 +100,6 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           language,
@@ -104,7 +110,8 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
       });
 
       if (res.ok) {
-        // Sync language to both i18n and Zustand store to prevent App.tsx effect from reverting
+        if (!isMounted.current) return;
+        // Sync language to both i18n and Zustand store
         i18n.changeLanguage(language);
         useGameStore
           .getState()
@@ -112,15 +119,22 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
         applyTheme(theme, primaryColor, fontFamily);
         setSaveMessage(t("admin.saved"));
       } else {
+        if (!isMounted.current) return;
         const data = await res.json();
         setSaveMessage(data.error || "Save failed");
       }
     } catch (e: unknown) {
-      const maskedErr = createMaskedError(e, "Save failed");
-      setSaveMessage(maskedErr.message);
+      if (isMounted.current) {
+        const maskedErr = createMaskedError(e, "Save failed");
+        setSaveMessage(maskedErr.message);
+      }
     } finally {
-      setIsSaving(false);
-      setTimeout(() => setSaveMessage(""), 3000);
+      if (isMounted.current) {
+        setIsSaving(false);
+        setTimeout(() => {
+          if (isMounted.current) setSaveMessage("");
+        }, 3000);
+      }
     }
   };
 
@@ -128,7 +142,7 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
     setPasswordMessage("");
     setPasswordError(false);
 
-    if (!currentPassword || !newPassword) {
+    if (!currentPassword || !newPassword || !confirmPassword) {
       setPasswordMessage(t("admin.fieldsRequired", "All fields are required."));
       setPasswordError(true);
       return;
@@ -153,31 +167,34 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ currentPassword, newPassword }),
       });
-      const data = await res.json();
 
       if (!res.ok) {
+        if (!isMounted.current) return;
+        const data = await res.json();
         setPasswordMessage(data.error || "Failed");
         setPasswordError(true);
         return;
       }
 
-      if (data.token) {
-        localStorage.setItem("admin_token", data.token);
+      if (isMounted.current) {
+        setPasswordMessage(t("admin.passwordChanged", "Password changed."));
+        setPasswordError(false);
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setTimeout(() => {
+          if (isMounted.current) setPasswordMessage("");
+        }, 3000);
       }
-
-      setPasswordMessage(t("admin.passwordChanged", "Password changed."));
-      setPasswordError(false);
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
     } catch (e: unknown) {
-      const maskedErr = createMaskedError(e, "Password change failed");
-      setPasswordMessage(maskedErr.message);
-      setPasswordError(true);
+      if (isMounted.current) {
+        const maskedErr = createMaskedError(e, "Password change failed");
+        setPasswordMessage(maskedErr.message);
+        setPasswordError(true);
+      }
     }
   };
 
