@@ -49,30 +49,10 @@ const VISITS_MAP: Record<number, number> = {
   4: 1,
   5: 1,
   6: 2,
-  7: 2,
-  8: 3,
-  9: 3,
-  10: 5,
-  11: 10,
-  12: 20,
-  13: 30,
-  14: 50,
-  15: 75,
-  16: 100,
-  17: 150,
-  18: 200,
-  19: 250,
-  20: 300,
-  21: 400,
-  22: 500,
-  23: 600,
-  24: 700,
-  25: 800,
-  26: 1000,
-  27: 1200,
-  28: 1500,
-  29: 2000,
-  30: 2500,
+  7: 5,
+  8: 10,
+  9: 50,
+  10: 100,
 };
 
 /** Replay moves incrementally or from scratch */
@@ -197,16 +177,19 @@ router.post("/move", async (req: Request, res: Response) => {
 
           if (aiDifficulty === 1) {
             temperature = 5.0; // 극단적인 무작위성 (초보자 수준)
-            playoutAdvantage = -3.0; // KataGo 허용 최솟값 (강력한 자기 비관)
-          } else if (aiDifficulty <= 5) {
-            temperature = 2.5;
+            playoutAdvantage = -3.0; // KataGo 허용 최솟값
+          } else if (aiDifficulty <= 3) {
+            temperature = 3.0;
             playoutAdvantage = -3.0;
-          } else if (aiDifficulty <= 10) {
-            temperature = 1.5;
+          } else if (aiDifficulty <= 5) {
+            temperature = 2.0;
             playoutAdvantage = -2.0;
-          } else if (aiDifficulty <= 15) {
+          } else if (aiDifficulty <= 7) {
             temperature = 1.0;
             playoutAdvantage = -1.0;
+          } else if (aiDifficulty <= 9) {
+            temperature = 0.5;
+            playoutAdvantage = -0.5;
           }
 
           await sendCommand(
@@ -216,8 +199,8 @@ router.post("/move", async (req: Request, res: Response) => {
             `kata-set-param playoutDoublingAdvantage ${playoutAdvantage}`,
           );
 
-          // Disable resignation for amateur levels to prevent AI from giving up too early due to pessimism
-          if (aiDifficulty <= 15) {
+          // Disable resignation for all amateur levels (1-10) to ensure completion
+          if (aiDifficulty <= 10) {
             await sendCommand("kata-set-param allowResignation false");
           } else {
             await sendCommand("kata-set-param allowResignation true");

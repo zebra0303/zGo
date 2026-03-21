@@ -432,6 +432,9 @@ export const useGameStore = create<GameState>()(
       setGameConfig: (config) =>
         set((state) => {
           const newState = { ...state, ...config };
+          if (newState.aiDifficulty > 10) {
+            newState.aiDifficulty = 10;
+          }
           if (newState.boardSize <= 9) {
             newState.handicap = 0;
           } else if (newState.handicap > Math.min(9, newState.boardSize - 9)) {

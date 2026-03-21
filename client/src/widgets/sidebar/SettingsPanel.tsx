@@ -179,7 +179,7 @@ const SettingsPanel = ({
             <input
               type="range"
               min="1"
-              max="30"
+              max="10"
               value={aiDifficulty}
               onChange={(e) =>
                 setGameConfig({ aiDifficulty: Number(e.target.value) })
