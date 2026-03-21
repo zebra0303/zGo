@@ -111,7 +111,9 @@
     "fieldsRequired": "All fields are required.",
     "passwordMinLength": "Password must be at least 4 characters.",
     "passwordMismatch": "Passwords do not match.",
-    "passwordChanged": "Password changed successfully."
+    "passwordChanged": "Password changed successfully.",
+    "restartEngine": "Restart KataGo Engine",
+    "engineRestarted": "Engine restarted successfully."
   },
   "online": {
     "title": "🌐 Online Game",

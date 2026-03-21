@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useGameStore } from "@/entities/match/model/store";
-import { API_BASE_URL, restartEngine } from "@/shared/api/gameApi";
+import { API_BASE_URL } from "@/shared/api/gameApi";
 import { createMaskedError } from "@/shared/lib/errors/AppError";
 import {
   applyPrimaryColor,
@@ -47,10 +47,6 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordMessage, setPasswordMessage] = useState("");
   const [passwordError, setPasswordError] = useState(false);
-
-  // Engine restart state
-  const [isRestarting, setIsRestarting] = useState(false);
-  const [restartMessage, setRestartMessage] = useState("");
 
   // Fetch current config from server on mount
   useEffect(() => {
@@ -183,24 +179,6 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
     }
   };
 
-  const handleRestartEngine = async () => {
-    setIsRestarting(true);
-    setRestartMessage("");
-    try {
-      await restartEngine();
-      useGameStore.getState().forceAITurn();
-      setRestartMessage(
-        t("admin.engineRestarted", "Engine restarted successfully."),
-      );
-    } catch (e: unknown) {
-      const maskedErr = createMaskedError(e, "Engine restart failed");
-      setRestartMessage(maskedErr.message);
-    } finally {
-      setIsRestarting(false);
-      setTimeout(() => setRestartMessage(""), 3000);
-    }
-  };
-
   const selectClass =
     "bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded p-1 text-xs text-gray-900 dark:text-gray-100";
   const inputClass =
@@ -285,24 +263,6 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
         {saveMessage && (
           <p className="text-xs text-center mt-1 text-green-600 dark:text-green-400">
             {saveMessage}
-          </p>
-        )}
-      </div>
-
-      {/* Engine Restart Button */}
-      <div className="pt-2 border-t border-gray-50 dark:border-gray-700">
-        <button
-          onClick={handleRestartEngine}
-          disabled={isRestarting}
-          className="w-full py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold rounded-lg text-xs transition-colors"
-        >
-          {isRestarting
-            ? "..."
-            : t("admin.restartEngine", "KataGo 엔진 재실행")}
-        </button>
-        {restartMessage && (
-          <p className="text-xs text-center mt-1 text-orange-600 dark:text-orange-400">
-            {restartMessage}
           </p>
         )}
       </div>

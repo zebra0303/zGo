@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useGameStore } from "@/entities/match/model/store";
 import { useOnlineStore } from "@/entities/online/model/store";
@@ -104,10 +104,27 @@ const OnlineBoardOverlay = () => {
 
 import { useAITurn } from "@/features/board/lib/useAITurn";
 import { useGameScoring } from "@/features/board/lib/useGameScoring";
+import { restartEngine } from "@/shared/api/gameApi";
+import { RefreshCcw } from "lucide-react";
 
 const BoardWidget = () => {
+  const { t } = useTranslation();
   const { isReviewMode, gameMode } = useGameStore();
   const isOnline = gameMode === "Online";
+  const [isRestarting, setIsRestarting] = useState(false);
+
+  const handleRestartEngine = async () => {
+    if (isRestarting) return;
+    setIsRestarting(true);
+    try {
+      await restartEngine();
+      useGameStore.getState().forceAITurn();
+    } catch (e) {
+      console.error("Failed to restart engine:", e);
+    } finally {
+      setTimeout(() => setIsRestarting(false), 1000);
+    }
+  };
 
   // Mount AI and scoring logic here so they remain active even when sidebar is collapsed
   useAITurn();
@@ -135,6 +152,24 @@ const BoardWidget = () => {
         {/* Middle: Board */}
         <div className="shadow-2xl rounded-sm overflow-hidden border-4 border-amber-900 dark:border-amber-800 bg-board-bg w-fit max-w-full relative mb-4">
           <BoardCore />
+        </div>
+
+        {/* KataGo Engine Restart Button - Below Board */}
+        <div className="w-full flex justify-end px-2 mb-2">
+          <button
+            onClick={handleRestartEngine}
+            disabled={isRestarting}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-sm transition-all text-xs font-medium
+              ${isRestarting ? "opacity-70 cursor-not-allowed" : "hover:shadow-md active:scale-95"}
+            `}
+            title={t("admin.restartEngine", "KataGo 엔진 재실행")}
+          >
+            <RefreshCcw
+              size={14}
+              className={isRestarting ? "animate-spin text-accent" : ""}
+            />
+            <span>{t("admin.restartEngine", "KataGo 엔진 재실행")}</span>
+          </button>
         </div>
       </div>
     </div>
