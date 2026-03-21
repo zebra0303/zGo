@@ -195,7 +195,10 @@ router.post("/move", async (req: Request, res: Response) => {
           let temperature = 0.1;
           let playoutAdvantage = 0.0;
 
-          if (aiDifficulty <= 5) {
+          if (aiDifficulty === 1) {
+            temperature = 5.0; // 극단적인 무작위성 (초보자 수준)
+            playoutAdvantage = -8.0; // 완벽한 자기 비관 (승리 의지 상실)
+          } else if (aiDifficulty <= 5) {
             temperature = 2.5; // 대폭 상향: 무작위성 극대화
             playoutAdvantage = -4.0; // 대폭 하향: 극심한 자기 비관
           } else if (aiDifficulty <= 10) {
@@ -212,6 +215,15 @@ router.post("/move", async (req: Request, res: Response) => {
           await sendCommand(
             `kata-set-param playoutDoublingAdvantage ${playoutAdvantage}`,
           );
+          // Level 1: Make it randomly pick from more candidates by not pruning bad moves
+          if (aiDifficulty === 1) {
+            await sendCommand(`kata-set-param chosenMoveSubtract 0`);
+            await sendCommand(`kata-set-param chosenMovePrune 0`);
+          } else {
+            // Reset to defaults
+            await sendCommand(`kata-set-param chosenMoveSubtract 0`);
+            await sendCommand(`kata-set-param chosenMovePrune 1`);
+          }
         } catch (e) {
           console.warn("Failed to set amateur params:", (e as Error).message);
         }
