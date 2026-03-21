@@ -1,4 +1,24 @@
-// Audio object pool: reuse instead of creating new instances per play
+declare global {
+  interface Window {
+    webkitAudioContext: typeof AudioContext;
+  }
+}
+
+// Audio context for synthesized sounds (initialized lazily)
+let audioCtx: AudioContext | null = null;
+
+const getAudioContext = () => {
+  if (typeof window === "undefined") return null;
+  if (!audioCtx) {
+    const SelectedContext = window.AudioContext || window.webkitAudioContext;
+    if (SelectedContext) {
+      audioCtx = new SelectedContext();
+    }
+  }
+  return audioCtx;
+};
+
+// Audio object pool for file-based sounds
 const audioPool = new Map<string, HTMLAudioElement>();
 
 export const playSound = (
@@ -25,8 +45,42 @@ export const playSound = (
   }
 };
 
+/**
+ * Synthesized "tak!" sound for stone placement using Web Audio API.
+ */
 export const playStoneSound = (enabled: boolean, volume: number = 0.6) => {
-  playSound("/assets/sounds/put.mp3", enabled, volume);
+  if (!enabled) return;
+
+  const ctx = getAudioContext();
+  if (!ctx) {
+    // Fallback to file-based sound if Web Audio API is not supported
+    playSound("/assets/sounds/put.mp3", enabled, volume);
+    return;
+  }
+
+  // Resume context if suspended (browser security policy)
+  if (ctx.state === "suspended") {
+    ctx.resume();
+  }
+
+  const t = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gainNode = ctx.createGain();
+
+  osc.connect(gainNode);
+  gainNode.connect(ctx.destination);
+
+  // Short, sharp strike feel: rapidly drop frequency
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(800, t);
+  osc.frequency.exponentialRampToValueAtTime(100, t + 0.05);
+
+  // Rapidly decay volume to zero for a crisp "click"
+  gainNode.gain.setValueAtTime(volume, t);
+  gainNode.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+
+  osc.start(t);
+  osc.stop(t + 0.1);
 };
 
 export const playPassSound = (enabled: boolean, volume: number = 0.6) => {
