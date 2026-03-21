@@ -4,7 +4,7 @@ import { useRoute, navigateTo } from "@/shared/lib/router";
 import { useOnlineStore } from "@/entities/online/model/store";
 import { useGameStore } from "@/entities/match/model/store";
 import { RoomInfo } from "@/entities/online/model/types";
-import { API_BASE_URL } from "@/shared/api/gameApi";
+import { API_BASE_URL, fetchWithAuth } from "@/shared/api/gameApi";
 import CreateRoomForm from "@/features/online/ui/CreateRoomForm";
 import JoinRoomForm from "@/features/online/ui/JoinRoomForm";
 import WaitingRoom from "@/features/online/ui/WaitingRoom";
@@ -122,9 +122,12 @@ const RoomPage = ({ roomId }: { roomId: string }) => {
           useOnlineStore.getState().restoreSession();
         }
 
-        const res = await fetch(`${API_BASE_URL}/online/rooms/${roomId}`, {
-          signal: abortController.signal,
-        });
+        const res = await fetchWithAuth(
+          `${API_BASE_URL}/online/rooms/${roomId}`,
+          {
+            signal: abortController.signal,
+          },
+        );
         if (!res.ok) {
           if (!abortController.signal.aborted) setView("error");
           return;
@@ -192,7 +195,9 @@ const RoomPage = ({ roomId }: { roomId: string }) => {
     // After joining, fetch room info and start
     const fetchAndStart = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/online/rooms/${roomId}`);
+        const res = await fetchWithAuth(
+          `${API_BASE_URL}/online/rooms/${roomId}`,
+        );
         if (!res.ok) return;
         const data = (await res.json()) as RoomInfo;
         setRoomInfo(data);

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { API_BASE_URL } from "@/shared/api/gameApi";
+import { API_BASE_URL, fetchWithAuth } from "@/shared/api/gameApi";
 import { createMaskedError } from "@/shared/lib/errors/AppError";
 
 interface AuthPageProps {
@@ -26,7 +26,7 @@ const AuthPage = ({ isSetup, onAuthenticated }: AuthPageProps) => {
         : `${API_BASE_URL}/settings/setup`;
 
     try {
-      const res = await fetch(endpoint, {
+      const res = await fetchWithAuth(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),

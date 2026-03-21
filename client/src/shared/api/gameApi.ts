@@ -4,6 +4,14 @@ import { AppError, createMaskedError } from "@/shared/lib/errors/AppError";
 // Use pure environment variables for API URL (no hardcoded fallback logic)
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
+// Custom fetch wrapper to always include cookies
+export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+  return fetch(url, {
+    ...options,
+    credentials: "include", // Always send HttpOnly cookies
+  });
+};
+
 const handleApiResponse = async (response: Response) => {
   if (!response.ok) {
     let errorData = "Unknown Server Error";
@@ -43,7 +51,7 @@ export const fetchAIHint = async (
   handicap?: number,
 ) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/ai/move`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/ai/move`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -76,7 +84,7 @@ export const fetchAIMove = async (
   handicap?: number,
 ) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/ai/move`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/ai/move`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -104,7 +112,7 @@ export const fetchAIScore = async (
   signal?: AbortSignal,
 ) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/ai/score`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/ai/score`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ moves, boardSize, handicap }),
@@ -118,7 +126,7 @@ export const fetchAIScore = async (
 
 export const saveMatch = async (matchData: Record<string, unknown>) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/matches`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/matches`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(matchData),
@@ -131,7 +139,7 @@ export const saveMatch = async (matchData: Record<string, unknown>) => {
 
 export const getMatches = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/matches`);
+    const response = await fetchWithAuth(`${API_BASE_URL}/matches`);
     return await handleApiResponse(response);
   } catch (error) {
     throw createMaskedError(error, "Failed to fetch matches.");
@@ -140,7 +148,7 @@ export const getMatches = async () => {
 
 export const getMatchById = async (id: string | number) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/matches/${id}`);
+    const response = await fetchWithAuth(`${API_BASE_URL}/matches/${id}`);
     return await handleApiResponse(response);
   } catch (error) {
     throw createMaskedError(error, "Failed to fetch match details.");
@@ -156,7 +164,7 @@ export const analyzeGame = async (
 ): Promise<void> => {
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}/ai/analyze-game`, {
+    response = await fetchWithAuth(`${API_BASE_URL}/ai/analyze-game`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ moves, boardSize, handicap }),
@@ -224,7 +232,7 @@ export const analyzeGame = async (
 
 export const deleteMatch = async (id: string | number) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/matches/${id}`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/matches/${id}`, {
       method: "DELETE",
     });
     return await handleApiResponse(response);
@@ -235,7 +243,7 @@ export const deleteMatch = async (id: string | number) => {
 
 export const restartEngine = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/ai/restart`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/ai/restart`, {
       method: "POST",
     });
     return await handleApiResponse(response);

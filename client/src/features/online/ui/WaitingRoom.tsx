@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useOnlineStore } from "@/entities/online/model/store";
 import { CHARACTERS, RoomInfo } from "@/entities/online/model/types";
 import { navigateTo } from "@/shared/lib/router";
-import { API_BASE_URL } from "@/shared/api/gameApi";
+import { API_BASE_URL, fetchWithAuth } from "@/shared/api/gameApi";
 
 interface WaitingRoomProps {
   roomId: string;
@@ -23,9 +23,12 @@ const WaitingRoom = ({ roomId, onGameStart }: WaitingRoomProps) => {
   const fetchRoom = useCallback(
     async (signal?: AbortSignal) => {
       try {
-        const res = await fetch(`${API_BASE_URL}/online/rooms/${roomId}`, {
-          signal,
-        });
+        const res = await fetchWithAuth(
+          `${API_BASE_URL}/online/rooms/${roomId}`,
+          {
+            signal,
+          },
+        );
         if (!res.ok) return;
         const data = (await res.json()) as RoomInfo;
         if (signal?.aborted) return;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useGameStore } from "@/entities/match/model/store";
-import { API_BASE_URL } from "@/shared/api/gameApi";
+import { API_BASE_URL, fetchWithAuth } from "@/shared/api/gameApi";
 import { createMaskedError } from "@/shared/lib/errors/AppError";
 import {
   applyPrimaryColor,
@@ -51,7 +51,9 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
   // Fetch current config from server on mount
   useEffect(() => {
     const abortController = new AbortController();
-    fetch(`${API_BASE_URL}/settings/config`, { signal: abortController.signal })
+    fetchWithAuth(`${API_BASE_URL}/settings/config`, {
+      signal: abortController.signal,
+    })
       .then((res) => res.json())
       .then((data) => {
         if (abortController.signal.aborted) return;
@@ -87,7 +89,7 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
     setSaveMessage("");
 
     try {
-      const res = await fetch(`${API_BASE_URL}/settings/config`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/settings/config`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -147,7 +149,7 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/settings/password`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/settings/password`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

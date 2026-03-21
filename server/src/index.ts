@@ -4,6 +4,7 @@ import path from "path";
 import http from "http";
 import dotenv from "dotenv";
 import { WebSocketServer } from "ws";
+import cookieParser from "cookie-parser";
 
 import { startKataGo, stopKataGo } from "./katago/engine";
 import aiRouter from "./routes/ai";
@@ -17,8 +18,9 @@ dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
 
 // Serve static React client files in production
 app.use(

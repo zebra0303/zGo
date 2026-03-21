@@ -3,19 +3,25 @@ import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev_only_secret";
 
-// Middleware to protect admin routes via JWT in Authorization header
+// Middleware to protect admin routes via JWT
 export const requireAdmin = (
   req: Request,
   res: Response,
   next: NextFunction,
 ) => {
-  const authHeader = req.headers.authorization;
+  // Check cookie first, then fallback to Authorization header
+  let token = req.cookies?.admin_token;
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Unauthorized: No token provided" });
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.split(" ")[1];
+    }
   }
 
-  const token = authHeader.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ error: "Unauthorized: No token provided" });
+  }
 
   try {
     jwt.verify(token, JWT_SECRET);

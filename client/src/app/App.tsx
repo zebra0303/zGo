@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, lazy, Suspense } from "react";
 import { useGameStore } from "@/entities/match/model/store";
 import { useTranslation } from "react-i18next";
-import { API_BASE_URL } from "@/shared/api/gameApi";
+import { API_BASE_URL, fetchWithAuth } from "@/shared/api/gameApi";
 import {
   applyPrimaryColor,
   applyFontFamily,
@@ -19,7 +19,9 @@ const fetchAndApplyServerConfig = async (
   signal?: AbortSignal,
 ) => {
   try {
-    const res = await fetch(`${API_BASE_URL}/settings/config`, { signal });
+    const res = await fetchWithAuth(`${API_BASE_URL}/settings/config`, {
+      signal,
+    });
     if (!res.ok) return;
     const config = await res.json();
     if (signal?.aborted) return;
@@ -85,9 +87,12 @@ function App() {
       if (abortController.signal.aborted) return;
 
       try {
-        const statusRes = await fetch(`${API_BASE_URL}/settings/status`, {
-          signal: abortController.signal,
-        });
+        const statusRes = await fetchWithAuth(
+          `${API_BASE_URL}/settings/status`,
+          {
+            signal: abortController.signal,
+          },
+        );
         const statusData = await statusRes.json();
         if (abortController.signal.aborted) return;
         const isSetup = statusData.isSetup;
@@ -95,11 +100,14 @@ function App() {
         const token = localStorage.getItem("admin_token");
         if (token) {
           try {
-            const refreshRes = await fetch(`${API_BASE_URL}/settings/refresh`, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${token}` },
-              signal: abortController.signal,
-            });
+            const refreshRes = await fetchWithAuth(
+              `${API_BASE_URL}/settings/refresh`,
+              {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+                signal: abortController.signal,
+              },
+            );
             if (refreshRes.ok) {
               const { token: newToken } = await refreshRes.json();
               if (abortController.signal.aborted) return;

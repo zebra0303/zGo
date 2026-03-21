@@ -17,7 +17,7 @@ import {
   playChatSendSound,
   playChatReceiveSound,
 } from "@/shared/lib/sound";
-import { saveMatch, fetchAIScore } from "@/shared/api/gameApi";
+import { saveMatch, fetchAIScore, fetchWithAuth } from "@/shared/api/gameApi";
 import { PlayerColor } from "@/shared/types/board";
 
 interface OnlineState {
@@ -121,7 +121,7 @@ export const useOnlineStore = create<OnlineState>((set, get) => ({
   ...initialState,
 
   createRoom: async (nickname, character, boardSize, handicap, hostColor) => {
-    const res = await fetch(`${API_BASE}/online/rooms`, {
+    const res = await fetchWithAuth(`${API_BASE}/online/rooms`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -157,7 +157,7 @@ export const useOnlineStore = create<OnlineState>((set, get) => ({
   },
 
   joinRoom: async (roomId, nickname, character) => {
-    const res = await fetch(`${API_BASE}/online/rooms/${roomId}/join`, {
+    const res = await fetchWithAuth(`${API_BASE}/online/rooms/${roomId}/join`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nickname, character }),
@@ -651,7 +651,7 @@ async function fetchRoomInfo(
   set: (partial: Partial<OnlineState>) => void,
 ): Promise<void> {
   try {
-    const res = await fetch(`${API_BASE}/online/rooms/${roomId}`);
+    const res = await fetchWithAuth(`${API_BASE}/online/rooms/${roomId}`);
     if (!res.ok) return;
     const info = (await res.json()) as RoomInfo;
     set({ roomInfo: info });

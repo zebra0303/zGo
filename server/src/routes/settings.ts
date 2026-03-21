@@ -150,7 +150,15 @@ router.post("/login", authLimiter, async (req: Request, res: Response) => {
 
     resetLoginFailureState();
     const token = jwt.sign({ role: "admin" }, JWT_SECRET, { expiresIn: "7d" });
-    res.json({ token });
+
+    res.cookie("admin_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    res.json({ token: "cookie_set", message: "Login successful" });
   } catch (e: unknown) {
     res.status(500).json({ error: (e as Error).message });
   }
@@ -159,7 +167,15 @@ router.post("/login", authLimiter, async (req: Request, res: Response) => {
 // 4. Refresh token (extends session for active users)
 router.post("/refresh", requireAdmin, (_req: Request, res: Response) => {
   const token = jwt.sign({ role: "admin" }, JWT_SECRET, { expiresIn: "7d" });
-  res.json({ token });
+
+  res.cookie("admin_token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  res.json({ token: "cookie_set" });
 });
 
 // 5. Change password
@@ -201,12 +217,33 @@ router.put(
       const token = jwt.sign({ role: "admin" }, JWT_SECRET, {
         expiresIn: "7d",
       });
-      res.json({ message: "Password changed successfully", token });
+
+      res.cookie("admin_token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      res.json({
+        message: "Password changed successfully",
+        token: "cookie_set",
+      });
     } catch (e: unknown) {
       res.status(500).json({ error: (e as Error).message });
     }
   },
 );
+
+// 5-2. Logout
+router.post("/logout", (_req: Request, res: Response) => {
+  res.clearCookie("admin_token", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+  });
+  res.json({ message: "Logged out" });
+});
 
 // Internal keys excluded from public config endpoint
 const INTERNAL_KEYS = ["admin_password", "login_failure_state"];

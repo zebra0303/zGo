@@ -6,7 +6,7 @@ import {
   HistoryNode,
 } from "@/entities/match/model/store";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAIHint, API_BASE_URL } from "@/shared/api/gameApi";
+import { fetchAIHint, API_BASE_URL, fetchWithAuth } from "@/shared/api/gameApi";
 import { getPlayerForMove } from "@/shared/lib/goUtils";
 import { useShallow } from "zustand/react/shallow";
 
@@ -186,7 +186,7 @@ const TeacherAdviceWidget = ({
           );
         }
 
-        const response = await fetch(`${API_BASE_URL}/ai/move`, {
+        const response = await fetchWithAuth(`${API_BASE_URL}/ai/move`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
