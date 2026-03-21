@@ -197,10 +197,10 @@ router.post("/move", async (req: Request, res: Response) => {
 
           if (aiDifficulty === 1) {
             temperature = 5.0; // 극단적인 무작위성 (초보자 수준)
-            playoutAdvantage = -8.0; // 완벽한 자기 비관 (승리 의지 상실)
+            playoutAdvantage = -3.0; // KataGo 허용 최솟값 (강력한 자기 비관)
           } else if (aiDifficulty <= 5) {
-            temperature = 2.5; // 대폭 상향: 무작위성 극대화
-            playoutAdvantage = -4.0; // 대폭 하향: 극심한 자기 비관
+            temperature = 2.5;
+            playoutAdvantage = -3.0;
           } else if (aiDifficulty <= 10) {
             temperature = 1.5;
             playoutAdvantage = -2.0;
