@@ -215,6 +215,14 @@ router.post("/move", async (req: Request, res: Response) => {
           await sendCommand(
             `kata-set-param playoutDoublingAdvantage ${playoutAdvantage}`,
           );
+
+          // Disable resignation for amateur levels to prevent AI from giving up too early due to pessimism
+          if (aiDifficulty <= 15) {
+            await sendCommand("kata-set-param allowResignation false");
+          } else {
+            await sendCommand("kata-set-param allowResignation true");
+          }
+
           // Level 1: Make it randomly pick from more candidates by not pruning bad moves
           if (aiDifficulty === 1) {
             await sendCommand(`kata-set-param chosenMoveSubtract 0`);
@@ -231,6 +239,7 @@ router.post("/move", async (req: Request, res: Response) => {
         try {
           await sendCommand(`kata-set-param chosenMoveTemperature 0.1`);
           await sendCommand(`kata-set-param playoutDoublingAdvantage 0.0`);
+          await sendCommand("kata-set-param allowResignation true");
         } catch {
           // Ignore reset errors
         }
