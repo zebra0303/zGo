@@ -21,7 +21,18 @@ app.use(cors());
 app.use(express.json());
 
 // Serve static React client files in production
-app.use(express.static(path.join(__dirname, "../../client/dist")));
+app.use(
+  express.static(path.join(__dirname, "../../client/dist"), {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".html")) {
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      } else {
+        // Cache static assets (JS, CSS, images) for 1 year since Vite hashes them
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      }
+    },
+  }),
+);
 
 // Routes
 app.use("/api/ai", aiRouter);
@@ -31,6 +42,7 @@ app.use("/api/online", onlineRouter);
 
 // SPA fallback
 app.get(/.*/, (_req, res) => {
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.sendFile(path.join(__dirname, "../../client/dist/index.html"));
 });
 
