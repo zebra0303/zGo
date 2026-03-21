@@ -112,6 +112,9 @@
     "passwordMinLength": "Password must be at least 4 characters.",
     "passwordMismatch": "Passwords do not match.",
     "passwordChanged": "Password changed successfully.",
+    "aiPerformanceTitle": "AI Engine Performance Tuning",
+    "visitsMultiplier": "Engine Thinking Depth (Visits)",
+    "tempMultiplier": "Engine Error Frequency (Temp)",
     "restartEngine": "Restart KataGo Engine",
     "engineRestarted": "Engine restarted successfully."
   },

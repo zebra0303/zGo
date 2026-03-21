@@ -37,6 +37,8 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
   const [fontFamily, setFontFamily] = useState(
     localStorage.getItem("font_family") || FONTS[0].value,
   );
+  const [visitsMultiplier, setVisitsMultiplier] = useState(1.0);
+  const [tempMultiplier, setTempMultiplier] = useState(1.0);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
 
@@ -68,6 +70,10 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
         if (data.theme) setTheme(data.theme);
         if (data.primary_color) setPrimaryColor(data.primary_color);
         if (data.font_family) setFontFamily(data.font_family);
+        if (data.ai_visits_multiplier)
+          setVisitsMultiplier(parseFloat(data.ai_visits_multiplier));
+        if (data.ai_temp_multiplier)
+          setTempMultiplier(parseFloat(data.ai_temp_multiplier));
       })
       .catch((err) => {
         if (err.name !== "AbortError") {
@@ -106,6 +112,8 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
           theme,
           primary_color: primaryColor,
           font_family: fontFamily,
+          ai_visits_multiplier: visitsMultiplier.toString(),
+          ai_temp_multiplier: tempMultiplier.toString(),
         }),
       });
 
@@ -203,6 +211,7 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
   const inputClass =
     "w-full px-2 py-1.5 border border-gray-200 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-700 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 ring-accent";
   const labelClass = "font-medium text-gray-600 dark:text-gray-300";
+  const dividerClass = "border-t border-gray-50 dark:border-gray-700";
 
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm space-y-3">
@@ -268,6 +277,51 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
             </option>
           ))}
         </select>
+      </div>
+
+      {/* AI Performance Tuning */}
+      <div className={`space-y-2 pt-2 ${dividerClass}`}>
+        <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+          {t("admin.aiPerformanceTitle")}
+        </h3>
+
+        {/* Visits Multiplier */}
+        <div className="space-y-1">
+          <div className="flex justify-between text-[10px]">
+            <span className={labelClass}>{t("admin.visitsMultiplier")}</span>
+            <span className="font-bold text-accent">
+              {Math.round(visitsMultiplier * 100)}%
+            </span>
+          </div>
+          <input
+            type="range"
+            min="0.1"
+            max="10.0"
+            step="0.1"
+            value={visitsMultiplier}
+            onChange={(e) => setVisitsMultiplier(parseFloat(e.target.value))}
+            className="w-full accent-[var(--primary)] h-1"
+          />
+        </div>
+
+        {/* Temperature Multiplier */}
+        <div className="space-y-1">
+          <div className="flex justify-between text-[10px]">
+            <span className={labelClass}>{t("admin.tempMultiplier")}</span>
+            <span className="font-bold text-accent">
+              {tempMultiplier.toFixed(1)}x
+            </span>
+          </div>
+          <input
+            type="range"
+            min="0.5"
+            max="5.0"
+            step="0.1"
+            value={tempMultiplier}
+            onChange={(e) => setTempMultiplier(parseFloat(e.target.value))}
+            className="w-full accent-[var(--primary)] h-1"
+          />
+        </div>
       </div>
 
       {/* Save Button */}

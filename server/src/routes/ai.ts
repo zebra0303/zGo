@@ -14,7 +14,21 @@ import {
 } from "../katago/coords";
 import { getMoveTactics, getDetailedExplanation } from "../katago/tactics";
 
+import db from "../db";
+
 const router = Router();
+
+/** Helper to fetch system settings from DB with fallback */
+const getSetting = (key: string, defaultValue: string): string => {
+  try {
+    const row = db
+      .prepare("SELECT value FROM system_settings WHERE key = ?")
+      .get(key) as { value: string } | undefined;
+    return row ? row.value : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+};
 
 interface AIMoveBody {
   board: (string | null)[][];
@@ -154,11 +168,17 @@ router.post("/move", async (req: Request, res: Response) => {
 
   const executeKataGoTask = async (): Promise<void> => {
     try {
-      const targetVisits = isHintRequest
+      let targetVisits = isHintRequest
         ? teacherVisits || 330
         : aiDifficulty
           ? VISITS_MAP[aiDifficulty] || 100
           : 100;
+
+      // Apply global engine performance tuning (Thinking Depth Multiplier)
+      const visitsMultiplier = parseFloat(
+        getSetting("ai_visits_multiplier", "1.0"),
+      );
+      targetVisits = Math.max(1, Math.round(targetVisits * visitsMultiplier));
 
       if (engine.maxVisits !== targetVisits) {
         try {
@@ -191,6 +211,12 @@ router.post("/move", async (req: Request, res: Response) => {
             temperature = 0.5;
             playoutAdvantage = -0.5;
           }
+
+          // Apply global engine performance tuning (Error Frequency Multiplier)
+          const tempMultiplier = parseFloat(
+            getSetting("ai_temp_multiplier", "1.0"),
+          );
+          temperature = Math.min(5.0, temperature * tempMultiplier);
 
           await sendCommand(
             `kata-set-param chosenMoveTemperature ${temperature}`,

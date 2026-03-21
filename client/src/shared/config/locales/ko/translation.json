@@ -112,6 +112,9 @@
     "passwordMinLength": "비밀번호는 4자 이상이어야 합니다.",
     "passwordMismatch": "새 비밀번호가 일치하지 않습니다.",
     "passwordChanged": "비밀번호가 변경되었습니다.",
+    "aiPerformanceTitle": "AI 엔진 성능 튜닝",
+    "visitsMultiplier": "엔진 수읽기 강도 (Visits)",
+    "tempMultiplier": "엔진 실수 빈도 (Temperature)",
     "restartEngine": "KataGo 엔진 재실행",
     "engineRestarted": "엔진이 성공적으로 재실행되었습니다."
   },
