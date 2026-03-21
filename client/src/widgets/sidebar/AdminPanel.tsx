@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useGameStore } from "@/entities/match/model/store";
 import { GameState } from "@/entities/match/model/types";
+import { useShallow } from "zustand/react/shallow";
 import { API_BASE_URL, fetchWithAuth } from "@/shared/api/gameApi";
 import { createMaskedError } from "@/shared/lib/errors/AppError";
 
@@ -24,7 +25,15 @@ const FONTS = [
 const AdminPanel = ({ onLogout }: AdminPanelProps) => {
   const { t } = useTranslation();
   const { language, theme, primaryColor, fontFamily, setGameConfig } =
-    useGameStore();
+    useGameStore(
+      useShallow((s) => ({
+        language: s.language,
+        theme: s.theme,
+        primaryColor: s.primaryColor,
+        fontFamily: s.fontFamily,
+        setGameConfig: s.setGameConfig,
+      })),
+    );
 
   const [visitsMultiplier, setVisitsMultiplier] = useState(1.0);
   const [tempMultiplier, setTempMultiplier] = useState(1.0);

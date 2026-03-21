@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, lazy, Suspense } from "react";
 import { useGameStore } from "@/entities/match/model/store";
 import { useTranslation } from "react-i18next";
 import { API_BASE_URL, fetchWithAuth } from "@/shared/api/gameApi";
+import { useShallow } from "zustand/react/shallow";
 import {
   applyPrimaryColor,
   applyFontFamily,
@@ -51,12 +52,12 @@ const fetchAndApplyServerConfig = async (
 
 function App() {
   const { language, theme, primaryColor, fontFamily } = useGameStore(
-    (state) => ({
+    useShallow((state) => ({
       language: state.language,
       theme: state.theme,
       primaryColor: state.primaryColor,
       fontFamily: state.fontFamily,
-    }),
+    })),
   );
   const { i18n } = useTranslation();
   const route = useRoute();
