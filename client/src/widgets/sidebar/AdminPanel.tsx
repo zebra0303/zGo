@@ -51,7 +51,7 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
 
-  // Sync local state when store changes (e.g. from another part of the app or on mount)
+  // Update local state when store values change (on mount or if updated elsewhere)
   useEffect(() => {
     setLocalLanguage(storeLanguage);
     setLocalTheme(storeTheme);
@@ -59,9 +59,10 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
     setLocalFontFamily(storeFontFamily);
   }, [storeLanguage, storeTheme, storePrimaryColor, storeFontFamily]);
 
-  // refactor: track mount status to prevent state updates after unmount
+  // refactor: track mount status
   const isMounted = useRef(true);
   useEffect(() => {
+    isMounted.current = true;
     return () => {
       isMounted.current = false;
     };
@@ -109,6 +110,7 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
   }, [setGameConfig]);
 
   const handleSave = async () => {
+    if (isSaving) return;
     setIsSaving(true);
     setSaveMessage("");
 
@@ -129,8 +131,6 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
       });
 
       if (res.ok) {
-        if (!isMounted.current) return;
-
         // Update global store only after successful save
         setGameConfig({
           language: localLanguage,
@@ -139,11 +139,10 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
           fontFamily: localFontFamily,
         });
 
-        setSaveMessage(t("admin.saved"));
+        if (isMounted.current) setSaveMessage(t("admin.saved"));
       } else {
-        if (!isMounted.current) return;
         const data = await res.json();
-        setSaveMessage(data.error || "Save failed");
+        if (isMounted.current) setSaveMessage(data.error || "Save failed");
       }
     } catch (e: unknown) {
       if (isMounted.current) {
@@ -151,8 +150,9 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
         setSaveMessage(maskedErr.message);
       }
     } finally {
+      // Force reset isSaving even if unmounted to prevent stale state in closure
+      setIsSaving(false);
       if (isMounted.current) {
-        setIsSaving(false);
         setTimeout(() => {
           if (isMounted.current) setSaveMessage("");
         }, 3000);
@@ -194,10 +194,11 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
       });
 
       if (!res.ok) {
-        if (!isMounted.current) return;
         const data = await res.json();
-        setPasswordMessage(data.error || "Failed");
-        setPasswordError(true);
+        if (isMounted.current) {
+          setPasswordMessage(data.error || "Failed");
+          setPasswordError(true);
+        }
         return;
       }
 
