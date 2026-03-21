@@ -125,7 +125,8 @@ function App() {
     };
     init();
     return () => abortController.abort();
-  }, [i18n]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   const handleAuthenticated = useCallback(
     async (token: string) => {
