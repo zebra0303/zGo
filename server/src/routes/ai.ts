@@ -196,14 +196,14 @@ router.post("/move", async (req: Request, res: Response) => {
           let playoutAdvantage = 0.0;
 
           if (aiDifficulty <= 5) {
+            temperature = 2.5; // 대폭 상향: 무작위성 극대화
+            playoutAdvantage = -4.0; // 대폭 하향: 극심한 자기 비관
+          } else if (aiDifficulty <= 10) {
             temperature = 1.5;
             playoutAdvantage = -2.0;
-          } else if (aiDifficulty <= 10) {
+          } else if (aiDifficulty <= 15) {
             temperature = 1.0;
             playoutAdvantage = -1.0;
-          } else if (aiDifficulty <= 15) {
-            temperature = 0.5;
-            playoutAdvantage = -0.5;
           }
 
           await sendCommand(
@@ -554,12 +554,10 @@ router.post("/restart", (req: Request, res: Response) => {
     res.json({ success: true, message: "Engine restarted manually." });
   } catch (err) {
     console.error("API Error in /api/ai/restart:", err);
-    res
-      .status(500)
-      .json({
-        error: "Failed to restart engine",
-        details: (err as Error).message,
-      });
+    res.status(500).json({
+      error: "Failed to restart engine",
+      details: (err as Error).message,
+    });
   }
 });
 
