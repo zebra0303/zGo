@@ -153,15 +153,26 @@ const CreateRoomForm = () => {
         <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
       )}
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="w-full py-3 bg-accent bg-accent-hover text-accent-foreground font-bold rounded-xl transition-all disabled:opacity-50 text-sm"
-      >
-        {isSubmitting
-          ? "..."
-          : t("online.createGame", { defaultValue: "Create Game" })}
-      </button>
+      <div className="space-y-2 pt-2">
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full py-3 bg-accent bg-accent-hover text-accent-foreground font-bold rounded-xl transition-all disabled:opacity-50 text-sm"
+        >
+          {isSubmitting
+            ? "..."
+            : t("online.createGame", { defaultValue: "Create Game" })}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigateTo({ page: "main" })}
+          disabled={isSubmitting}
+          className="w-full py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 font-bold rounded-xl transition-all disabled:opacity-50 text-xs"
+        >
+          {t("online.cancel", { defaultValue: "Cancel" })}
+        </button>
+      </div>
     </form>
   );
 };
