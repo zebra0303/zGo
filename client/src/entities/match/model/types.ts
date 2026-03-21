@@ -28,6 +28,9 @@ export interface GameState {
   aiDifficulty: number;
   humanPlayerColor: PlayerColor;
   language: "ko" | "en";
+  theme: "light" | "dark";
+  primaryColor: string;
+  fontFamily: string;
   boardSize: number;
   handicap: number;
 
@@ -101,6 +104,9 @@ export interface GameState {
         | "soundVolume"
         | "teacherVisits"
         | "language"
+        | "theme"
+        | "primaryColor"
+        | "fontFamily"
         | "boardSize"
         | "handicap"
       >

@@ -13,6 +13,8 @@ const MainPage = lazy(() => import("@/pages/MainPage"));
 const AuthPage = lazy(() => import("@/pages/AuthPage"));
 const OnlinePage = lazy(() => import("@/pages/OnlinePage"));
 
+import { GameState } from "@/entities/match/model/types";
+
 // Fetch and apply server config (theme, color, font, language)
 const fetchAndApplyServerConfig = async (
   i18n: { changeLanguage: (lang: string) => void },
@@ -26,23 +28,19 @@ const fetchAndApplyServerConfig = async (
     const config = await res.json();
     if (signal?.aborted) return;
 
-    if (config.theme) {
-      applyThemeMode(config.theme as "dark" | "light");
-      localStorage.setItem("theme", config.theme);
-    }
-    if (config.primary_color) {
-      applyPrimaryColor(config.primary_color);
-      localStorage.setItem("primary_color", config.primary_color);
-    }
-    if (config.font_family) {
-      applyFontFamily(config.font_family);
-      localStorage.setItem("font_family", config.font_family);
-    }
+    const gameStore = useGameStore.getState();
+    const updates: Partial<GameState> = {};
+
+    if (config.theme) updates.theme = config.theme;
+    if (config.primary_color) updates.primaryColor = config.primary_color;
+    if (config.font_family) updates.fontFamily = config.font_family;
     if (config.language) {
+      updates.language = config.language;
       i18n.changeLanguage(config.language);
-      useGameStore
-        .getState()
-        .setGameConfig({ language: config.language as "ko" | "en" });
+    }
+
+    if (Object.keys(updates).length > 0) {
+      gameStore.setGameConfig(updates);
     }
   } catch (err) {
     if ((err as Error).name !== "AbortError") {
@@ -52,7 +50,14 @@ const fetchAndApplyServerConfig = async (
 };
 
 function App() {
-  const language = useGameStore((state) => state.language);
+  const { language, theme, primaryColor, fontFamily } = useGameStore(
+    (state) => ({
+      language: state.language,
+      theme: state.theme,
+      primaryColor: state.primaryColor,
+      fontFamily: state.fontFamily,
+    }),
+  );
   const { i18n } = useTranslation();
   const route = useRoute();
   const [authState, setAuthState] = useState<
@@ -66,17 +71,23 @@ function App() {
     }
   }, [language, i18n]);
 
-  // Apply theme from localStorage immediately to prevent FOUC
+  // Reactive theme application
   useEffect(() => {
-    const theme = localStorage.getItem("theme");
-    if (theme) applyThemeMode(theme as "dark" | "light");
+    applyThemeMode(theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
 
-    const primaryColor = localStorage.getItem("primary_color");
-    if (primaryColor) applyPrimaryColor(primaryColor);
+  // Reactive color application
+  useEffect(() => {
+    applyPrimaryColor(primaryColor);
+    localStorage.setItem("primary_color", primaryColor);
+  }, [primaryColor]);
 
-    const fontFamily = localStorage.getItem("font_family");
-    if (fontFamily) applyFontFamily(fontFamily);
-  }, []);
+  // Reactive font application
+  useEffect(() => {
+    applyFontFamily(fontFamily);
+    localStorage.setItem("font_family", fontFamily);
+  }, [fontFamily]);
 
   // Auth gate: check status + try token refresh + apply server config
   useEffect(() => {

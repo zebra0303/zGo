@@ -1,13 +1,9 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useGameStore } from "@/entities/match/model/store";
+import { GameState } from "@/entities/match/model/types";
 import { API_BASE_URL, fetchWithAuth } from "@/shared/api/gameApi";
 import { createMaskedError } from "@/shared/lib/errors/AppError";
-import {
-  applyPrimaryColor,
-  applyFontFamily,
-  applyThemeMode,
-} from "@/shared/lib/themeUtils";
 
 interface AdminPanelProps {
   onLogout: () => void;
@@ -26,17 +22,10 @@ const FONTS = [
 ];
 
 const AdminPanel = ({ onLogout }: AdminPanelProps) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
+  const { language, theme, primaryColor, fontFamily, setGameConfig } =
+    useGameStore();
 
-  // Settings state
-  const [language, setLanguage] = useState(i18n.language || "ko");
-  const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
-  const [primaryColor, setPrimaryColor] = useState(
-    localStorage.getItem("primary_color") || "#3b82f6",
-  );
-  const [fontFamily, setFontFamily] = useState(
-    localStorage.getItem("font_family") || FONTS[0].value,
-  );
   const [visitsMultiplier, setVisitsMultiplier] = useState(1.0);
   const [tempMultiplier, setTempMultiplier] = useState(1.0);
   const [isSaving, setIsSaving] = useState(false);
@@ -66,10 +55,18 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
       .then((res) => res.json())
       .then((data) => {
         if (!isMounted.current || abortController.signal.aborted) return;
-        if (data.language) setLanguage(data.language);
-        if (data.theme) setTheme(data.theme);
-        if (data.primary_color) setPrimaryColor(data.primary_color);
-        if (data.font_family) setFontFamily(data.font_family);
+
+        // Update store with server values (this triggers reactive effects in App.tsx)
+        const updates: Partial<GameState> = {};
+        if (data.language) updates.language = data.language;
+        if (data.theme) updates.theme = data.theme;
+        if (data.primary_color) updates.primaryColor = data.primary_color;
+        if (data.font_family) updates.fontFamily = data.font_family;
+
+        if (Object.keys(updates).length > 0) {
+          setGameConfig(updates);
+        }
+
         if (data.ai_visits_multiplier)
           setVisitsMultiplier(parseFloat(data.ai_visits_multiplier));
         if (data.ai_temp_multiplier)
@@ -81,21 +78,7 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
         }
       });
     return () => abortController.abort();
-  }, []);
-
-  const applyTheme = useCallback(
-    (newTheme: string, newColor: string, newFont: string) => {
-      applyThemeMode(newTheme as "dark" | "light");
-      localStorage.setItem("theme", newTheme);
-
-      applyPrimaryColor(newColor);
-      localStorage.setItem("primary_color", newColor);
-
-      applyFontFamily(newFont);
-      localStorage.setItem("font_family", newFont);
-    },
-    [],
-  );
+  }, [setGameConfig]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -119,12 +102,6 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
 
       if (res.ok) {
         if (!isMounted.current) return;
-        // Sync language to both i18n and Zustand store
-        i18n.changeLanguage(language);
-        useGameStore
-          .getState()
-          .setGameConfig({ language: language as "ko" | "en" });
-        applyTheme(theme, primaryColor, fontFamily);
         setSaveMessage(t("admin.saved"));
       } else {
         if (!isMounted.current) return;
@@ -224,7 +201,9 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
         <span className={labelClass}>{t("admin.langTitle")}</span>
         <select
           value={language}
-          onChange={(e) => setLanguage(e.target.value)}
+          onChange={(e) =>
+            setGameConfig({ language: e.target.value as "ko" | "en" })
+          }
           className={selectClass}
         >
           <option value="ko">한국어</option>
@@ -237,7 +216,9 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
         <span className={labelClass}>{t("admin.themeTitle")}</span>
         <select
           value={theme}
-          onChange={(e) => setTheme(e.target.value)}
+          onChange={(e) =>
+            setGameConfig({ theme: e.target.value as "light" | "dark" })
+          }
           className={selectClass}
         >
           <option value="light">{t("admin.themeLight")}</option>
@@ -252,7 +233,7 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
           <input
             type="color"
             value={primaryColor}
-            onChange={(e) => setPrimaryColor(e.target.value)}
+            onChange={(e) => setGameConfig({ primaryColor: e.target.value })}
             className="h-7 w-10 cursor-pointer rounded border border-gray-300 dark:border-gray-600 bg-transparent"
           />
           <span className="text-[10px] font-mono text-gray-400 uppercase">
@@ -266,7 +247,7 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
         <span className={labelClass}>{t("admin.fontTitle")}</span>
         <select
           value={fontFamily}
-          onChange={(e) => setFontFamily(e.target.value)}
+          onChange={(e) => setGameConfig({ fontFamily: e.target.value })}
           className={`${selectClass} max-w-[140px]`}
         >
           {FONTS.map((font) => (

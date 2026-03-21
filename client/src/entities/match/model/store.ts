@@ -30,6 +30,18 @@ export const useGameStore = create<GameState>()(
       aiDifficulty: 5,
       humanPlayerColor: "BLACK",
       language: "ko",
+      theme:
+        (typeof localStorage !== "undefined" &&
+          (localStorage.getItem("theme") as "light" | "dark")) ||
+        "light",
+      primaryColor:
+        (typeof localStorage !== "undefined" &&
+          localStorage.getItem("primary_color")) ||
+        "#3b82f6",
+      fontFamily:
+        (typeof localStorage !== "undefined" &&
+          localStorage.getItem("font_family")) ||
+        'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
       boardSize: 19,
       handicap: 0,
 
