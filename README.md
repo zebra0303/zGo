@@ -94,7 +94,7 @@ npm start
 
 ### Step 6: Play!
 
-- Open your web browser (Chrome, Edge, Safari, etc.) and type **`http://localhost:3330`** in the address bar.
+- Open your web browser (Chrome, Edge, Safari, etc.) and type **`http://localhost:3001`** in the address bar.
 - On your first visit, you will be prompted to set an admin password. Set your desired password, log in, and enjoy playing Go!
 
 ---
@@ -114,7 +114,7 @@ If you have Docker installed, you can run zGo instantly without setting up Node.
    ```bash
    docker-compose up -d --build
    ```
-3. **Play!**: Open **`http://localhost:3330`** in your web browser.
+3. **Play!**: Open **`http://localhost:3001`** in your web browser.
 
 > **Note:** On the first run, the container will automatically download the required KataGo AI model (~100MB) if it is missing from your local `server/katago/` folder. Your game history and settings are automatically saved to the local `server/database/` folder and will persist even if you stop the container.
 

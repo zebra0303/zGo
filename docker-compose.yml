@@ -6,8 +6,8 @@ services:
       dockerfile: Dockerfile
     container_name: zgo_app
     ports:
-      # Use PORT from .env file, default to 3330 if not set
-      - "${PORT:-3330}:${PORT:-3330}"
+      # Use PORT from .env file, default to 3001 if not set
+      - "${PORT:-3001}:${PORT:-3001}"
     volumes:
       # Mount the local database directory to persist SQLite data
       - ./server/database:/app/server/database
