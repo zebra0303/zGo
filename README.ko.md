@@ -99,6 +99,27 @@ npm start
 
 ---
 
+## 설치 및 실행 (Docker)
+
+Docker가 설치되어 있다면, Node.js나 환경 설정을 수동으로 할 필요 없이 즉시 zGo를 실행할 수 있습니다. 가장 권장되는 실행 방법입니다.
+
+### 준비물
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)이 설치되어 있고 실행 중이어야 합니다.
+
+### 실행 순서
+
+1. **터미널 열기**: 프로젝트 루트 폴더에서 터미널을 엽니다.
+2. **아래 명령어를 입력합니다**:
+   ```bash
+   docker-compose up -d --build
+   ```
+3. **게임 접속**: 브라우저에서 **`http://localhost:3330`** 에 접속합니다.
+
+> **참고:** 로컬의 `server/katago/` 폴더에 모델 파일이 없는 경우, 첫 실행 시 컨테이너가 자동으로 모델 파일(~100MB)을 다운로드합니다. 모든 대국 기록과 설정은 로컬의 `server/database/` 폴더에 저장되어 컨테이너를 종료해도 안전하게 유지됩니다.
+
+---
+
 ## 개발자 안내
 
 **FSD (Feature-Sliced Design)** 아키텍처를 준수합니다.

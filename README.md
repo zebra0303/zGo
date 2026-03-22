@@ -99,6 +99,27 @@ npm start
 
 ---
 
+## Installation (Docker)
+
+If you have Docker installed, you can run zGo instantly without setting up Node.js. This is the recommended method for most users as it ensures a consistent environment.
+
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
+
+### Steps
+
+1. **Open a Terminal** in the project root folder.
+2. **Run the following command**:
+   ```bash
+   docker-compose up -d --build
+   ```
+3. **Play!**: Open **`http://localhost:3330`** in your web browser.
+
+> **Note:** On the first run, the container will automatically download the required KataGo AI model (~100MB) if it is missing from your local `server/katago/` folder. Your game history and settings are automatically saved to the local `server/database/` folder and will persist even if you stop the container.
+
+---
+
 ## For Developers
 
 This project follows the **FSD (Feature-Sliced Design)** architecture.
