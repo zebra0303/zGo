@@ -70,7 +70,13 @@ Copy the following command, paste it into your terminal, and press Enter. (This 
 npm install
 ```
 
-### Step 4: Download the KataGo AI Model
+### Step 4: Configure Environment Variables
+
+1. In the zGo folder, find the file named **`.env.example`**.
+2. Copy this file and rename the copy to **`.env`**.
+3. (Optional) Open `.env` with a text editor and change `JWT_SECRET` to a unique random string for better security.
+
+### Step 5: Download the KataGo AI Model
 
 We need to download the "brain" (model file) for the AI to play Go intelligently.
 
@@ -80,7 +86,7 @@ We need to download the "brain" (model file) for the AI to play Go intelligently
 4. Move this renamed file into the zGo folder you extracted earlier, specifically into `server/katago/`.
    - The final path should look like this: `zGo-main/server/katago/katago-model.bin.gz`
 
-### Step 5: Run the Game
+### Step 6: Run the Game
 
 You are all set! Type the following commands in your terminal one by one:
 
@@ -92,7 +98,7 @@ npm run build
 npm start
 ```
 
-### Step 6: Play!
+### Step 7: Play!
 
 - Open your web browser (Chrome, Edge, Safari, etc.) and type **`http://localhost:3001`** in the address bar.
 - On your first visit, you will be prompted to set an admin password. Set your desired password, log in, and enjoy playing Go!
@@ -110,11 +116,14 @@ If you have Docker installed, you can run zGo instantly without setting up Node.
 ### Steps
 
 1. **Open a Terminal** in the project root folder.
-2. **Run the following command**:
+2. **Set up .env**: Copy `.env.example` to `.env`.
+3. **Run the following command**:
+
    ```bash
    docker-compose up -d --build
    ```
-3. **Play!**: Open **`http://localhost:3001`** in your web browser.
+
+4. **Play!**: Open **`http://localhost:3001`** in your web browser.
 
 > **Note:** On the first run, the container will automatically download the required KataGo AI model (~100MB) if it is missing from your local `server/katago/` folder. Your game history and settings are automatically saved to the local `server/database/` folder and will persist even if you stop the container.
 
