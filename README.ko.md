@@ -4,7 +4,7 @@
 
 [English README](./README.md)
 
-<img width="900" alt="cover" src="https://github.com/user-attachments/assets/d4e02777-859f-42c5-864d-8d334c8a4009" />
+![cover2](https://github.com/user-attachments/assets/df34cca3-6a7b-4c7a-9a35-42257a46502a)
 
 ---
 
