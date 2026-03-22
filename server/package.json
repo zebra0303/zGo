@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch --ignore gtp_logs/ --ignore database/ src/index.ts",
-    "build": "tsc",
+    "build": "tsc && mkdir -p dist/shared/config/locales && cp -r src/shared/config/locales/* dist/shared/config/locales/",
     "start": "node dist/index.js",
     "test": "vitest run"
   },

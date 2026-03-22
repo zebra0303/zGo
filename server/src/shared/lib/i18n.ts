@@ -12,14 +12,36 @@ const loadLocale = (lang: string): Translations => {
   if (translations[lang]) return translations[lang];
 
   try {
-    const filePath = path.join(
-      __dirname,
-      `../config/locales/${lang}/translation.json`,
-    );
-    if (fs.existsSync(filePath)) {
+    // Look for locales in both src (dev) and dist (prod) locations relative to the current file
+    const possiblePaths = [
+      path.join(__dirname, `../config/locales/${lang}/translation.json`),
+      path.join(
+        process.cwd(),
+        `src/shared/config/locales/${lang}/translation.json`,
+      ),
+      path.join(
+        process.cwd(),
+        `dist/shared/config/locales/${lang}/translation.json`,
+      ),
+    ];
+
+    let filePath = "";
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        filePath = p;
+        break;
+      }
+    }
+
+    if (filePath) {
       const content = fs.readFileSync(filePath, "utf-8");
       translations[lang] = JSON.parse(content);
       return translations[lang];
+    } else {
+      console.error(
+        `Locale file not found for: ${lang}. Checked paths:`,
+        possiblePaths,
+      );
     }
   } catch (err) {
     console.error(`Failed to load locale: ${lang}`, err);
