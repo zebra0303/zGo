@@ -1,6 +1,27 @@
 import dotenv from "dotenv";
 import path from "path";
-dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+import fs from "fs";
+
+// Robust .env loading: check multiple potential locations
+const envPaths = [
+  path.resolve(__dirname, "../../.env"), // root from dist
+  path.resolve(process.cwd(), ".env"), // current working directory
+  path.resolve(process.cwd(), "server/.env"),
+];
+
+let envFound = false;
+for (const envPath of envPaths) {
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    console.log(`Loaded environment variables from: ${envPath}`);
+    envFound = true;
+    break;
+  }
+}
+
+if (!envFound) {
+  console.warn("WARNING: No .env file found in expected locations.");
+}
 
 import express from "express";
 import cors from "cors";
@@ -46,7 +67,8 @@ app.use("/api/settings", settingsRouter);
 app.use("/api/online", onlineRouter);
 
 // SPA fallback: Only serve index.html for navigation requests that are not API calls or static files
-app.get("*", (req, res, next) => {
+// Express 5 / path-to-regexp v8 requires named parameters or specific patterns instead of bare '*'
+app.get("/(.*)", (req, res, next) => {
   // If it's an API call or has a file extension, don't serve index.html
   if (req.path.startsWith("/api") || req.path.includes(".")) {
     return next();
