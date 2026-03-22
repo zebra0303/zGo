@@ -7,8 +7,8 @@ services:
       dockerfile: Dockerfile
     container_name: zgo_app
     ports:
-      # Map host port 3330 to container port 3001
-      - "3330:3001"
+      # Use PORT from .env file, default to 3330 if not set
+      - "${PORT:-3330}:${PORT:-3330}"
     volumes:
       # Mount the local database directory to persist SQLite data
       - ./server/database:/app/server/database
@@ -16,7 +16,8 @@ services:
       - ./server/katago:/app/server/katago
       # Map the environment variables
       - ./.env:/app/.env
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
-      - PORT=3001
     restart: unless-stopped
