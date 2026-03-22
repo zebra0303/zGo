@@ -48,6 +48,7 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
 
   const [visitsMultiplier, setVisitsMultiplier] = useState(1.0);
   const [tempMultiplier, setTempMultiplier] = useState(1.0);
+  const [aiMoveDelay, setAiMoveDelay] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
 
@@ -100,6 +101,8 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
           setVisitsMultiplier(parseFloat(data.ai_visits_multiplier));
         if (data.ai_temp_multiplier)
           setTempMultiplier(parseFloat(data.ai_temp_multiplier));
+        if (data.ai_move_delay)
+          setAiMoveDelay(parseInt(data.ai_move_delay, 10));
       })
       .catch((err) => {
         if (err.name !== "AbortError") {
@@ -127,6 +130,7 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
           font_family: localFontFamily,
           ai_visits_multiplier: visitsMultiplier.toString(),
           ai_temp_multiplier: tempMultiplier.toString(),
+          ai_move_delay: aiMoveDelay.toString(),
         }),
       });
 
@@ -334,6 +338,28 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
             step="0.1"
             value={tempMultiplier}
             onChange={(e) => setTempMultiplier(parseFloat(e.target.value))}
+            className="w-full accent-[var(--primary)] h-1"
+          />
+        </div>
+
+        {/* AI Move Delay */}
+        <div className="space-y-1">
+          <div className="flex justify-between text-[10px]">
+            <span className={labelClass}>{t("admin.aiMoveDelay")}</span>
+            <span className="font-bold text-accent">
+              {t("admin.aiMoveDelayValue", {
+                ms: aiMoveDelay,
+                sec: (aiMoveDelay / 1000).toFixed(1),
+              })}
+            </span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="5000"
+            step="100"
+            value={aiMoveDelay}
+            onChange={(e) => setAiMoveDelay(parseInt(e.target.value, 10))}
             className="w-full accent-[var(--primary)] h-1"
           />
         </div>

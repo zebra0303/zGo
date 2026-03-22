@@ -1,0 +1,46 @@
+{
+  "tactics": {
+    "capture": {
+      "label": "Move to capture opponent's stones",
+      "explanation": "Great chance to capture opponent stones! A tactical win that takes control."
+    },
+    "saving": {
+      "label": "Move to save endangered stones",
+      "explanation": "Your stones are in danger. It's urgent to save them to prevent huge loss."
+    },
+    "atari": {
+      "label": "Move to put opponent in Atari",
+      "explanation": "Puts the opponent in Atari to pressure them. Forces a response and takes the lead."
+    },
+    "cut": {
+      "label": "Move to cut opponent's connection",
+      "explanation": "A sharp move that cuts the opponent's weak points. Disrupts connection and causes chaos."
+    },
+    "connection": {
+      "label": "Solid move to connect stones",
+      "explanation": "A thick move that solidly connects your stones. Prevents opponent's counterattack."
+    },
+    "corner": {
+      "label": "Move to secure corner territory",
+      "explanation": "Crucial opening move to secure corner territory. Takes early initiative."
+    },
+    "side": {
+      "label": "Move to expand along the side",
+      "explanation": "Efficient move to expand along the side. Defends while growing your framework."
+    },
+    "center": {
+      "label": "Move towards the center",
+      "explanation": "Builds thickness in the center to control the game flow. A long-term strategic choice."
+    },
+    "default": {
+      "explanation": "A key point analyzed by the AI engine."
+    }
+  },
+  "ai": {
+    "critique": {
+      "missedUrgent": "It's a pity you missed a more urgent {{label}}({{bestMove}}) than your move({{userMove}}).",
+      "efficientMove": "Your move({{userMove}}) is good, but AI thinks {{label}}({{bestMove}}) or around is slightly more efficient.",
+      "noPlayable": "AI considers there's nowhere else to play."
+    }
+  }
+}

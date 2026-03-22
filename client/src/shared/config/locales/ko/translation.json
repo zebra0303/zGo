@@ -115,6 +115,8 @@
     "aiPerformanceTitle": "AI 엔진 성능 튜닝",
     "visitsMultiplier": "엔진 수읽기 강도 (Visits)",
     "tempMultiplier": "엔진 실수 빈도 (Temperature)",
+    "aiMoveDelay": "AI 착수 지연 시간",
+    "aiMoveDelayValue": "{{ms}}ms ({{sec}}초)",
     "restartEngine": "KataGo 엔진 재실행",
     "engineRestarted": "엔진이 성공적으로 재실행되었습니다."
   },

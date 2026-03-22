@@ -5,6 +5,8 @@ const BoardWidget = lazy(() => import("@/widgets/BoardWidget"));
 const SidebarWidget = lazy(() => import("@/widgets/SidebarWidget"));
 const OnlineSidebarWidget = lazy(() => import("@/widgets/OnlineSidebarWidget"));
 const TeacherAdviceWidget = lazy(() => import("@/widgets/TeacherAdviceWidget"));
+import CustomDialog from "@/shared/ui/CustomDialog";
+import { useShallow } from "zustand/react/shallow";
 
 const SIDEBAR_WIDTH_EXPANDED = 320; // md:w-80 = 20rem
 const SIDEBAR_WIDTH_COLLAPSED = 16; // w-4 = 1rem
@@ -39,8 +41,14 @@ const useCanShowAdviceSide = (sidebarCollapsed: boolean) => {
 };
 
 export const GameLayout = () => {
-  const gameMode = useGameStore((s) => s.gameMode);
-  const isReviewMode = useGameStore((s) => s.isReviewMode);
+  const { gameMode, isReviewMode, confirmDialog, closeConfirm } = useGameStore(
+    useShallow((s) => ({
+      gameMode: s.gameMode,
+      isReviewMode: s.isReviewMode,
+      confirmDialog: s.confirmDialog,
+      closeConfirm: s.closeConfirm,
+    })),
+  );
   const isOnline = gameMode === "Online";
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -54,12 +62,12 @@ export const GameLayout = () => {
 
   return (
     <div className="flex flex-col md:flex-row h-screen w-full">
-      <main className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-800 p-2 md:p-4 overflow-auto min-h-0">
+      <main className="flex-1 flex flex-col items-center bg-gray-50 dark:bg-gray-800 p-2 md:p-4 pt-4 md:pt-10 overflow-auto min-h-0">
         <div
           className={`flex w-full max-w-5xl mx-auto justify-center ${
             canShowAdviceSide && (!isOnline || isReviewMode)
               ? "flex-row items-start gap-4"
-              : "flex-col items-center"
+              : "flex-col items-center gap-2"
           }`}
         >
           <div className="flex flex-col items-center shrink-0 max-w-full">
@@ -70,7 +78,7 @@ export const GameLayout = () => {
                 </div>
               }
             >
-              <BoardWidget />
+              <BoardWidget sidebarCollapsed={sidebarCollapsed} />
             </Suspense>
           </div>
           {/* Show teacher advice: always in offline mode, only in review for online */}
@@ -84,7 +92,7 @@ export const GameLayout = () => {
 
       {/* Sidebar: bottom sheet on mobile, side panel on md+ */}
       <aside
-        className={`border-t md:border-t-0 md:border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shrink-0 transition-all duration-300 z-10 ${
+        className={`border-t md:border-t-0 md:border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shrink-0 transition-all duration-300 z-30 ${
           sidebarCollapsed
             ? "h-10 md:h-auto md:w-4"
             : "h-[85vh] md:h-auto md:w-80"
@@ -167,6 +175,15 @@ export const GameLayout = () => {
           </div>
         )}
       </aside>
+
+      <CustomDialog
+        isOpen={confirmDialog.isOpen}
+        type={confirmDialog.type}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={closeConfirm}
+      />
     </div>
   );
 };

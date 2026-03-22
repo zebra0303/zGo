@@ -13,6 +13,7 @@ import {
   Coords,
 } from "../katago/coords";
 import { getMoveTactics, getDetailedExplanation } from "../katago/tactics";
+import { t } from "../shared/lib/i18n";
 
 import db from "../db";
 
@@ -29,6 +30,8 @@ const getSetting = (key: string, defaultValue: string): string => {
     return defaultValue;
   }
 };
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 interface AIMoveBody {
   board: (string | null)[][];
@@ -167,7 +170,10 @@ router.post("/move", async (req: Request, res: Response) => {
     return res.status(503).json({ error: "AI Engine not ready yet" });
 
   const executeKataGoTask = async (): Promise<void> => {
+    const startTime = Date.now();
     try {
+      const moveDelay = parseInt(getSetting("ai_move_delay", "0"), 10);
+
       let targetVisits = isHintRequest
         ? teacherVisits || 330
         : aiDifficulty
@@ -287,29 +293,38 @@ router.post("/move", async (req: Request, res: Response) => {
             boardSize,
           );
           if (bT.urgency < uT.urgency)
-            critique =
-              language === "en"
-                ? `It's a pity you missed a more urgent ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize)}) than your move(${coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize)}).`
-                : `방금 두신 수(${coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize)})보다 더 급한 ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize)}) 자리를 놓치신 것이 아쉽습니다.`;
+            critique = t(language, "ai.critique.missedUrgent", {
+              label: bT.label,
+              bestMove: coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize),
+              userMove: coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize),
+            });
           else
-            critique =
-              language === "en"
-                ? `Your move(${coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize)}) is good, but AI thinks ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize)}) or around is slightly more efficient.`
-                : `두신 수(${coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize)})도 좋은 자리입니다만, AI는 ${bT.label}(${coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize)})나 주변 지점이 조금 더 효율적이라고 판단했습니다.`;
+            critique = t(language, "ai.critique.efficientMove", {
+              label: bT.label,
+              bestMove: coordsToGtp(lastBestMove.x, lastBestMove.y, boardSize),
+              userMove: coordsToGtp(lastUserMove.x, lastUserMove.y, boardSize),
+            });
         }
       }
+
+      const sendDelayedResponse = (data: any) => {
+        const elapsedTime = Date.now() - startTime;
+        const remainingDelay = Math.max(0, moveDelay - elapsedTime);
+        if (remainingDelay > 0) {
+          setTimeout(() => res.json(data), remainingDelay);
+        } else {
+          res.json(data);
+        }
+      };
 
       if (isHintRequest) {
         engine.resetRecommendations();
         const response = await sendCommand(`genmove ${color}`);
         const coords = gtpToCoords(response, boardSize);
         if (!coords) {
-          res.json({
+          sendDelayedResponse({
             pass: true,
-            explanation:
-              language === "en"
-                ? "AI considers there's nowhere else to play."
-                : "AI가 더 이상 둘 곳이 없다고 판단했습니다.",
+            explanation: t(language, "ai.critique.noPlayable"),
             critique,
           });
           return;
@@ -361,7 +376,7 @@ router.post("/move", async (req: Request, res: Response) => {
           }
         }
 
-        res.json({
+        sendDelayedResponse({
           recommendations: recs,
           winRate: engine.winRate,
           critique,
@@ -372,18 +387,18 @@ router.post("/move", async (req: Request, res: Response) => {
 
         if (lowRes === "pass") {
           engine.moves.push(`play ${color} pass`);
-          res.json({ pass: true });
+          sendDelayedResponse({ pass: true });
           return;
         }
         if (lowRes === "resign") {
-          res.json({ resign: true });
+          sendDelayedResponse({ resign: true });
           return;
         }
 
         // Track the generated move to prevent re-playing it as an illegal move next turn
         engine.moves.push(`play ${color} ${response}`);
 
-        res.json({
+        sendDelayedResponse({
           move: gtpToCoords(response, boardSize),
           winRate: engine.winRate,
         });

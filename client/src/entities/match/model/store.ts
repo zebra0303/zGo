@@ -65,6 +65,33 @@ export const useGameStore = create<GameState>()(
       undoUsedInGame: false,
       aiForceTurnCounter: 0,
 
+      // Global Dialog Implementation
+      confirmDialog: {
+        isOpen: false,
+        type: "alert",
+        message: "",
+        onConfirm: () => {},
+      },
+
+      showConfirm: (message, onConfirm, title, type = "confirm") =>
+        set((state) => ({
+          confirmDialog: {
+            isOpen: true,
+            type,
+            title,
+            message,
+            onConfirm: () => {
+              onConfirm();
+              state.closeConfirm();
+            },
+          },
+        })),
+
+      closeConfirm: () =>
+        set((state) => ({
+          confirmDialog: { ...state.confirmDialog, isOpen: false },
+        })),
+
       forceAITurn: () =>
         set((state) => ({ aiForceTurnCounter: state.aiForceTurnCounter + 1 })),
 
@@ -512,7 +539,8 @@ export const useGameStore = create<GameState>()(
             ([k]) =>
               k !== "isAnalyzing" &&
               k !== "analysisProgress" &&
-              k !== "reviewChat",
+              k !== "reviewChat" &&
+              k !== "confirmDialog",
           ),
         );
 

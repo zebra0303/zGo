@@ -106,8 +106,13 @@ import { useAITurn } from "@/features/board/lib/useAITurn";
 import { useGameScoring } from "@/features/board/lib/useGameScoring";
 import { restartEngine } from "@/shared/api/gameApi";
 import { RefreshCcw } from "lucide-react";
+import GameControls from "@/shared/ui/GameControls";
 
-const BoardWidget = () => {
+interface BoardWidgetProps {
+  sidebarCollapsed?: boolean;
+}
+
+const BoardWidget = ({ sidebarCollapsed }: BoardWidgetProps) => {
   const { t } = useTranslation();
   const { isReviewMode, gameMode } = useGameStore();
   const isOnline = gameMode === "Online";
@@ -165,21 +170,29 @@ const BoardWidget = () => {
         </div>
 
         {/* KataGo Engine Restart Button - Below Board */}
-        <div className="w-full flex justify-end px-2 mb-2">
-          <button
-            onClick={handleRestartEngine}
-            disabled={isRestarting}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-sm transition-all text-xs font-medium
-              ${isRestarting ? "opacity-70 cursor-not-allowed" : "hover:shadow-md active:scale-95"}
-            `}
-            title={t("admin.restartEngine", "KataGo 엔진 재실행")}
-          >
-            <RefreshCcw
-              size={14}
-              className={isRestarting ? "animate-spin text-accent" : ""}
-            />
-            <span>{t("admin.restartEngine", "KataGo 엔진 재실행")}</span>
-          </button>
+        <div className="w-full flex flex-col gap-4">
+          {sidebarCollapsed && !isOnline && (
+            <div className="w-full animate-fade-in px-2">
+              <GameControls layout="row" />
+            </div>
+          )}
+
+          <div className="w-full flex justify-end px-2">
+            <button
+              onClick={handleRestartEngine}
+              disabled={isRestarting}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-sm transition-all text-xs font-medium
+                ${isRestarting ? "opacity-70 cursor-not-allowed" : "hover:shadow-md active:scale-95"}
+              `}
+              title={t("admin.restartEngine", "KataGo 엔진 재실행")}
+            >
+              <RefreshCcw
+                size={14}
+                className={isRestarting ? "animate-spin text-accent" : ""}
+              />
+              <span>{t("admin.restartEngine", "KataGo 엔진 재실행")}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

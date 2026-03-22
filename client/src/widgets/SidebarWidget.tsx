@@ -7,7 +7,6 @@ import {
 } from "@/entities/match/model/store";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { saveMatch, getMatches } from "@/shared/api/gameApi";
-import CustomDialog from "@/shared/ui/CustomDialog";
 import GameStatusPanel from "@/widgets/sidebar/GameStatusPanel";
 import SettingsPanel from "@/widgets/sidebar/SettingsPanel";
 import { buildMoveHistory } from "@/shared/lib/goUtils";
@@ -33,6 +32,7 @@ const SidebarWidget = () => {
     winner,
     setGameResultText,
     gameTree,
+    showConfirm,
   } = useGameStore(
     useShallow((s) => ({
       currentNode: s.currentNode,
@@ -48,6 +48,7 @@ const SidebarWidget = () => {
       winner: s.winner,
       setGameResultText: s.setGameResultText,
       gameTree: s.gameTree,
+      showConfirm: s.showConfirm,
     })),
   );
 
@@ -63,48 +64,12 @@ const SidebarWidget = () => {
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "saved" | "error"
   >("idle");
-  const [dialog, setDialog] = useState<{
-    isOpen: boolean;
-    type: "alert" | "confirm";
-    title?: string;
-    message: string;
-    onConfirm: () => void;
-    onCancel?: () => void;
-  }>({
-    isOpen: false,
-    type: "alert",
-    message: "",
-    onConfirm: () => {},
-  });
 
   const showAlert = useCallback(
     (message: string, title: string = t("alert")) => {
-      setDialog({
-        isOpen: true,
-        type: "alert",
-        title,
-        message,
-        onConfirm: () => setDialog((prev) => ({ ...prev, isOpen: false })),
-      });
+      showConfirm(message, () => {}, title, "alert");
     },
-    [t],
-  );
-
-  const showConfirm = useCallback(
-    (message: string, onConfirm: () => void, title: string = t("confirm")) => {
-      setDialog({
-        isOpen: true,
-        type: "confirm",
-        title,
-        message,
-        onConfirm: () => {
-          onConfirm();
-          setDialog((prev) => ({ ...prev, isOpen: false }));
-        },
-        onCancel: () => setDialog((prev) => ({ ...prev, isOpen: false })),
-      });
-    },
-    [t],
+    [t, showConfirm],
   );
 
   const { data: matchesData, refetch: refetchMatches } = useQuery({
@@ -243,10 +208,7 @@ const SidebarWidget = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto space-y-4 pr-2 pb-4 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700">
-            <SettingsPanel
-              onResetSaveStatus={resetSaveStatus}
-              onShowConfirm={showConfirm}
-            />
+            <SettingsPanel onResetSaveStatus={resetSaveStatus} />
           </div>
         </div>
       ) : activeTab === "history" ? (
@@ -292,15 +254,6 @@ const SidebarWidget = () => {
           zGo
         </a>
       </div>
-
-      <CustomDialog
-        isOpen={dialog.isOpen}
-        type={dialog.type}
-        title={dialog.title}
-        message={dialog.message}
-        onConfirm={dialog.onConfirm}
-        onCancel={dialog.onCancel}
-      />
     </div>
   );
 };

@@ -115,6 +115,8 @@
     "aiPerformanceTitle": "AI Engine Performance Tuning",
     "visitsMultiplier": "Engine Thinking Depth (Visits)",
     "tempMultiplier": "Engine Error Frequency (Temp)",
+    "aiMoveDelay": "AI Move Delay",
+    "aiMoveDelayValue": "{{ms}}ms ({{sec}}s)",
     "restartEngine": "Restart KataGo Engine",
     "engineRestarted": "Engine restarted successfully."
   },

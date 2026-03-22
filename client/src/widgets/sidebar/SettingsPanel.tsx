@@ -2,21 +2,14 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { useGameStore } from "@/entities/match/model/store";
 import { navigateTo } from "@/shared/lib/router";
-import { playPassSound, playNewGameSound } from "@/shared/lib/sound";
+import { playNewGameSound } from "@/shared/lib/sound";
+import GameControls from "@/shared/ui/GameControls";
 
 interface SettingsPanelProps {
   onResetSaveStatus: () => void;
-  onShowConfirm: (
-    message: string,
-    onConfirm: () => void,
-    title?: string,
-  ) => void;
 }
 
-const SettingsPanel = ({
-  onResetSaveStatus,
-  onShowConfirm,
-}: SettingsPanelProps) => {
+const SettingsPanel = ({ onResetSaveStatus }: SettingsPanelProps) => {
   const { t } = useTranslation();
   const {
     gameMode,
@@ -29,16 +22,11 @@ const SettingsPanel = ({
     soundVolume,
     isTeacherMode,
     teacherVisits,
-    isGameOver,
-    isReviewMode,
-    undoUsedInGame,
     currentNode,
     setGameConfig,
     resetGame,
     toggleTeacherMode,
-    passTurn,
-    resignGame,
-    undoMove,
+    showConfirm,
   } = useGameStore();
 
   // Confirm before resetting if a game is in progress
@@ -53,7 +41,7 @@ const SettingsPanel = ({
       afterReset?.();
     };
     if (currentNode.moveIndex > 0) {
-      onShowConfirm(t("askNewGame"), doReset, t("doNewGame"));
+      showConfirm(t("askNewGame"), doReset, t("doNewGame"));
     } else {
       doReset();
     }
@@ -299,54 +287,8 @@ const SettingsPanel = ({
         </button>
       </div>
 
-      <div className={`flex gap-2 pt-2 ${dividerClass}`}>
-        <button
-          onClick={() => handleResetGame(undefined, onResetSaveStatus)}
-          className="flex-1 py-2 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-bold rounded-lg text-[10px] border border-red-200 dark:border-red-800 uppercase tracking-tighter"
-        >
-          {t("newGame")}
-        </button>
-        {!isGameOver && !isReviewMode && (
-          <>
-            <button
-              onClick={() => {
-                playPassSound(soundEnabled, soundVolume);
-                passTurn();
-              }}
-              className="flex-1 py-2 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold rounded-lg text-[10px] border border-gray-300 dark:border-gray-600 uppercase tracking-tighter"
-            >
-              {t("pass")}
-            </button>
-            <button
-              onClick={() => {
-                onShowConfirm(t("askResign"), resignGame, t("doResign"));
-              }}
-              disabled={currentNode.moveIndex < 1}
-              className={`flex-1 py-2 font-bold rounded-lg text-[10px] border uppercase tracking-tighter ${
-                currentNode.moveIndex < 1
-                  ? "bg-gray-100 dark:bg-gray-700 text-gray-300 dark:text-gray-500 border-gray-200 dark:border-gray-600 cursor-not-allowed"
-                  : "bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600"
-              }`}
-            >
-              {t("resign")}
-            </button>
-            {gameMode === "PvAI" && (
-              <button
-                onClick={() => {
-                  onShowConfirm(t("askUndo"), undoMove, t("doUndo"));
-                }}
-                disabled={undoUsedInGame || currentNode.moveIndex < 2}
-                className={`flex-1 py-2 font-bold rounded-lg text-[10px] border uppercase tracking-tighter ${
-                  undoUsedInGame || currentNode.moveIndex < 2
-                    ? "bg-gray-100 dark:bg-gray-700 text-gray-300 dark:text-gray-500 border-gray-200 dark:border-gray-600 cursor-not-allowed"
-                    : "bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700"
-                }`}
-              >
-                {t("undo")}
-              </button>
-            )}
-          </>
-        )}
+      <div className={`pt-2 ${dividerClass}`}>
+        <GameControls layout="grid" onActionComplete={onResetSaveStatus} />
       </div>
     </div>
   );

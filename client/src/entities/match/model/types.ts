@@ -61,6 +61,23 @@ export interface GameState {
   undoUsedInGame: boolean;
   aiForceTurnCounter: number;
 
+  // Global Dialog State
+  confirmDialog: {
+    isOpen: boolean;
+    type: "alert" | "confirm";
+    title?: string;
+    message: string;
+    onConfirm: () => void;
+  };
+
+  showConfirm: (
+    message: string,
+    onConfirm: () => void,
+    title?: string,
+    type?: "alert" | "confirm",
+  ) => void;
+  closeConfirm: () => void;
+
   placeStone: (x: number, y: number) => void;
   passTurn: () => void;
   resignGame: () => void;
