@@ -1,6 +1,8 @@
 # zGo Project Research Summary
 
-> Last updated: 2026-03-18
+> Last updated: 2026-03-22
+
+> **2026-03-22 Architecture Update:** To unify the ecosystem (zGo, zlog, BigStone), common components, API structures, and shared types have been extracted to `@zebra/core` (`zCore` repo). The project now seamlessly imports these shared UI and logic elements via `github:zebra0303/zCore#main`.
 
 ## 1. 프로젝트 개요
 
