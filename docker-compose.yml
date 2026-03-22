@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  zgo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zgo_app
+    ports:
+      # Map host port 3030 to container port 3001
+      - "3030:3001"
+    volumes:
+      # Mount the local database directory to persist SQLite data
+      - ./server/database:/app/server/database
+      # Mount the local katago directory to persist config and the large model file
+      - ./server/katago:/app/server/katago
+      # Map the environment variables
+      - ./.env:/app/.env
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+    restart: unless-stopped
