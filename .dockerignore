@@ -1,0 +1,13 @@
+node_modules
+client/node_modules
+server/node_modules
+client/dist
+server/dist
+.git
+.idea
+.vscode
+.env
+gtp_logs
+database
+server/katago/*.bin.gz
+server/katago/*.cfg
