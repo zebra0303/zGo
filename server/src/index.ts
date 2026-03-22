@@ -67,8 +67,8 @@ app.use("/api/settings", settingsRouter);
 app.use("/api/online", onlineRouter);
 
 // SPA fallback: Only serve index.html for navigation requests that are not API calls or static files
-// Express 5 / path-to-regexp v8 requires named parameters or specific patterns instead of bare '*'
-app.get("/(.*)", (req, res, next) => {
+// Express 5 / path-to-regexp v8 requires named parameters (e.g., :any*) instead of unnamed wildcards or groups
+app.get("/:any*", (req, res, next) => {
   // If it's an API call or has a file extension, don't serve index.html
   if (req.path.startsWith("/api") || req.path.includes(".")) {
     return next();
