@@ -42,9 +42,16 @@ app.use(cookieParser());
 app.use(
   express.static(path.join(__dirname, "../../client/dist"), {
     setHeaders: (res, filePath) => {
-      if (filePath.endsWith(".html")) {
+      // .html, .webmanifest, and unhashed service worker scripts should not be cached
+      if (
+        filePath.endsWith(".html") ||
+        filePath.endsWith(".webmanifest") ||
+        filePath.endsWith("sw.js") ||
+        filePath.endsWith("registerSW.js")
+      ) {
         res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
       } else {
+        // Hashed assets (CSS, JS, images) can be cached safely for a year
         res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
       }
     },
@@ -60,7 +67,9 @@ app.use("/api/online", onlineRouter);
 // This matches everything except paths starting with /api
 app.get(/^(?!\/api).+/, (req, res, next) => {
   if (req.path.includes(".")) {
-    return next();
+    // If it's a missing asset file (e.g. .css, .js, .png that wasn't found by express.static),
+    // return a proper 404 response instead of falling through to default Express HTML 404.
+    return res.status(404).type("text/plain").send("Not Found");
   }
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.sendFile(path.join(__dirname, "../../client/dist/index.html"));
