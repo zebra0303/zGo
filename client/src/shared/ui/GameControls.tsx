@@ -59,20 +59,20 @@ const GameControls = ({
   };
 
   const baseBtnClass =
-    "py-2 font-bold rounded-lg text-[10px] border uppercase tracking-tighter transition-all active:scale-95 flex items-center justify-center gap-1.5";
-  const redBtnClass = `${baseBtnClass} bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800`;
-  const grayBtnClass = `${baseBtnClass} bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600`;
+    "py-1.5 font-bold rounded-lg text-[10px] border uppercase tracking-tighter transition-all active:scale-95 flex items-center justify-center gap-1 whitespace-nowrap";
+  const redBtnClass = `${baseBtnClass} bg-red-50 dark:bg-rose-900/20 hover:bg-red-100 dark:hover:bg-rose-900/40 text-red-600 dark:text-rose-400 border-red-200 dark:border-rose-800/50`;
+  const grayBtnClass = `${baseBtnClass} bg-gray-50 dark:bg-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600`;
   const amberBtnClass = `${baseBtnClass} bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700`;
-  const disabledBtnClass = `${baseBtnClass} bg-gray-100 dark:bg-gray-700 text-gray-300 dark:text-gray-500 border-gray-200 dark:border-gray-600 cursor-not-allowed opacity-50`;
+  const disabledBtnClass = `${baseBtnClass} bg-gray-100 dark:bg-gray-800/40 text-gray-300 dark:text-gray-600 border-gray-200 dark:border-gray-700/50 cursor-not-allowed opacity-50`;
 
   const containerClass =
     layout === "grid"
       ? `grid grid-cols-2 gap-2 ${className}`
-      : `flex flex-wrap items-center justify-center gap-2 ${className}`;
+      : `flex flex-wrap items-center justify-center gap-1.5 ${className}`;
 
   const getBtnClass = (baseClass: string, isDisabled = false) => {
     const finalBase = isDisabled ? disabledBtnClass : baseClass;
-    return layout === "row" ? `${finalBase} px-4` : finalBase;
+    return layout === "row" ? `${finalBase} px-2.5` : finalBase;
   };
 
   return (
