@@ -6,7 +6,12 @@ import {
   startReviewAnalysis,
 } from "@/entities/match/model/store";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { saveMatch, getMatches } from "@/shared/api/gameApi";
+import {
+  saveMatch,
+  getMatches,
+  fetchWithAuth,
+  API_BASE_URL,
+} from "@/shared/api/gameApi";
 import GameStatusPanel from "@/widgets/sidebar/GameStatusPanel";
 import SettingsPanel from "@/widgets/sidebar/SettingsPanel";
 import { buildMoveHistory } from "@/shared/lib/goUtils";
