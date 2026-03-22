@@ -1,8 +1,10 @@
+import dotenv from "dotenv";
+import path from "path";
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+
 import express from "express";
 import cors from "cors";
-import path from "path";
 import http from "http";
-import dotenv from "dotenv";
 import { WebSocketServer } from "ws";
 import cookieParser from "cookie-parser";
 
@@ -12,8 +14,6 @@ import matchesRouter from "./routes/matches";
 import settingsRouter from "./routes/settings";
 import onlineRouter from "./routes/online";
 import { handleOnlineConnection } from "./ws/onlineHandler";
-
-dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
