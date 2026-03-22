@@ -18,6 +18,9 @@ import { handleOnlineConnection } from "./ws/onlineHandler";
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust the first proxy (e.g. Nginx) to let express-rate-limit get correct IP
+app.set("trust proxy", 1);
+
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
@@ -42,8 +45,12 @@ app.use("/api/matches", matchesRouter);
 app.use("/api/settings", settingsRouter);
 app.use("/api/online", onlineRouter);
 
-// SPA fallback
-app.get(/.*/, (_req, res) => {
+// SPA fallback: Only serve index.html for navigation requests that are not API calls or static files
+app.get("*", (req, res, next) => {
+  // If it's an API call or has a file extension, don't serve index.html
+  if (req.path.startsWith("/api") || req.path.includes(".")) {
+    return next();
+  }
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.sendFile(path.join(__dirname, "../../client/dist/index.html"));
 });
