@@ -1,10 +1,10 @@
-# zGo
-
 **zGo**에 오신 것을 환영합니다! zGo는 **React**와 세계 최고 수준의 바둑 AI **KataGo**를 결합한 현대적인 웹 기반 바둑 클라이언트입니다.
 
 입문자부터 전문가까지, AI 대국, 온라인 대국, AI 분석 복기를 통해 기력을 향상할 수 있는 우아한 인터페이스를 제공합니다.
 
 [English README](./README.md)
+
+<img width="900" alt="cover" src="https://github.com/user-attachments/assets/d4e02777-859f-42c5-864d-8d334c8a4009" />
 
 ---
 
