@@ -6,6 +6,8 @@ Whether you are a complete beginner or a seasoned professional, zGo provides an 
 
 [한국어 README](./README.ko.md)
 
+<img width="900" alt="cover" src="https://github.com/user-attachments/assets/d4e02777-859f-42c5-864d-8d334c8a4009" />
+
 ---
 
 ## Features
