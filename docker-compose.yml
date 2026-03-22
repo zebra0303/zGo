@@ -7,8 +7,8 @@ services:
       dockerfile: Dockerfile
     container_name: zgo_app
     ports:
-      # Map host port 3030 to container port 3001
-      - "3030:3001"
+      # Map host port 3330 to container port 3001
+      - "3330:3001"
     volumes:
       # Mount the local database directory to persist SQLite data
       - ./server/database:/app/server/database
