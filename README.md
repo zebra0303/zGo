@@ -166,13 +166,15 @@ zGo/
 │   │   │   └── TeacherAdviceWidget.tsx
 │   │   ├── features/               # Board interaction, online UI (rooms, chat)
 │   │   ├── entities/               # Match & Online stores, Go logic, tree types
-│   │   └── shared/                 # API client (fetchWithAuth), types, i18n, router
+│   │   ├── shared/                 # Reusable UI (GameControls, CustomDialog),
+│   │   │                           # API client (fetchWithAuth), types, i18n, router
+│   │   └── __tests__/              # Vitest unit tests (85+ tests)
 │   └── vite.config.ts              # Vite + PWA plugin config
 ├── server/                         # Express backend (TypeScript)
 │   ├── src/
-│   │   ├── index.ts                # Entry point, Cache-Control headers
+│   │   ├── index.ts                # Entry point, Cache-Control, SPA fallback
 │   │   ├── db.ts                   # SQLite (matches, settings, rooms, chat)
-│   │   ├── middleware/auth.ts      # Cookie-based requireAdmin middleware
+│   │   ├── middleware/auth.ts      # HttpOnly Cookie-based requireAdmin middleware
 │   │   ├── lib/goLogic.ts          # Server-side move validation
 │   │   ├── katago/                 # KataGo process management & GTP
 │   │   ├── routes/
@@ -180,12 +182,16 @@ zGo/
 │   │   │   ├── matches.ts         # /api/matches CRUD
 │   │   │   ├── online.ts          # /api/online/* (rooms, join, match)
 │   │   │   └── settings.ts        # /api/settings/* (auth, config)
-│   │   └── ws/
-│   │       ├── onlineHandler.ts   # WebSocket game logic
-│   │       └── roomManager.ts     # Room state management
+│   │   ├── ws/
+│   │   │   ├── onlineHandler.ts   # WebSocket game logic
+│   │   │   └── roomManager.ts     # Room state management
+│   │   └── shared/                 # Server-side i18n locales and logic
+│   ├── __tests__/                  # Server-side tests (logic, i18n)
 │   └── katago/                     # KataGo binary, config & model
-├── .env                            # Environment variables
-└── package.json                    # Root scripts
+├── Dockerfile                      # Multi-stage production build
+├── docker-compose.yml              # Orchestration with local volume mounts
+├── .env                            # Environment variables (JWT_SECRET, PORT)
+└── package.json                    # Root scripts for build/test
 ```
 
 ### Performance Optimizations

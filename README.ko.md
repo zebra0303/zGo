@@ -166,11 +166,13 @@ zGo/
 │   │   │   └── TeacherAdviceWidget.tsx
 │   │   ├── features/               # 바둑판 인터랙션, 온라인 UI (방, 채팅)
 │   │   ├── entities/               # 매치 & 온라인 스토어, 바둑 로직, 트리 타입
-│   │   └── shared/                 # API 클라이언트 (fetchWithAuth), 타입, i18n, 라우터
+│   │   ├── shared/                 # 공용 UI (GameControls, CustomDialog),
+│   │   │                           # API 클라이언트 (fetchWithAuth), 타입, i18n, 라우터
+│   │   └── __tests__/              # Vitest 단위 테스트 (85개 이상)
 │   └── vite.config.ts              # Vite + PWA 플러그인 설정
 ├── server/                         # Express 백엔드 (TypeScript)
 │   ├── src/
-│   │   ├── index.ts                # 진입점, Cache-Control 헤더 설정
+│   │   ├── index.ts                # 진입점, Cache-Control, SPA 폴백 설정
 │   │   ├── db.ts                   # SQLite (대국, 설정, 룸, 채팅)
 │   │   ├── middleware/auth.ts      # 쿠키 기반 requireAdmin 미들웨어
 │   │   ├── lib/goLogic.ts          # 서버 측 착수 검증
@@ -180,12 +182,16 @@ zGo/
 │   │   │   ├── matches.ts         # /api/matches CRUD
 │   │   │   ├── online.ts          # /api/online/* (방 생성, 참가, 매치)
 │   │   │   └── settings.ts        # /api/settings/* (인증, 설정)
-│   │   └── ws/
-│   │       ├── onlineHandler.ts   # WebSocket 게임 로직
-│   │       └── roomManager.ts     # 룸 상태 관리
+│   │   ├── ws/
+│   │   │   ├── onlineHandler.ts   # WebSocket 게임 로직
+│   │   │   └── roomManager.ts     # 룸 상태 관리
+│   │   └── shared/                 # 서버 측 i18n 로케일 및 로직
+│   ├── __tests__/                  # 서버 측 테스트 (로직, i18n)
 │   └── katago/                     # KataGo 바이너리, 설정 & 모델
-├── .env                            # 환경 변수
-└── package.json                    # 루트 스크립트
+├── Dockerfile                      # 멀티 스테이지 운영 빌드 설정
+├── docker-compose.yml              # 로컬 볼륨 마운트를 포함한 컨테이너 오케스트레이션
+├── .env                            # 환경 변수 (JWT_SECRET, PORT)
+└── package.json                    # 빌드/테스트를 위한 루트 스크립트
 ```
 
 ### 성능 최적화 요약
