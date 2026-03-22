@@ -107,6 +107,7 @@ import { useGameScoring } from "@/features/board/lib/useGameScoring";
 import { restartEngine } from "@/shared/api/gameApi";
 import { RefreshCcw } from "lucide-react";
 import GameControls from "@/shared/ui/GameControls";
+import { useShallow } from "zustand/react/shallow";
 
 interface BoardWidgetProps {
   sidebarCollapsed?: boolean;
@@ -114,7 +115,12 @@ interface BoardWidgetProps {
 
 const BoardWidget = ({ sidebarCollapsed }: BoardWidgetProps) => {
   const { t } = useTranslation();
-  const { isReviewMode, gameMode } = useGameStore();
+  const { isReviewMode, gameMode } = useGameStore(
+    useShallow((s) => ({
+      isReviewMode: s.isReviewMode,
+      gameMode: s.gameMode,
+    })),
+  );
   const isOnline = gameMode === "Online";
   const [isRestarting, setIsRestarting] = useState(false);
 

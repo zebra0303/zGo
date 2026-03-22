@@ -4,6 +4,7 @@ import { useGameStore } from "@/entities/match/model/store";
 import { navigateTo } from "@/shared/lib/router";
 import { playNewGameSound } from "@/shared/lib/sound";
 import GameControls from "@/shared/ui/GameControls";
+import { useShallow } from "zustand/react/shallow";
 
 interface SettingsPanelProps {
   onResetSaveStatus: () => void;
@@ -27,7 +28,25 @@ const SettingsPanel = ({ onResetSaveStatus }: SettingsPanelProps) => {
     resetGame,
     toggleTeacherMode,
     showConfirm,
-  } = useGameStore();
+  } = useGameStore(
+    useShallow((s) => ({
+      gameMode: s.gameMode,
+      aiDifficulty: s.aiDifficulty,
+      humanPlayerColor: s.humanPlayerColor,
+      boardSize: s.boardSize,
+      handicap: s.handicap,
+      boardScale: s.boardScale,
+      soundEnabled: s.soundEnabled,
+      soundVolume: s.soundVolume,
+      isTeacherMode: s.isTeacherMode,
+      teacherVisits: s.teacherVisits,
+      currentNode: s.currentNode,
+      setGameConfig: s.setGameConfig,
+      resetGame: s.resetGame,
+      toggleTeacherMode: s.toggleTeacherMode,
+      showConfirm: s.showConfirm,
+    })),
+  );
 
   // Confirm before resetting if a game is in progress
   const handleResetGame = (

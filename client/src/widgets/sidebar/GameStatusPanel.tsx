@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useGameStore } from "@/entities/match/model/store";
 import { playNewGameSound } from "@/shared/lib/sound";
 import { formatGameResultText } from "@/shared/lib/formatUtils";
+import { useShallow } from "zustand/react/shallow";
 
 const ChatHistoryModal = lazy(
   () => import("@/widgets/sidebar/ChatHistoryModal"),
@@ -27,7 +28,21 @@ const GameStatusPanel = ({ saveStatus, onSaveMatch }: GameStatusPanelProps) => {
     reviewChat,
     soundEnabled,
     soundVolume,
-  } = useGameStore();
+  } = useGameStore(
+    useShallow((s) => ({
+      currentPlayer: s.currentPlayer,
+      currentNode: s.currentNode,
+      isGameOver: s.isGameOver,
+      isReviewMode: s.isReviewMode,
+      gameResultText: s.gameResultText,
+      isScoring: s.isScoring,
+      deadStones: s.deadStones,
+      resetGame: s.resetGame,
+      reviewChat: s.reviewChat,
+      soundEnabled: s.soundEnabled,
+      soundVolume: s.soundVolume,
+    })),
+  );
   const [showChatModal, setShowChatModal] = useState(false);
 
   const capturedByBlack = currentNode.capturedByBlack;

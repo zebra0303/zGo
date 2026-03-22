@@ -38,9 +38,8 @@ const AuthPage = ({ isSetup, onAuthenticated }: AuthPageProps) => {
       }
 
       if (isSetup || setupDone) {
-        // Login successful
-        localStorage.setItem("admin_token", data.token);
-        onAuthenticated(data.token);
+        // Login successful (token is now an HttpOnly cookie set by server)
+        onAuthenticated("cookie_set");
       } else {
         // Setup successful → switch to login mode
         setSetupDone(true);

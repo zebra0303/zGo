@@ -108,6 +108,15 @@ router.post("/setup", authLimiter, async (req: Request, res: Response) => {
       "INSERT OR IGNORE INTO system_settings (key, value) VALUES ('language', 'ko')",
     ).run();
 
+    const token = jwt.sign({ role: "admin" }, JWT_SECRET, { expiresIn: "7d" });
+
+    res.cookie("admin_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
     res.json({ message: "Admin setup successful" });
   } catch (e: unknown) {
     res.status(500).json({ error: (e as Error).message });
@@ -158,7 +167,7 @@ router.post("/login", authLimiter, async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
-    res.json({ token: "cookie_set", message: "Login successful" });
+    res.json({ message: "Login successful" });
   } catch (e: unknown) {
     res.status(500).json({ error: (e as Error).message });
   }
@@ -175,7 +184,7 @@ router.post("/refresh", requireAdmin, (_req: Request, res: Response) => {
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
-  res.json({ token: "cookie_set" });
+  res.json({ message: "Token refreshed successfully" });
 });
 
 // 5. Change password
@@ -227,7 +236,6 @@ router.put(
 
       res.json({
         message: "Password changed successfully",
-        token: "cookie_set",
       });
     } catch (e: unknown) {
       res.status(500).json({ error: (e as Error).message });

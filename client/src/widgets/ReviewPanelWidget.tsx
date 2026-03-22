@@ -6,6 +6,7 @@ import {
   BranchPoint,
 } from "@/entities/match/lib/useBranchPoints";
 import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
 
 // refactor: merged WinRateGraphWidget + ReviewControlWidget into one compact panel
 const ReviewPanelWidget = () => {
@@ -21,7 +22,20 @@ const ReviewPanelWidget = () => {
     showDeadStones,
     toggleDeadStones,
     deadStones,
-  } = useGameStore();
+  } = useGameStore(
+    useShallow((s) => ({
+      currentNode: s.currentNode,
+      isReviewMode: s.isReviewMode,
+      setCurrentNode: s.setCurrentNode,
+      isAnalyzing: s.isAnalyzing,
+      analysisProgress: s.analysisProgress,
+      goToPreviousMove: s.goToPreviousMove,
+      goToNextMove: s.goToNextMove,
+      showDeadStones: s.showDeadStones,
+      toggleDeadStones: s.toggleDeadStones,
+      deadStones: s.deadStones,
+    })),
+  );
   const { fullPath, currentIndexInPath, totalMoves } = useGamePath();
   const branchPoints = useBranchPoints();
 

@@ -156,8 +156,14 @@ const SidebarWidget = () => {
 
   const resetSaveStatus = useCallback(() => setSaveStatus("idle"), []);
 
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem("admin_token");
+  const handleLogout = useCallback(async () => {
+    try {
+      await fetchWithAuth(`${API_BASE_URL}/settings/logout`, {
+        method: "POST",
+      });
+    } catch (e) {
+      console.error("Logout failed", e);
+    }
     window.location.reload();
   }, []);
 

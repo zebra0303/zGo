@@ -109,30 +109,24 @@ function App() {
         if (abortController.signal.aborted) return;
         const isSetup = statusData.isSetup;
 
-        const token = localStorage.getItem("admin_token");
-        if (token) {
-          try {
-            const refreshRes = await fetchWithAuth(
-              `${API_BASE_URL}/settings/refresh`,
-              {
-                method: "POST",
-                headers: { Authorization: `Bearer ${token}` },
-                signal: abortController.signal,
-              },
-            );
-            if (refreshRes.ok) {
-              const { token: newToken } = await refreshRes.json();
-              if (abortController.signal.aborted) return;
-              localStorage.setItem("admin_token", newToken);
-              setAuthState("authenticated");
-              return;
-            }
-          } catch (err) {
-            if ((err as Error).name !== "AbortError") {
-              // Token expired or invalid
-            }
+        // Try to refresh token (relies on HttpOnly cookie)
+        try {
+          const refreshRes = await fetchWithAuth(
+            `${API_BASE_URL}/settings/refresh`,
+            {
+              method: "POST",
+              signal: abortController.signal,
+            },
+          );
+          if (refreshRes.ok) {
+            if (abortController.signal.aborted) return;
+            setAuthState("authenticated");
+            return;
           }
-          localStorage.removeItem("admin_token");
+        } catch (err) {
+          if ((err as Error).name !== "AbortError") {
+            // Token expired, missing, or invalid
+          }
         }
 
         setAuthState(isSetup ? "login" : "setup");
@@ -148,14 +142,11 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
 
-  const handleAuthenticated = useCallback(
-    async (token: string) => {
-      localStorage.setItem("admin_token", token);
-      await fetchAndApplyServerConfig(i18n);
-      setAuthState("authenticated");
-    },
-    [i18n],
-  );
+  const handleAuthenticated = useCallback(async () => {
+    // using HttpOnly cookies, no token param needed
+    await fetchAndApplyServerConfig(i18n);
+    setAuthState("authenticated");
+  }, [i18n]);
 
   // Online pages bypass auth gate (anyone with the URL can access)
   if (route.page === "online-room" || route.page === "online-farewell") {

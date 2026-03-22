@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useGameStore } from "@/entities/match/model/store";
 import { playPassSound, playNewGameSound } from "@/shared/lib/sound";
+import { useShallow } from "zustand/react/shallow";
 
 interface GameControlsProps {
   layout?: "grid" | "row";
@@ -27,7 +28,22 @@ const GameControls = ({
     resignGame,
     undoMove,
     showConfirm,
-  } = useGameStore();
+  } = useGameStore(
+    useShallow((s) => ({
+      gameMode: s.gameMode,
+      soundEnabled: s.soundEnabled,
+      soundVolume: s.soundVolume,
+      isGameOver: s.isGameOver,
+      isReviewMode: s.isReviewMode,
+      undoUsedInGame: s.undoUsedInGame,
+      currentNode: s.currentNode,
+      resetGame: s.resetGame,
+      passTurn: s.passTurn,
+      resignGame: s.resignGame,
+      undoMove: s.undoMove,
+      showConfirm: s.showConfirm,
+    })),
+  );
 
   const handleResetGame = () => {
     const doReset = () => {
