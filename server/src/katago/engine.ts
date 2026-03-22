@@ -200,9 +200,12 @@ export const startKataGo = () => {
     }
   });
 
-  katagoProcess.on("exit", () => {
+  katagoProcess.on("exit", (code, signal) => {
     isKatagoReady = false;
-    console.log("KataGo Process exited.");
+    console.log(`KataGo Process exited with code ${code} and signal ${signal}`);
+    if (stderrBuffer) {
+      console.log("KataGo stderr before exit:", stderrBuffer);
+    }
   });
 };
 
