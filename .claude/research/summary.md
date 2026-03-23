@@ -1,6 +1,6 @@
 # zGo Project Research Summary
 
-> Last updated: 2026-03-22
+> Last updated: 2026-03-23
 
 > **2026-03-22 Architecture Update:** To unify the ecosystem (zGo, zlog, BigStone), common components, API structures, and shared types have been extracted to `@zebra/core` (`zCore` repo). The project now seamlessly imports these shared UI and logic elements via `github:zebra0303/zCore#main`.
 
@@ -28,17 +28,17 @@ zGo는 KataGo AI 엔진을 기반으로 한 웹 바둑 애플리케이션이다.
 | 영역 | 기술 |
 |------|------|
 | **Frontend** | React 18, TypeScript, Vite 5, Tailwind CSS 3.4 |
-| **State** | Zustand 5 + Immer 11 (persist middleware, localStorage) |
+| **State** | Zustand 5 + Immer 11 (persist middleware, sessionStorage/localStorage) |
 | **Data Fetching** | TanStack React Query 5 |
 | **i18n** | i18next + react-i18next |
 | **Backend** | Node.js, Express 5.2, TypeScript, CommonJS |
 | **Database** | better-sqlite3 (WAL mode), SQLite |
 | **AI Engine** | KataGo (GTP protocol, child_process.spawn) |
 | **Realtime** | WebSocket (ws 8.19) + JWT room tokens (24h) |
-| **Auth** | bcrypt 6 + jsonwebtoken 9, express-rate-limit |
+| **Auth** | bcrypt 6 + jsonwebtoken 9 (HttpOnly), express-rate-limit |
 | **PWA** | vite-plugin-pwa (Workbox) |
 | **Build** | Vite (client), tsc (server), Concurrently (dev) |
-| **Testing** | Vitest (client 71 + server 34 = 105 tests) |
+| **Testing** | Vitest (client 88 + server 40 = 128 tests) |
 | **Code Quality** | ESLint, Prettier, Husky + lint-staged |
 
 ---
@@ -112,14 +112,15 @@ zGo/
 │           │   ├── themeUtils.ts          # 테마/폰트/색상 CSS 변수 적용
 │           │   ├── router.ts              # 해시 기반 라우팅
 │           │   ├── useRenderProfile.ts    # 개발용 성능 프로파일링 (>16ms 감지)
-│           │   └── errors/AppError.ts     # 커스텀 에러 클래스 (Error Masking)
+│           │   ├── errors/AppError.ts     # 커스텀 에러 클래스 (Error Masking)
+│           │   └── cryptoUtils.ts         # 세션 데이터 난독화 유틸리티
 │           ├── types/board.ts             # BoardState, PlayerColor 타입
 │           └── ui/CustomDialog.tsx        # 알림/확인 다이얼로그
 ├── server/
 │   ├── src/
 │   │   ├── index.ts               # Express 서버 + WebSocket 업그레이드 + SPA 폴백 + Graceful Shutdown
 │   │   ├── db.ts                  # better-sqlite3 (matches, system_settings, online_rooms, online_chat)
-│   │   ├── middleware/auth.ts     # JWT requireAdmin 미들웨어
+│   │   ├── middleware/auth.ts     # HttpOnly Cookie 기반 JWT 검증 미들웨어
 │   │   ├── routes/
 │   │   │   ├── ai.ts             # AI 착수/분석/계가 (KataGo GTP)
 │   │   │   ├── matches.ts        # 기보 CRUD
@@ -136,7 +137,7 @@ zGo/
 │   ├── katago/
 │   │   ├── gtp_config.cfg        # KataGo 설정 (6스레드, 100 visits 기본)
 │   │   └── katago-model.bin.gz   # AI 모델 (git 미포함)
-│   └── __tests__/logic.test.ts   # 좌표 변환, 접바둑, 전술 테스트 (34개)
+│   └── __tests__/logic.test.ts   # 좌표 변환, 접바둑, 전술 테스트 (40개)
 ├── package.json                   # 루트 모노레포 (concurrently, husky, lint-staged)
 └── .env                           # PORT=3330, VITE_PORT=5550, JWT_SECRET
 ```
@@ -196,7 +197,7 @@ Node.js Server ←→ KataGo Process
 |--------|------|------|------|
 | GET | `/api/settings/status` | - | 비밀번호 설정 여부 |
 | POST | `/api/settings/setup` | - | 최초 비밀번호 설정 (rate limit: 10/15min) |
-| POST | `/api/settings/login` | - | 로그인 → JWT (7일). 5회 실패 → 15분 잠금 |
+| POST | `/api/settings/login` | - | 로그인 → JWT 쿠키 응답 (7일). 5회 실패 → 15분 잠금 |
 | POST | `/api/settings/refresh` | JWT | 토큰 갱신 |
 | PUT | `/api/settings/password` | JWT | 비밀번호 변경 |
 | GET | `/api/settings/config` | - | 공개 설정 (admin_password, login_failure_state 제외) |
@@ -272,28 +273,11 @@ CREATE TABLE online_chat (
 );
 ```
 
-**sgfData JSON 구조:**
-```json
-{
-  "moves": [null, {x, y}, null, ...],
-  "winRates": [50, 55, 45, ...],
-  "resultText": "백 기권패 (흑 승)",
-  "resultWinner": "BLACK",
-  "boardSize": 19,
-  "handicap": 0,
-  "chat": [{"sender": "host", "message": "hi", "createdAt": "..."}],
-  "hostNickname": "Player1",
-  "guestNickname": "Player2",
-  "hostCharacter": "fox",
-  "guestCharacter": "cat"
-}
-```
-
 ### 4.6 전술 분석 (tactics.ts)
 
 우선순위: capture(1) → saving(2) → atari(3) → cut(4) → connection(5) → corner(6) → side(7) → center(8)
 
-한국어/영어 해설 지원. BFS로 그룹 활로 계산.
+한국어/영어 해설 지원. BFS로 그룹 활로 계산. 다중 돌 그룹 단위 활로 평가를 정확하게 지원.
 
 ### 4.7 AI 난이도 시스템 (ai.ts)
 
@@ -303,8 +287,6 @@ CREATE TABLE online_chat (
 - 11-15: 800, 1000, 1200, 1500, 1500
 - 16-20: 1500 (temperature + playout advantage로 약화)
 - 21-30: 1500, 1800, 2000, 2200, 2500 (프로 수준)
-
-아마추어 레벨(≤15): temperature, playoutDoublingAdvantage 파라미터로 AI 약화
 
 ---
 
@@ -316,7 +298,7 @@ CREATE TABLE online_chat (
 
 **인증 흐름:**
 1. `GET /settings/status` → isSetup 확인
-2. localStorage `admin_token` 존재 시 → refresh 시도
+2. HttpOnly 쿠키 존재 여부에 따라 자동 refresh 시도 (API 내부 처리)
 3. 상태 분기: loading → setup/login → authenticated
 4. 온라인 페이지(`online-room`, `online-farewell`)는 인증 우회
 
@@ -344,15 +326,6 @@ interface HistoryNode {
 }
 ```
 
-**주요 액션:**
-- `placeStone(x, y)`: goLogic 검증 → 트리 노드 생성/탐색 → Immer produce
-- `passTurn()`: 패스 노드 생성, 연속 2패스 시 게임 오버
-- `resignGame()`: isGameOver + showDeadStones
-- `undoMove()`: PvAI 전용, 2수 되돌리기, 대국당 1회
-- `loadMatch(moves, winRates, ...)`: 저장된 기보 → 복기 모드 진입
-- `updateWinRate(nodeId, winRate)` / `updateWinRates(batch)`: 분석 결과 반영
-- `startReviewAnalysis()`: 모듈 레벨 함수, SSE 분석 시작 (abort 지원)
-
 **Immer 통합 — 중요 패턴:**
 ```typescript
 set(produce(draft => {
@@ -363,24 +336,15 @@ set(produce(draft => {
 }));
 ```
 
-**Persist 미들웨어:**
-- 제외: gameTree, currentNode (순환참조), isAnalyzing, analysisProgress, reviewChat (임시)
-- `flattenTree()` → board 제외한 FlatNode[] 직렬화 (~100x 크기 감소)
-- `reconstructTree()` → 3단계 복원: 노드 생성 → 링크 연결 → 수 리플레이로 보드 재구축
-
 ### 5.3 온라인 스토어 (online/model/store.ts)
 
-**상태:** roomId, roomToken, roomInfo, myRole, myNickname, myCharacter, connectionStatus, chatMessages, pendingUndoRequest, notification
+**세션 복원 보안 (Obfuscation):** 
+sessionStorage에 `roomToken`과 사용자 닉네임 등의 PII(Personal Identifiable Information)가 평문으로 저장되지 않도록, `cryptoUtils.ts`를 통해 가벼운 암호화(난독화)를 거친 후 저장합니다.
 
 **주요 액션:**
 - `createRoom()` / `joinRoom()`: REST API → roomToken(JWT) 수신
 - `connectWs()`: WebSocket 연결 + 메시지 핸들러 등록
-- `sendMove()`, `sendPass()`, `sendResign()`, `sendChat()`, `requestUndo()`
 - `handleWsMessage()`: 대형 switch문으로 메시지 처리 (room_state, move, game_over 등)
-- `enterReviewMode()`: 온라인 대국 → 복기 모드 전환 (채팅 데이터 보존)
-- `autoSaveAndReview()`: 게임 종료 시 자동 저장 + 복기 (sgfData에 채팅 포함)
-
-**세션 복원:** sessionStorage에 온라인 상태 저장 → 페이지 새로고침 후 복원
 
 ### 5.4 바둑 로직 (goLogic.ts)
 
@@ -396,144 +360,38 @@ set(produce(draft => {
 ### 5.5 공유 유틸리티 (shared/lib/)
 
 - **goUtils.ts**: `getPlayerForMove(moveIndex, handicap)` — 핸디캡 고려 턴 계산. `buildMoveHistory(path)` — 경로에서 수순 추출
-- **formatUtils.ts**: 게임 결과 텍스트 로컬라이즈 ("Black +1.5" → 한국어)
-- **sound.ts**: 오디오 풀 패턴으로 HTMLAudioElement 재사용. 7종 효과음
-- **themeUtils.ts**: CSS 변수 설정 (--primary, --font-family, dark 클래스 토글)
-- **router.ts**: 해시 기반 라우팅 (main, online-create, online-room/:id, online-farewell)
-- **useRenderProfile.ts**: 개발용 성능 감시 (>16ms 렌더 경고). `import.meta.env.DEV`로 프로덕션 비활성화
-- **errors/AppError.ts**: 커스텀 에러 클래스 (Error Masking). 5xx/알 수 없는 오류는 `createMaskedError`를 통해 마스킹 처리하여 UI에 직접 노출되는 것을 방지.
-
-### 5.6 위젯 상세
-
-**BoardWidget.tsx (features/board/ui 포함):**
-- 모바일에서 사이드바가 접히더라도 AI가 정상 동작하도록 `useAITurn` 및 `useGameScoring` 훅을 Sidebar에서 분리하여 BoardWidget 레벨에 마운트함.
-
-**BoardCore.tsx (features/board/ui):**
-- SVG viewBox 기반 반응형. `useShallow`로 불필요한 리렌더 방지.
-- useMemo: gridLines, starPoints, renderedStones.
-- React Query: aiHint 패칭 (staleTime: Infinity).
-- 인터랙션: 클릭 → CSS 스케일 보정 좌표 변환 → placeStone / sendMove(온라인).
-- 표시 레이어: 격자 → 성점 → 변화도 마커(A,B,C) → AI 힌트(파란 펄스) → 무시된 추천(초록 점선) → 돌 → 사석 X 마크.
-
-**SidebarWidget.tsx (widgets):**
-- 탭: 대국 | 기록 | ⚙️ 관리.
-- 기보 저장: useMutation → sgfData JSON.
-- 승자 판별: winner 상태 → gameResultText 문자열 비교 → winRate 비교 (fallback).
-- Lazy 로드: MatchHistory, AdminPanel.
-- 성능 최적화: `useShallow`를 통해 관련 상태만 구독.
-
-**OnlineSidebarWidget.tsx:**
-- 플레이어 카드 (캐릭터 이모지 + 닉네임 + 색상 + 승패 뱃지).
-- 채팅 섹션 (이모지 퀵 피커 18종 + 메시지 표시).
-- 게임 컨트롤: 패스/기권/무르기 (사용 횟수 추적).
-- 성능 최적화: `useShallow`를 통해 관련 상태만 구독.
-
-**ReviewPanelWidget.tsx:**
-- SVG 승률 그래프 (x: 수번호, y: 흑 승률 0-100%).
-- 범위 슬라이더 + 이전/다음 버튼 + 키보드(←→).
-- 분기점 칩: 수평 스크롤, 활성 칩 자동 스크롤.
-- 사석 토글: 최종 수에서만 활성.
-
-**TeacherAdviceWidget.tsx:**
-- AI 추천 수 최대 3개 (GTP 표기 + 설명).
-- 비판 흐름: 추천 수 캐시(ref, 50개 제한) → 사용자 이탈 감지 → critique 패칭.
-- 성능 최적화: `useShallow`를 적용하여 불필요한 재렌더링 차단.
-
-**MatchHistory.tsx:**
-- 접근성(A11y): 시맨틱 마크업(`role="button"`, `tabIndex={0}`)과 키보드 네비게이션(`onKeyDown`) 완벽 지원.
+- **cryptoUtils.ts**: sessionStorage에 저장될 민감 데이터의 평문 노출 방지를 위한 난독화(`obfuscate`/`deobfuscate`) 지원
+- **errors/AppError.ts**: 커스텀 에러 클래스 (Error Masking). 5xx/알 수 없는 오류는 `createMaskedError`를 통해 마스킹 처리하여 UI에 노출되는 것을 방지.
 
 ---
 
-## 6. 데이터 흐름
+## 6. 성능 및 보안 최적화 요약
 
-### 6.1 오프라인 PvAI 대국
-```
-User Click → BoardCore.handleBoardClick()
-  → store.placeStone(x, y) [goLogic.applyMove 검증]
-  → currentPlayer 전환
-  → useAITurn hook 감지 (AI 턴)
-    → setTimeout(1500ms) → fetchAIMove()
-    → updateWinRate() → placeStone(aiX, aiY)
-  → 연속 2패스 시 → useGameScoring → fetchAIScore
-  → 승/패 사운드 재생
-```
-
-### 6.2 온라인 대국
-```
-Host: POST /online/rooms → roomId + JWT(host)
-Guest: POST /online/rooms/:id/join → JWT(guest)
-Both: WebSocket /ws/online → auth 메시지 → room_state 수신
-  → 클릭 → sendMove(x,y) → 서버 검증 → 브로드캐스트
-  → 양쪽 placeStone(x,y) 적용
-  → 게임 종료 → autoSaveAndReview (sgfData에 채팅 포함)
-```
-
-### 6.3 선생님 모드
-```
-User Turn → React Query: fetchAIHint (isHintRequest: true)
-  → BoardCore: 파란 펄스 원 (추천 수 3개)
-  → TeacherAdviceWidget: 추천 수 캐시
-  → User 착수 → 추천 수 비교
-    → 이탈 시 → critique 패칭 + 무시된 추천 표시 (초록 점선)
-```
-
-### 6.4 복기 분석 (SSE)
-```
-기록 탭 → 기보 클릭 → loadMatch() → startReviewAnalysis()
-  → analyzeGame() [POST /ai/analyze-game, SSE]
-    → 서버: 수별 genmove → latestWinRate → SSE chunk 전송
-    → 클라이언트: onProgress → store.updateWinRates() [100ms 스로틀]
-  → ReviewPanelWidget 승률 그래프 실시간 갱신
-```
+- **성능 (Zustand Selectors)**: `useShallow`를 위젯(`BoardCore`, `TeacherAdviceWidget`, `SidebarWidget`)들에 널리 적용하여 불필요한 UI 재렌더링 원천 차단함.
+- **CPU 렌더링 최적화**: 바둑판(`BoardCore.tsx`), 돌(`Stone`) 단위에 철저한 `React.memo` 적용.
+- **보안 (Session Storage)**: `roomToken` 등 PII/토큰 데이터의 sessionStorage 평문 보관을 피하기 위해 난독화(`cryptoUtils.ts`) 적용 완료.
+- **보안 (Error Masking)**: API 호출 및 로그인 폼 등에서 발생하는 서버 에러와 스택 트레이스가 UI에 노출되지 않도록 `createMaskedError`를 통해 규격화.
+- **보안 (Auth)**: 어드민 인증 토큰은 평문이 아닌 `HttpOnly` 속성을 가진 쿠키 기반으로 안전하게 설계됨.
+- **안정성 (Graceful Shutdown)**: Node.js 서버 재시작/종료 시 자식 `katago` 프로세스의 즉각 종료(Zombie 방지) 구현.
 
 ---
 
-## 7. 성능 및 보안 최적화 요약
+## 7. 테스트 현황
 
-- **성능 (Zustand Selectors)**: `useShallow`를 위젯(`BoardCore`, `TeacherAdviceWidget`, `SidebarWidget`, `OnlineSidebarWidget`)들에 널리 적용하여 AI 연산 및 트리 탐색 시 발생하는 무관한 UI 재렌더링을 원천 차단함.
-- **보안 (Error Masking)**: API 호출 및 로그인 폼(`AuthPage`, `AdminPanel`, `CreateRoomForm`, `JoinRoomForm`) 등에서 발생하는 서버 에러와 스택 트레이스가 UI에 노출되지 않도록 `createMaskedError`를 통해 규격화된 메시지로 마스킹 처리함.
-- **안정성 (Graceful Shutdown)**: Node.js 서버 재시작/종료 시 남겨진 `katago` 프로세스로 인한 자원 독점(Zombie 프로세스)을 막기 위해 시그널(`SIGINT`, `SIGTERM`) 리스너를 통한 안전 종료 로직 구현.
-- **UI/UX 복원력**: 뷰포트 크기 변화로 사이드바가 숨겨지더라도 AI 로직이 중단되지 않도록 생명주기(Lifecycle) 훅을 `BoardWidget`으로 이관.
-- **접근성(A11y)**: 마우스에 의존하던 목록 아이템들에 대한 키보드 네비게이션 및 ARIA 역할(`role="button"`) 추가.
-
----
-
-## 8. 설정 파일
-
-### .env
-```
-PORT=3330
-VITE_PORT=5550
-VITE_API_BASE_URL=http://localhost:3330/api
-JWT_SECRET=change_me_in_production
-```
-
-### KataGo (gtp_config.cfg)
-- `numSearchThreads = 6`
-- `maxVisits = 100` (기본, API에서 동적 변경)
-- `koRule = SIMPLE`, `scoringRule = TERRITORY`
-- `resignThreshold = -0.90` (3턴 연속)
-- `logToStderr = true` (승률 파싱 필수)
-- `ponderingEnabled = true`
+### Client (Vitest, 88 tests)
+- 스토어 로직, 게임 트리 변환, 패 규칙/자충수, 무르기, 사운드 등 **접바둑 배치**, **유틸리티(goUtils)** 의 엣지 케이스까지 100% 커버.
+### Server (Vitest, 40 tests)
+- 좌표 변환 (GTP ↔ xy), 접바둑 룰, 전술 감지, 다국어 해설 매핑 및 **다중 돌 그룹 활로 평가** 테스트까지 완벽히 커버.
 
 ---
 
-## 9. 테스트 현황
-
-### Client (Vitest, 71 tests)
-- 스토어 로직, 게임 트리 변환, 패 규칙/자충수, 무르기, 사운드 등 철저히 검증 완료.
-### Server (Vitest, 34 tests)
-- 좌표 변환 (GTP ↔ xy), 접바둑 룰, 전술 감지, 다국어 해설 매핑 테스트 완료.
-
----
-
-## 10. 알려진 패턴 및 주의사항
+## 8. 알려진 패턴 및 주의사항
 
 1. **Express 5 SSE**: non-async handler + `res.on("close")` 필수 (req.on 아님)
 2. **Immer + Zustand**: produce 후 currentNode 재연결 필수 (프록시 분리 방지)
 3. **KataGo 승률 방향**: genmove 결과는 검색하는 쪽(SIDE TO MOVE) 관점. 흑 관점 변환 필요
 4. **접바둑**: 첫 수가 WHITE (handicap > 0일 때). `getPlayerForMove(moveIndex, handicap)` 사용
 5. **API 큐**: `apiRequestQueue`(API 레벨)와 `commandQueue`(GTP 레벨) 2단계 큐
-6. **세션 복원**: 온라인 상태 → sessionStorage, 오프라인 게임 트리 → localStorage
+6. **세션 복원 암호화**: 온라인 상태 → sessionStorage (반드시 `obfuscate` 사용), 오프라인 게임 트리 → localStorage
 7. **에러 핸들링**: 클라이언트 `catch` 블록에서는 `createMaskedError(e)`를 래핑하여 메시지 출력
 8. **종료 훅**: 서버가 죽을 때 자식 `katago`도 명시적으로 kill하도록 처리.

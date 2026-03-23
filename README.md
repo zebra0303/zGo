@@ -146,7 +146,7 @@ This project follows the **FSD (Feature-Sliced Design)** architecture.
 | **Realtime**     | WebSocket (ws)                                                              |
 | **Auth**         | bcrypt + jsonwebtoken (HttpOnly Cookies), express-rate-limit                |
 | **PWA**          | vite-plugin-pwa (Workbox)                                                   |
-| **Testing**      | Vitest (112 tests)                                                          |
+| **Testing**      | Vitest (128 tests)                                                          |
 | **Code Quality** | ESLint, Prettier, Husky, lint-staged                                        |
 | **Shared Lib**   | @zebra/core (common UI components, utils, types)                            |
 
