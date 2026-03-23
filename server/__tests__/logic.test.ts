@@ -93,6 +93,13 @@ describe("getHandicapStones", () => {
     expect(stones).toContainEqual({ x: 3, y: 15 });
   });
 
+  test("handicaps 3, 6, 7, 8 on 19x19", () => {
+    expect(getHandicapStones(19, 3)).toHaveLength(3);
+    expect(getHandicapStones(19, 6)).toHaveLength(6);
+    expect(getHandicapStones(19, 7)).toHaveLength(7);
+    expect(getHandicapStones(19, 8)).toHaveLength(8);
+  });
+
   test("4 handicap stones on 19x19 (all corners)", () => {
     const stones = getHandicapStones(19, 4);
     expect(stones).toHaveLength(4);
@@ -153,6 +160,24 @@ describe("getMoveTactics", () => {
     const result = getMoveTactics(1, 2, board, "W", "en", 19);
     expect(result.type).toBe("saving");
     expect(result.urgency).toBe(2);
+  });
+
+  test("calculates liberties for a group of stones > 1", () => {
+    const board = createEmptyBoard();
+    // A group of 2 white stones
+    board[1][1] = "WHITE";
+    board[1][2] = "WHITE";
+
+    // Surround them except for one liberty
+    board[0][1] = "BLACK";
+    board[0][2] = "BLACK";
+    board[1][0] = "BLACK";
+    board[1][3] = "BLACK";
+    board[2][1] = "BLACK";
+    // liberty at (2,2)
+
+    const result = getMoveTactics(2, 2, board, "W", "en", 19);
+    expect(result.type).toBe("saving"); // since it has 1 liberty before playing
   });
 
   test("detects atari (opponent has 2 liberties)", () => {

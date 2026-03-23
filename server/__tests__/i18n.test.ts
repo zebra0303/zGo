@@ -44,7 +44,7 @@ describe("Server i18n Utility", () => {
 
   it("should fallback to Korean if key is missing in English", () => {
     const mockEnMissing = JSON.stringify({ test: {} });
-    
+
     vi.spyOn(fs, "existsSync").mockReturnValue(true);
     vi.spyOn(fs, "readFileSync").mockImplementation((p: any) => {
       if (p.toString().includes("en")) return mockEnMissing;

@@ -139,4 +139,31 @@ describe("Go Logic (applyMove)", () => {
     expect(move2.isValid).toBe(false);
     expect(move2.reason).toBe("Ko");
   });
+
+  it("should handle edge cases (board edges and different board sizes)", () => {
+    const board = createEmptyBoard();
+    // Test right and bottom edges to cover boundary conditions in getNeighbors
+    const result1 = applyMove(board, 18, 18, "BLACK");
+    expect(result1.isValid).toBe(true);
+
+    // Test different board size in previousBoard (e.g. for Ko check)
+    const smallBoard = Array(9)
+      .fill(null)
+      .map(() => Array(9).fill(null));
+    const result2 = applyMove(board, 0, 0, "WHITE", smallBoard);
+    expect(result2.isValid).toBe(true);
+  });
+
+  it("should reject suicide that captures nothing and leaves 0 liberties", () => {
+    const board = createEmptyBoard();
+    board[0][1] = "BLACK";
+    board[1][0] = "BLACK";
+    board[1][2] = "BLACK";
+    board[2][1] = "BLACK";
+
+    // Play at 1,1
+    const result = applyMove(board, 1, 1, "WHITE");
+    expect(result.isValid).toBe(false);
+    expect(result.reason).toBe("Suicide");
+  });
 });

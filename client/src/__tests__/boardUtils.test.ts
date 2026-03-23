@@ -28,6 +28,18 @@ describe("boardUtils", () => {
       expect(stones).toContainEqual({ x: 3, y: 15 });
     });
 
+    it("should return correct stones for handicaps 3 to 8", () => {
+      expect(getHandicapStones(19, 3)).toHaveLength(3);
+      expect(getHandicapStones(19, 4)).toHaveLength(4);
+      expect(getHandicapStones(19, 5)).toHaveLength(5);
+      expect(getHandicapStones(19, 6)).toHaveLength(6);
+      expect(getHandicapStones(19, 7)).toHaveLength(7);
+      expect(getHandicapStones(19, 8)).toHaveLength(8);
+
+      // Test board size < 13
+      expect(getHandicapStones(9, 4)).toHaveLength(4);
+    });
+
     it("should return 9 stones for handicap 9", () => {
       const stones = getHandicapStones(19, 9);
       expect(stones).toHaveLength(9);
