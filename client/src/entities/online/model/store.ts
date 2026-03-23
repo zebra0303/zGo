@@ -70,6 +70,7 @@ interface OnlineState {
 }
 
 import { API_BASE_URL as API_BASE } from "@/shared/api/gameApi";
+import { obfuscate, deobfuscate } from "@/shared/lib/cryptoUtils";
 
 // Session persistence helpers
 const SESSION_KEY = "zgo_online_session";
@@ -84,7 +85,8 @@ interface SessionData {
 
 function saveSession(data: SessionData): void {
   try {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(data));
+    const rawData = JSON.stringify(data);
+    sessionStorage.setItem(SESSION_KEY, obfuscate(rawData));
   } catch {
     // Ignore storage errors
   }
@@ -92,7 +94,9 @@ function saveSession(data: SessionData): void {
 
 function loadSession(): SessionData | null {
   try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
+    const obfuscated = sessionStorage.getItem(SESSION_KEY);
+    if (!obfuscated) return null;
+    const raw = deobfuscate(obfuscated);
     if (!raw) return null;
     return JSON.parse(raw) as SessionData;
   } catch {
