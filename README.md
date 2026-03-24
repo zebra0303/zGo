@@ -148,7 +148,7 @@ This project follows the **FSD (Feature-Sliced Design)** architecture.
 | **PWA**          | vite-plugin-pwa (Workbox)                                                   |
 | **Testing**      | Vitest (128 tests)                                                          |
 | **Code Quality** | ESLint, Prettier, Husky, lint-staged                                        |
-| **Shared Lib**   | @zebra/core (common UI components, utils, types)                            |
+| **Shared Lib**   | @zebra/core (common UI components, utils, types, error boundaries)          |
 
 ### Project Structure
 
