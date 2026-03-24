@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { API_BASE_URL, fetchWithAuth } from "@/shared/api/gameApi";
-import { createMaskedError } from "@/shared/lib/errors/AppError";
+import { createMaskedError } from "@zebra/core";
 
 interface AuthPageProps {
   isSetup: boolean;

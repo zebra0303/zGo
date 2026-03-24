@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { CharacterType } from "@/entities/online/model/types";
 import { useOnlineStore } from "@/entities/online/model/store";
 import { navigateTo } from "@/shared/lib/router";
-import { createMaskedError } from "@/shared/lib/errors/AppError";
+import { createMaskedError } from "@zebra/core";
 import CharacterSelector from "./CharacterSelector";
 
 const CreateRoomForm = () => {

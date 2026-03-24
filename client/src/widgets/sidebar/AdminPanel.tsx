@@ -4,7 +4,7 @@ import { useGameStore } from "@/entities/match/model/store";
 import { GameState } from "@/entities/match/model/types";
 import { useShallow } from "zustand/react/shallow";
 import { API_BASE_URL, fetchWithAuth } from "@/shared/api/gameApi";
-import { createMaskedError } from "@/shared/lib/errors/AppError";
+import { createMaskedError } from "@zebra/core";
 
 interface AdminPanelProps {
   onLogout: () => void;

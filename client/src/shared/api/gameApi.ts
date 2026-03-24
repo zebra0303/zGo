@@ -1,5 +1,5 @@
 import { BoardState } from "@/shared/types/board";
-import { AppError, createMaskedError } from "@/shared/lib/errors/AppError";
+import { ApiError as AppError, createMaskedError } from "@zebra/core";
 
 // Use pure environment variables for API URL (no hardcoded fallback logic)
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
@@ -28,11 +28,11 @@ const handleApiResponse = async (response: Response) => {
       throw new AppError(
         "Service is temporarily unavailable.",
         response.status,
-        "SERVER_ERROR",
+        { code: "SERVER_ERROR" },
       );
     }
 
-    throw new AppError(errorData, response.status, "API_ERROR");
+    throw new AppError(errorData, response.status, { code: "API_ERROR" });
   }
 
   const text = await response.text();
@@ -181,11 +181,9 @@ export const analyzeGame = async (
 
   const reader = response.body?.getReader();
   if (!reader)
-    throw new AppError(
-      "No response body stream available.",
-      500,
-      "STREAM_ERROR",
-    );
+    throw new AppError("No response body stream available.", 500, {
+      code: "STREAM_ERROR",
+    });
   const decoder = new TextDecoder();
   let buffer = "";
 
@@ -197,7 +195,10 @@ export const analyzeGame = async (
       let timeoutId: ReturnType<typeof setTimeout> | undefined;
       const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(
-          () => reject(new AppError("Analysis timed out.", 408, "TIMEOUT")),
+          () =>
+            reject(
+              new AppError("Analysis timed out.", 408, { code: "TIMEOUT" }),
+            ),
           CHUNK_TIMEOUT,
         );
       });
@@ -223,7 +224,7 @@ export const analyzeGame = async (
             const data = JSON.parse(line.slice(6));
             if (data.done) return;
             if (data.error)
-              throw new AppError(data.error, 500, "ANALYSIS_ERROR");
+              throw new AppError(data.error, 500, { code: "ANALYSIS_ERROR" });
             if (
               typeof data.moveIndex === "number" &&
               typeof data.winRate === "number"

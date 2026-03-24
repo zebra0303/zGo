@@ -70,7 +70,7 @@ interface OnlineState {
 }
 
 import { API_BASE_URL as API_BASE } from "@/shared/api/gameApi";
-import { obfuscate, deobfuscate } from "@/shared/lib/cryptoUtils";
+import { obfuscate, deobfuscate } from "@zebra/core";
 
 // Session persistence helpers
 const SESSION_KEY = "zgo_online_session";
