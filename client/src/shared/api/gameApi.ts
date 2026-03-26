@@ -189,7 +189,6 @@ export const analyzeGame = async (
 
   const CHUNK_TIMEOUT = 30_000; // 30s per chunk before giving up
   try {
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       const readPromise = reader.read();
       let timeoutId: ReturnType<typeof setTimeout> | undefined;

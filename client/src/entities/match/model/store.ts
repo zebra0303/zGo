@@ -520,7 +520,7 @@ export const useGameStore = create<GameState>()(
       storage: createJSONStorage(() => {
         try {
           return localStorage;
-        } catch (e) {
+        } catch {
           // If localStorage is unavailable (e.g. in SSR or some test environments)
           // return a dummy storage to prevent warnings
           return {
