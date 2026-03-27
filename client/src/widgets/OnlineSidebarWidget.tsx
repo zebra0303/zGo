@@ -10,8 +10,8 @@ import { CHARACTERS } from "@/entities/online/model/types";
 import { playPassSound } from "@/shared/lib/sound";
 import { fetchAIScore } from "@/shared/api/gameApi";
 import { formatGameResultText } from "@/shared/lib/formatUtils";
-import CustomDialog from "@/shared/ui/CustomDialog";
 import { useShallow } from "zustand/react/shallow";
+import { ConfirmModal, Select, ToggleSwitch } from "@zebra/core/client";
 
 // Quick emoji panel — lightweight, no external library needed
 const QUICK_EMOJIS = [
@@ -483,16 +483,13 @@ const OnlineSidebarWidget = () => {
             />
           )}
           {!soundEnabled && <div className="flex-1" />}
-          <button
-            onClick={() => setGameConfig({ soundEnabled: !soundEnabled })}
-            className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors shrink-0 ${soundEnabled ? "toggle-accent" : "bg-gray-300 dark:bg-gray-600"}`}
-            aria-label={t("sound")}
-            aria-pressed={soundEnabled}
-          >
-            <span
-              className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${soundEnabled ? "translate-x-4" : "translate-x-0.5"}`}
-            />
-          </button>
+          <ToggleSwitch
+            checked={soundEnabled}
+            onToggle={() => setGameConfig({ soundEnabled: !soundEnabled })}
+            label={t("sound")}
+            size="sm"
+            className="shrink-0"
+          />
         </div>
 
         {/* Language Selection */}
@@ -500,18 +497,18 @@ const OnlineSidebarWidget = () => {
           <span className="text-[10px] text-gray-600 dark:text-gray-400 shrink-0">
             Language
           </span>
-          <select
+          <Select
             value={language}
             onChange={(e) => {
               const lang = e.target.value as "ko" | "en";
               i18n.changeLanguage(lang);
               setGameConfig({ language: lang });
             }}
-            className="px-2 py-0.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded text-xs text-gray-900 dark:text-gray-100"
+            className="w-20 h-7"
           >
             <option value="ko">한국어</option>
             <option value="en">English</option>
-          </select>
+          </Select>
         </div>
 
         {/* Teacher mode toggle — only in review mode */}
@@ -684,13 +681,20 @@ const OnlineSidebarWidget = () => {
         </a>
       </div>
 
-      <CustomDialog
+      <ConfirmModal
         isOpen={dialog.isOpen}
-        type={dialog.type}
-        title={dialog.title}
+        title={
+          dialog.title || (dialog.type === "alert" ? t("alert") : t("confirm"))
+        }
         message={dialog.message}
         onConfirm={dialog.onConfirm}
-        onCancel={dialog.onCancel}
+        onCancel={
+          dialog.onCancel ||
+          (() => setDialog((prev) => ({ ...prev, isOpen: false })))
+        }
+        showCancel={dialog.type === "confirm"}
+        confirmLabel={t("ok")}
+        cancelLabel={t("cancel")}
       />
     </div>
   );

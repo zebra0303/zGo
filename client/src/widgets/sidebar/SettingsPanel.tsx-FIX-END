@@ -1,0 +1,18 @@
+      {/* Online Game button */}
+      <div className={`pt-2 ${dividerClass}`}>
+        <button
+          onClick={() => navigateTo({ page: "online-create" })}
+          className="w-full py-2.5 bg-accent bg-accent-hover text-accent-foreground font-bold rounded-lg text-xs transition-all flex items-center justify-center gap-1.5"
+        >
+          🌐 {t("online.startOnline")}
+        </button>
+      </div>
+
+      <div className={`pt-2 ${dividerClass}`}>
+        <GameControls layout="grid" onActionComplete={onResetSaveStatus} />
+      </div>
+    </div>
+  );
+};
+
+export default React.memo(SettingsPanel);

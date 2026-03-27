@@ -5,8 +5,9 @@ const BoardWidget = lazy(() => import("@/widgets/BoardWidget"));
 const SidebarWidget = lazy(() => import("@/widgets/SidebarWidget"));
 const OnlineSidebarWidget = lazy(() => import("@/widgets/OnlineSidebarWidget"));
 const TeacherAdviceWidget = lazy(() => import("@/widgets/TeacherAdviceWidget"));
-import CustomDialog from "@/shared/ui/CustomDialog";
+import { ConfirmModal } from "@zebra/core/client";
 import { useShallow } from "zustand/react/shallow";
+import { useTranslation } from "react-i18next";
 
 const SIDEBAR_WIDTH_EXPANDED = 320; // md:w-80 = 20rem
 const SIDEBAR_WIDTH_COLLAPSED = 16; // w-4 = 1rem
@@ -41,6 +42,7 @@ const useCanShowAdviceSide = (sidebarCollapsed: boolean) => {
 };
 
 export const GameLayout = () => {
+  const { t } = useTranslation();
   const { gameMode, isReviewMode, confirmDialog, closeConfirm } = useGameStore(
     useShallow((s) => ({
       gameMode: s.gameMode,
@@ -176,13 +178,18 @@ export const GameLayout = () => {
         )}
       </aside>
 
-      <CustomDialog
+      <ConfirmModal
         isOpen={confirmDialog.isOpen}
-        type={confirmDialog.type}
-        title={confirmDialog.title}
+        title={
+          confirmDialog.title ||
+          (confirmDialog.type === "alert" ? t("alert") : t("confirm"))
+        }
         message={confirmDialog.message}
         onConfirm={confirmDialog.onConfirm}
         onCancel={closeConfirm}
+        showCancel={confirmDialog.type === "confirm"}
+        confirmLabel={t("ok")}
+        cancelLabel={t("cancel")}
       />
     </div>
   );

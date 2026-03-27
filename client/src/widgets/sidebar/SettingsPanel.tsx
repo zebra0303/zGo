@@ -5,6 +5,7 @@ import { navigateTo } from "@/shared/lib/router";
 import { playNewGameSound } from "@/shared/lib/sound";
 import GameControls from "@/shared/ui/GameControls";
 import { useShallow } from "zustand/react/shallow";
+import { Select, ToggleSwitch } from "@zebra/core/client";
 
 interface SettingsPanelProps {
   onResetSaveStatus: () => void;
@@ -66,8 +67,6 @@ const SettingsPanel = ({ onResetSaveStatus }: SettingsPanelProps) => {
     }
   };
 
-  const selectClass =
-    "bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded p-1 text-xs text-gray-900 dark:text-gray-100";
   const labelClass = "font-medium text-gray-600 dark:text-gray-300";
   const dividerClass = "border-t border-gray-50 dark:border-gray-700";
 
@@ -81,25 +80,25 @@ const SettingsPanel = ({ onResetSaveStatus }: SettingsPanelProps) => {
         className={`flex items-center justify-between text-sm pt-1 ${dividerClass}`}
       >
         <span className={labelClass}>{t("mode")}</span>
-        <select
+        <Select
           id="setting-mode"
           value={gameMode}
           onChange={(e) => {
             const val = e.target.value as "PvP" | "PvAI";
             handleResetGame(() => setGameConfig({ gameMode: val }));
           }}
-          className={selectClass}
+          className="w-24 h-8"
         >
           <option value="PvP">{t("pvp")}</option>
           <option value="PvAI">{t("pvai")}</option>
-        </select>
+        </Select>
       </div>
 
       <div
         className={`flex items-center justify-between text-sm pt-1 ${dividerClass}`}
       >
         <span className={labelClass}>{t("boardSize")}</span>
-        <select
+        <Select
           id="setting-board-size"
           value={boardSize}
           onChange={(e) => {
@@ -117,7 +116,7 @@ const SettingsPanel = ({ onResetSaveStatus }: SettingsPanelProps) => {
               }
             });
           }}
-          className={selectClass}
+          className="w-24 h-8"
         >
           <option value="5">5x5</option>
           <option value="6">6x6</option>
@@ -129,21 +128,21 @@ const SettingsPanel = ({ onResetSaveStatus }: SettingsPanelProps) => {
           <option value="15">15x15</option>
           <option value="17">17x17</option>
           <option value="19">19x19</option>
-        </select>
+        </Select>
       </div>
 
       <div
         className={`flex items-center justify-between text-sm pt-1 ${dividerClass}`}
       >
         <span className={labelClass}>{t("handicap")}</span>
-        <select
+        <Select
           id="setting-handicap"
           value={handicap}
           onChange={(e) => {
             const val = Number(e.target.value);
             handleResetGame(() => setGameConfig({ handicap: val }));
           }}
-          className={selectClass}
+          className="w-24 h-8"
           disabled={boardSize <= 9}
         >
           <option value="0">0</option>
@@ -156,25 +155,25 @@ const SettingsPanel = ({ onResetSaveStatus }: SettingsPanelProps) => {
                 {h}
               </option>
             ))}
-        </select>
+        </Select>
       </div>
 
       {gameMode === "PvAI" && (
         <div className={`space-y-3 pt-1 ${dividerClass}`}>
           <div className="flex items-center justify-between text-sm">
             <span className={labelClass}>{t("myStone")}</span>
-            <select
+            <Select
               id="setting-player-color"
               value={humanPlayerColor}
               onChange={(e) => {
                 const val = e.target.value as "BLACK" | "WHITE";
                 handleResetGame(() => setGameConfig({ humanPlayerColor: val }));
               }}
-              className={selectClass}
+              className="w-24 h-8"
             >
               <option value="BLACK">{t("blackFirst")}</option>
               <option value="WHITE">{t("whiteSecond")}</option>
-            </select>
+            </Select>
           </div>
           <div className="space-y-1">
             <div className="flex justify-between text-[10px]">
@@ -221,16 +220,12 @@ const SettingsPanel = ({ onResetSaveStatus }: SettingsPanelProps) => {
 
       <div className="flex justify-between items-center py-1">
         <span className={`text-sm ${labelClass}`}>{t("sound")}</span>
-        <button
-          onClick={() => setGameConfig({ soundEnabled: !soundEnabled })}
-          className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${soundEnabled ? "toggle-accent" : "bg-gray-300 dark:bg-gray-600"}`}
-          aria-label={t("sound")}
-          aria-pressed={soundEnabled}
-        >
-          <span
-            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${soundEnabled ? "translate-x-5" : "translate-x-1"}`}
-          />
-        </button>
+        <ToggleSwitch
+          checked={soundEnabled}
+          onToggle={() => setGameConfig({ soundEnabled: !soundEnabled })}
+          label={t("sound")}
+          size="sm"
+        />
       </div>
 
       {soundEnabled && (
@@ -262,16 +257,12 @@ const SettingsPanel = ({ onResetSaveStatus }: SettingsPanelProps) => {
         className={`flex items-center justify-between text-sm pt-1 ${dividerClass} mt-1`}
       >
         <span className={labelClass}>{t("teacherMode")}</span>
-        <button
-          onClick={toggleTeacherMode}
-          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isTeacherMode ? "toggle-accent" : "bg-gray-300 dark:bg-gray-600"}`}
-          aria-label={t("teacherMode")}
-          aria-pressed={isTeacherMode}
-        >
-          <span
-            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${isTeacherMode ? "translate-x-5" : "translate-x-1"}`}
-          />
-        </button>
+        <ToggleSwitch
+          checked={isTeacherMode}
+          onToggle={toggleTeacherMode}
+          label={t("teacherMode")}
+          size="sm"
+        />
       </div>
 
       {isTeacherMode && (
