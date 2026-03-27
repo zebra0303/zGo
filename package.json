@@ -28,9 +28,9 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.3.3",
     "prettier": "^3.8.1",
-    "typescript": "^6.0.2"
+    "typescript": "^5.7.3"
   },
   "dependencies": {
-    "@zebra/core": "file:../zCore"
+    "@zebra/core": "github:zebra0303/zCore#main"
   }
 }
