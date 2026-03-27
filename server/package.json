@@ -14,7 +14,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@zebra/core": "github:zebra0303/zCore#main",
+    "@zebra/core": "file:../../zCore",
     "bcrypt": "^6.0.0",
     "better-sqlite3": "^12.8.0",
     "cookie-parser": "^1.4.7",
