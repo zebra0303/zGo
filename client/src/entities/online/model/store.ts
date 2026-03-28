@@ -12,6 +12,7 @@ import {
 } from "@/entities/match/model/store";
 import {
   playStoneSound,
+  playPassSound,
   playWinSound,
   playLoseSound,
   playChatSendSound,
@@ -409,6 +410,9 @@ function handleWsMessage(
       const myColor = getMyColor(state);
       if (color !== myColor) {
         gameStore.passTurn();
+        const { soundEnabled, soundVolume } = gameStore;
+        playPassSound(soundEnabled, soundVolume);
+
         // Notify that opponent passed (key-based for i18n in widget)
         set({ notification: "opponent_passed" });
         setTimeout(() => useOnlineStore.getState().setNotification(null), 3000);

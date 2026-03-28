@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useGameStore, getPathToNode } from "@/entities/match/model/store";
 import { fetchAIMove } from "@/shared/api/gameApi";
-import { playStoneSound } from "@/shared/lib/sound";
+import { playStoneSound, playPassSound } from "@/shared/lib/sound";
 import { buildMoveHistory } from "@/shared/lib/goUtils";
 
 /**
@@ -97,11 +97,12 @@ export const useAITurn = () => {
 
           if (response.pass) {
             passTurn();
+            playPassSound(soundEnabled, soundVolume); // AI pass sound
           } else if (response.resign) {
             resignGame();
           } else if (response.move) {
             placeStone(response.move.x, response.move.y);
-            playStoneSound(soundEnabled, soundVolume);
+            playStoneSound(soundEnabled, soundVolume); // AI stone sound
           }
           return;
         } catch (err) {
