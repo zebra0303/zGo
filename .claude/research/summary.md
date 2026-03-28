@@ -2,7 +2,7 @@
 
 > Last updated: 2026-03-23
 
-> **2026-03-25 Architecture Update:** To unify the ecosystem (zGo, zlog, BigStone), common components, API structures, shared types, error handling (, ), and data obfuscation logic have been extracted to  ( repo). The project now seamlessly imports these shared elements via .
+> **2026-03-25 Architecture Update:** To unify the ecosystem (zGo, zlog, BigStone), common UI components, foundational utilities (error handling, masking), shared types, and data obfuscation logic have been extracted to the **@zebra/core** library. The project now seamlessly imports these shared elements via npm dependencies.
 
 ## 1. 프로젝트 개요
 
@@ -115,7 +115,7 @@ zGo/
 │           │   ├── errors/AppError.ts     # 커스텀 에러 클래스 (Error Masking)
 │           │   └── cryptoUtils.ts         # 세션 데이터 난독화 유틸리티
 │           ├── types/board.ts             # BoardState, PlayerColor 타입
-│           └── ui/CustomDialog.tsx        # 알림/확인 다이얼로그
+│           └── ui/index.ts                # @zebra/core 공용 UI 통합 관리
 ├── server/
 │   ├── src/
 │   │   ├── index.ts               # Express 서버 + WebSocket 업그레이드 + SPA 폴백 + Graceful Shutdown

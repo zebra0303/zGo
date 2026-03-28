@@ -137,18 +137,17 @@ This project follows the **FSD (Feature-Sliced Design)** architecture.
 
 ### Tech Stack
 
-| Layer            | Technology                                                                  |
-| ---------------- | --------------------------------------------------------------------------- |
-| **Frontend**     | React 18, TypeScript, Tailwind CSS, Zustand (+ Immer), TanStack Query, Vite |
-| **Backend**      | Node.js, Express 5, TypeScript                                              |
-| **AI Engine**    | KataGo (GTP protocol via child_process)                                     |
-| **Database**     | better-sqlite3 (WAL mode)                                                   |
-| **Realtime**     | WebSocket (ws)                                                              |
-| **Auth**         | bcrypt + jsonwebtoken (HttpOnly Cookies), express-rate-limit                |
-| **PWA**          | vite-plugin-pwa (Workbox)                                                   |
-| **Testing**      | Vitest (128 tests)                                                          |
-| **Code Quality** | ESLint, Prettier, Husky, lint-staged                                        |
-| **Shared Lib**   | @zebra/core (common UI components, utils, types, error boundaries)          |
+| Layer          | Technology                                                                  |
+| -------------- | --------------------------------------------------------------------------- |
+| **Frontend**   | React 18, TypeScript, Tailwind CSS, Zustand (+ Immer), TanStack Query, Vite |
+| **Backend**    | Node.js, Express 5, TypeScript                                              |
+| **AI Engine**  | KataGo (GTP protocol via child_process)                                     |
+| **Database**   | better-sqlite3 (WAL mode)                                                   |
+| **Realtime**   | WebSocket (ws)                                                              |
+| **Auth**       | bcrypt + jsonwebtoken (HttpOnly Cookies), express-rate-limit                |
+| **PWA**        | vite-plugin-pwa (Workbox)                                                   |
+| **Shared Lib** | @zebra/core (common UI components, utils, types, error handling)            |
+| **Testing**    | Vitest (128 tests)                                                          |
 
 ### Project Structure
 
