@@ -1,6 +1,8 @@
 {
   "alert": "Alert",
   "confirm": "Confirm",
+  "ok": "Confirm",
+  "cancel": "Cancel",
   "aiPassed": "AI passed its turn.",
   "aiResignedMsg": "AI resigned. You win!",
   "congrats": "Congratulations!",

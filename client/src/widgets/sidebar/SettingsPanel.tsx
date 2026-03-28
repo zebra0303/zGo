@@ -87,7 +87,7 @@ const SettingsPanel = ({ onResetSaveStatus }: SettingsPanelProps) => {
             const val = e.target.value as "PvP" | "PvAI";
             handleResetGame(() => setGameConfig({ gameMode: val }));
           }}
-          className="w-24 h-8"
+          className="w-28 h-8 !py-0 !pl-2 !pr-8 !text-[11px]"
         >
           <option value="PvP">{t("pvp")}</option>
           <option value="PvAI">{t("pvai")}</option>
@@ -116,7 +116,7 @@ const SettingsPanel = ({ onResetSaveStatus }: SettingsPanelProps) => {
               }
             });
           }}
-          className="w-24 h-8"
+          className="w-28 h-8 !py-0 !pl-2 !pr-8 !text-[11px]"
         >
           <option value="5">5x5</option>
           <option value="6">6x6</option>
@@ -142,7 +142,7 @@ const SettingsPanel = ({ onResetSaveStatus }: SettingsPanelProps) => {
             const val = Number(e.target.value);
             handleResetGame(() => setGameConfig({ handicap: val }));
           }}
-          className="w-24 h-8"
+          className="w-28 h-8 !py-0 !pl-2 !pr-8 !text-[11px]"
           disabled={boardSize <= 9}
         >
           <option value="0">0</option>
@@ -169,8 +169,9 @@ const SettingsPanel = ({ onResetSaveStatus }: SettingsPanelProps) => {
                 const val = e.target.value as "BLACK" | "WHITE";
                 handleResetGame(() => setGameConfig({ humanPlayerColor: val }));
               }}
-              className="w-24 h-8"
+              className="w-28 h-8 !py-0 !pl-2 !pr-8 !text-[11px]"
             >
+              {" "}
               <option value="BLACK">{t("blackFirst")}</option>
               <option value="WHITE">{t("whiteSecond")}</option>
             </Select>
@@ -224,7 +225,7 @@ const SettingsPanel = ({ onResetSaveStatus }: SettingsPanelProps) => {
           checked={soundEnabled}
           onToggle={() => setGameConfig({ soundEnabled: !soundEnabled })}
           label={t("sound")}
-          size="sm"
+          size="md"
         />
       </div>
 
@@ -261,7 +262,7 @@ const SettingsPanel = ({ onResetSaveStatus }: SettingsPanelProps) => {
           checked={isTeacherMode}
           onToggle={toggleTeacherMode}
           label={t("teacherMode")}
-          size="sm"
+          size="md"
         />
       </div>
 

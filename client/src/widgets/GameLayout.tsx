@@ -187,6 +187,7 @@ export const GameLayout = () => {
         message={confirmDialog.message}
         onConfirm={confirmDialog.onConfirm}
         onCancel={closeConfirm}
+        variant={confirmDialog.type === "alert" ? "info" : "warning"}
         showCancel={confirmDialog.type === "confirm"}
         confirmLabel={t("ok")}
         cancelLabel={t("cancel")}

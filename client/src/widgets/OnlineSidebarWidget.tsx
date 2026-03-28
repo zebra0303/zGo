@@ -487,7 +487,7 @@ const OnlineSidebarWidget = () => {
             checked={soundEnabled}
             onToggle={() => setGameConfig({ soundEnabled: !soundEnabled })}
             label={t("sound")}
-            size="sm"
+            size="md"
             className="shrink-0"
           />
         </div>
@@ -504,7 +504,7 @@ const OnlineSidebarWidget = () => {
               i18n.changeLanguage(lang);
               setGameConfig({ language: lang });
             }}
-            className="w-20 h-7"
+            className="w-20 h-7 !py-0 !pl-1.5 !pr-6 !text-[10px]"
           >
             <option value="ko">한국어</option>
             <option value="en">English</option>
@@ -517,16 +517,13 @@ const OnlineSidebarWidget = () => {
             <span className="text-[10px] text-gray-600 dark:text-gray-400 shrink-0">
               {t("teacherMode")}
             </span>
-            <button
-              onClick={toggleTeacherMode}
-              className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors shrink-0 ${isTeacherMode ? "toggle-accent" : "bg-gray-300 dark:bg-gray-600"}`}
-              aria-label={t("teacherMode")}
-              aria-pressed={isTeacherMode}
-            >
-              <span
-                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${isTeacherMode ? "translate-x-4" : "translate-x-0.5"}`}
-              />
-            </button>
+            <ToggleSwitch
+              checked={isTeacherMode}
+              onToggle={toggleTeacherMode}
+              label={t("teacherMode")}
+              size="md"
+              className="shrink-0"
+            />
           </div>
         )}
       </div>
@@ -692,6 +689,7 @@ const OnlineSidebarWidget = () => {
           dialog.onCancel ||
           (() => setDialog((prev) => ({ ...prev, isOpen: false })))
         }
+        variant={dialog.type === "alert" ? "info" : "warning"}
         showCancel={dialog.type === "confirm"}
         confirmLabel={t("ok")}
         cancelLabel={t("cancel")}
