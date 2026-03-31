@@ -48,6 +48,7 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
 
   const [visitsMultiplier, setVisitsMultiplier] = useState(1.0);
   const [tempMultiplier, setTempMultiplier] = useState(1.0);
+  const [tempSliderValue, setTempSliderValue] = useState(2.2); // x = sqrt(y * 5) where y=1.0
   const [aiMoveDelay, setAiMoveDelay] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
@@ -99,8 +100,11 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
 
         if (data.ai_visits_multiplier)
           setVisitsMultiplier(parseFloat(data.ai_visits_multiplier));
-        if (data.ai_temp_multiplier)
-          setTempMultiplier(parseFloat(data.ai_temp_multiplier));
+        if (data.ai_temp_multiplier) {
+          const tm = parseFloat(data.ai_temp_multiplier);
+          setTempMultiplier(tm);
+          setTempSliderValue(parseFloat(Math.sqrt(tm * 5.0).toFixed(1)));
+        }
         if (data.ai_move_delay)
           setAiMoveDelay(parseInt(data.ai_move_delay, 10));
       })
@@ -328,16 +332,20 @@ const AdminPanel = ({ onLogout }: AdminPanelProps) => {
           <div className="flex justify-between text-[10px]">
             <span className={labelClass}>{t("admin.tempMultiplier")}</span>
             <span className="font-bold text-accent">
-              {tempMultiplier.toFixed(1)}x
+              Level {tempSliderValue.toFixed(1)} ({tempMultiplier.toFixed(2)}x)
             </span>
           </div>
           <input
             type="range"
-            min="0.5"
+            min="0"
             max="5.0"
             step="0.1"
-            value={tempMultiplier}
-            onChange={(e) => setTempMultiplier(parseFloat(e.target.value))}
+            value={tempSliderValue}
+            onChange={(e) => {
+              const val = parseFloat(e.target.value);
+              setTempSliderValue(val);
+              setTempMultiplier(parseFloat(((val * val) / 5.0).toFixed(2)));
+            }}
             className="w-full accent-[var(--primary)] h-1"
           />
         </div>
