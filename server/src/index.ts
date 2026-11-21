@@ -27,6 +27,7 @@ import http from "http";
 import { WebSocketServer } from "ws";
 import cookieParser from "cookie-parser";
 import { AppError } from "@zebra/core/server";
+import { createCorsDelegate } from "./middleware/cors";
 
 import db from "./db";
 import { startKataGo, stopKataGo } from "./katago/engine";
@@ -48,7 +49,7 @@ app.use(
   }),
 );
 
-// Restrict CORS origins via allowlist instead of reflecting arbitrary origins with credentials
+// Allow same-origin requests automatically behind reverse proxies while restricting cross-origin via allowlist
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
   : [
@@ -58,18 +59,7 @@ const allowedOrigins = process.env.CORS_ORIGIN
       `http://127.0.0.1:${PORT}`,
     ];
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      callback(new AppError("Not allowed by CORS", 403, "CORS_FORBIDDEN"));
-    },
-    credentials: true,
-  }),
-);
+app.use(cors(createCorsDelegate(allowedOrigins)));
 
 app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
