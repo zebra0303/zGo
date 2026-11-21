@@ -440,18 +440,20 @@ const OnlineSidebarWidget = () => {
           <span className="text-[10px] text-gray-600 dark:text-gray-400 shrink-0">
             Language
           </span>
-          <Select
-            value={language}
-            onChange={(e) => {
-              const lang = e.target.value as "ko" | "en";
-              i18n.changeLanguage(lang);
-              setGameConfig({ language: lang });
-            }}
-            className="w-20 h-7 !py-0 !pl-1.5 !pr-6 !text-[10px]"
-          >
-            <option value="ko">한국어</option>
-            <option value="en">English</option>
-          </Select>
+          <div className="w-20 shrink-0">
+            <Select
+              value={language}
+              onChange={(e) => {
+                const lang = e.target.value as "ko" | "en";
+                i18n.changeLanguage(lang);
+                setGameConfig({ language: lang });
+              }}
+              className="h-7 !py-0 !pl-1.5 !pr-6 !text-[10px]"
+            >
+              <option value="ko">한국어</option>
+              <option value="en">English</option>
+            </Select>
+          </div>
         </div>
 
         {/* Teacher mode toggle — only in review mode */}

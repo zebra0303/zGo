@@ -80,101 +80,111 @@ const SettingsPanel = ({ onResetSaveStatus }: SettingsPanelProps) => {
         className={`flex items-center justify-between text-sm pt-1 ${dividerClass}`}
       >
         <span className={labelClass}>{t("mode")}</span>
-        <Select
-          id="setting-mode"
-          value={gameMode}
-          onChange={(e) => {
-            const val = e.target.value as "PvP" | "PvAI";
-            handleResetGame(() => setGameConfig({ gameMode: val }));
-          }}
-          className="w-28 h-8 !py-0 !pl-2 !pr-8 !text-[11px]"
-        >
-          <option value="PvP">{t("pvp")}</option>
-          <option value="PvAI">{t("pvai")}</option>
-        </Select>
+        {/* Constrain Select wrapper width so the chevron aligns inside the control */}
+        <div className="w-28 shrink-0">
+          <Select
+            id="setting-mode"
+            value={gameMode}
+            onChange={(e) => {
+              const val = e.target.value as "PvP" | "PvAI";
+              handleResetGame(() => setGameConfig({ gameMode: val }));
+            }}
+            className="h-8 !py-0 !pl-2 !pr-8 !text-[11px]"
+          >
+            <option value="PvP">{t("pvp")}</option>
+            <option value="PvAI">{t("pvai")}</option>
+          </Select>
+        </div>
       </div>
 
       <div
         className={`flex items-center justify-between text-sm pt-1 ${dividerClass}`}
       >
         <span className={labelClass}>{t("boardSize")}</span>
-        <Select
-          id="setting-board-size"
-          value={boardSize}
-          onChange={(e) => {
-            const newSize = Number(e.target.value);
-            handleResetGame(() => {
-              if (newSize <= 9 && handicap > 0) {
-                setGameConfig({ boardSize: newSize, handicap: 0 });
-              } else if (newSize > 9 && handicap > newSize - 9) {
-                setGameConfig({
-                  boardSize: newSize,
-                  handicap: Math.min(9, newSize - 9),
-                });
-              } else {
-                setGameConfig({ boardSize: newSize });
-              }
-            });
-          }}
-          className="w-28 h-8 !py-0 !pl-2 !pr-8 !text-[11px]"
-        >
-          <option value="5">5x5</option>
-          <option value="6">6x6</option>
-          <option value="7">7x7</option>
-          <option value="8">8x8</option>
-          <option value="9">9x9</option>
-          <option value="11">11x11</option>
-          <option value="13">13x13</option>
-          <option value="15">15x15</option>
-          <option value="17">17x17</option>
-          <option value="19">19x19</option>
-        </Select>
+        <div className="w-28 shrink-0">
+          <Select
+            id="setting-board-size"
+            value={boardSize}
+            onChange={(e) => {
+              const newSize = Number(e.target.value);
+              handleResetGame(() => {
+                if (newSize <= 9 && handicap > 0) {
+                  setGameConfig({ boardSize: newSize, handicap: 0 });
+                } else if (newSize > 9 && handicap > newSize - 9) {
+                  setGameConfig({
+                    boardSize: newSize,
+                    handicap: Math.min(9, newSize - 9),
+                  });
+                } else {
+                  setGameConfig({ boardSize: newSize });
+                }
+              });
+            }}
+            className="h-8 !py-0 !pl-2 !pr-8 !text-[11px]"
+          >
+            <option value="5">5x5</option>
+            <option value="6">6x6</option>
+            <option value="7">7x7</option>
+            <option value="8">8x8</option>
+            <option value="9">9x9</option>
+            <option value="11">11x11</option>
+            <option value="13">13x13</option>
+            <option value="15">15x15</option>
+            <option value="17">17x17</option>
+            <option value="19">19x19</option>
+          </Select>
+        </div>
       </div>
 
       <div
         className={`flex items-center justify-between text-sm pt-1 ${dividerClass}`}
       >
         <span className={labelClass}>{t("handicap")}</span>
-        <Select
-          id="setting-handicap"
-          value={handicap}
-          onChange={(e) => {
-            const val = Number(e.target.value);
-            handleResetGame(() => setGameConfig({ handicap: val }));
-          }}
-          className="w-28 h-8 !py-0 !pl-2 !pr-8 !text-[11px]"
-          disabled={boardSize <= 9}
-        >
-          <option value="0">0</option>
-          {boardSize > 9 &&
-            Array.from(
-              { length: Math.min(9, boardSize - 9) - 1 },
-              (_, i) => i + 2,
-            ).map((h) => (
-              <option key={h} value={h}>
-                {h}
-              </option>
-            ))}
-        </Select>
+        <div className="w-28 shrink-0">
+          <Select
+            id="setting-handicap"
+            value={handicap}
+            onChange={(e) => {
+              const val = Number(e.target.value);
+              handleResetGame(() => setGameConfig({ handicap: val }));
+            }}
+            className="h-8 !py-0 !pl-2 !pr-8 !text-[11px]"
+            disabled={boardSize <= 9}
+          >
+            <option value="0">0</option>
+            {boardSize > 9 &&
+              Array.from(
+                { length: Math.min(9, boardSize - 9) - 1 },
+                (_, i) => i + 2,
+              ).map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+          </Select>
+        </div>
       </div>
 
       {gameMode === "PvAI" && (
         <div className={`space-y-3 pt-1 ${dividerClass}`}>
           <div className="flex items-center justify-between text-sm">
             <span className={labelClass}>{t("myStone")}</span>
-            <Select
-              id="setting-player-color"
-              value={humanPlayerColor}
-              onChange={(e) => {
-                const val = e.target.value as "BLACK" | "WHITE";
-                handleResetGame(() => setGameConfig({ humanPlayerColor: val }));
-              }}
-              className="w-28 h-8 !py-0 !pl-2 !pr-8 !text-[11px]"
-            >
-              {" "}
-              <option value="BLACK">{t("blackFirst")}</option>
-              <option value="WHITE">{t("whiteSecond")}</option>
-            </Select>
+            <div className="w-28 shrink-0">
+              <Select
+                id="setting-player-color"
+                value={humanPlayerColor}
+                onChange={(e) => {
+                  const val = e.target.value as "BLACK" | "WHITE";
+                  handleResetGame(() =>
+                    setGameConfig({ humanPlayerColor: val }),
+                  );
+                }}
+                className="h-8 !py-0 !pl-2 !pr-8 !text-[11px]"
+              >
+                <option value="BLACK">{t("blackFirst")}</option>
+                <option value="WHITE">{t("whiteSecond")}</option>
+              </Select>
+            </div>
           </div>
           <div className="space-y-1">
             <div className="flex justify-between text-[10px]">

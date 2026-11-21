@@ -4,7 +4,9 @@ export default {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
-    "./node_modules/@zebra/core/dist/**/*.{js,ts,jsx,tsx,cjs,mjs,js,ts}",
+    // Scan hoisted root workspace @zebra/core dist files so ConfirmModal/ToggleSwitch/Select classes are never purged
+    "../node_modules/@zebra/core/dist/**/*.{js,cjs,mjs}",
+    "./node_modules/@zebra/core/dist/**/*.{js,cjs,mjs}",
   ],
   safelist: [
     "bg-background",
@@ -68,7 +70,10 @@ export default {
       colors: {
         "board-bg": "var(--wood-bg)",
         "board-line": "var(--board-line)",
-        primary: "var(--primary)",
+        primary: {
+          DEFAULT: "var(--primary)",
+          foreground: "var(--primary-foreground)",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
