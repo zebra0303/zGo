@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
 import { useGameStore, getPathToNode } from "@/entities/match/model/store";
 import { fetchAIScore } from "@/shared/api/gameApi";
 import { playWinSound, playLoseSound } from "@/shared/lib/sound";
@@ -11,6 +12,7 @@ import { buildMoveHistory } from "@/shared/lib/goUtils";
  */
 export const useGameScoring = () => {
   const { t } = useTranslation();
+  // Select only required store slices with useShallow to avoid unrelated re-renders
   const {
     currentPlayer,
     currentNode,
@@ -30,7 +32,28 @@ export const useGameScoring = () => {
     setWinner,
     setIsScoring,
     gameTree,
-  } = useGameStore();
+  } = useGameStore(
+    useShallow((s) => ({
+      currentPlayer: s.currentPlayer,
+      currentNode: s.currentNode,
+      gameMode: s.gameMode,
+      humanPlayerColor: s.humanPlayerColor,
+      isGameOver: s.isGameOver,
+      isReviewMode: s.isReviewMode,
+      soundEnabled: s.soundEnabled,
+      soundVolume: s.soundVolume,
+      consecutivePasses: s.consecutivePasses,
+      boardSize: s.boardSize,
+      handicap: s.handicap,
+      setDeadStones: s.setDeadStones,
+      gameResultText: s.gameResultText,
+      winner: s.winner,
+      setGameResultText: s.setGameResultText,
+      setWinner: s.setWinner,
+      setIsScoring: s.setIsScoring,
+      gameTree: s.gameTree,
+    })),
+  );
 
   const playedGameOverSoundRef = useRef(false);
   const scoringNodeRef = useRef<string | null>(null);
@@ -41,8 +64,9 @@ export const useGameScoring = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentNode.id, gameTree]);
 
-  // Game-over / end-of-branch scoring effect
+  // Game-over / end-of-branch scoring effect (offline modes only; online store owns online scoring)
   useEffect(() => {
+    if (gameMode === "Online") return;
     const abortController = new AbortController();
     const isEndOfBranch =
       isReviewMode &&
@@ -100,16 +124,24 @@ export const useGameScoring = () => {
                   }),
               );
             } else if (data.score) {
-              const winnerColor = data.score.startsWith("B")
-                ? "BLACK"
-                : "WHITE";
-              const winnerName =
-                winnerColor === "BLACK" ? t("black") : t("white");
+              // Handle draw scores explicitly instead of mislabeling draws as White wins
+              if (data.score === "0" || data.score === "D+0") {
+                setWinner("DRAW");
+                setGameResultText(t("draw"));
+              } else {
+                const winnerColor = data.score.startsWith("B")
+                  ? "BLACK"
+                  : "WHITE";
+                const winnerName =
+                  winnerColor === "BLACK" ? t("black") : t("white");
 
-              setWinner(winnerColor);
-              const diffMatch = data.score.match(/\+([0-9.]+)/);
-              const diff = diffMatch ? diffMatch[1] : "";
-              setGameResultText(t("winByScore", { winner: winnerName, diff }));
+                setWinner(winnerColor);
+                const diffMatch = data.score.match(/\+([0-9.]+)/);
+                const diff = diffMatch ? diffMatch[1] : "";
+                setGameResultText(
+                  t("winByScore", { winner: winnerName, diff }),
+                );
+              }
             } else {
               setGameResultText(t("calcError"));
             }
@@ -132,6 +164,7 @@ export const useGameScoring = () => {
 
     return () => abortController.abort();
   }, [
+    gameMode,
     isGameOver,
     isReviewMode,
     currentNode.id,
@@ -156,8 +189,9 @@ export const useGameScoring = () => {
     }
   }, [currentNode.id, isGameOver, isReviewMode]);
 
-  // Handle Game Over Sounds
+  // Handle Game Over Sounds (offline modes only; online store plays online result sounds)
   useEffect(() => {
+    if (gameMode === "Online") return;
     if (
       isGameOver &&
       !isReviewMode &&

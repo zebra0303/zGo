@@ -49,7 +49,8 @@ export const playSound = (
  * Synthesized "tak!" sound for stone placement using Web Audio API.
  */
 export const playStoneSound = (enabled: boolean, volume: number = 0.6) => {
-  if (!enabled) return;
+  // Guard zero/negative volume so exponentialRampToValueAtTime never throws RangeError
+  if (!enabled || volume <= 0) return;
 
   const ctx = getAudioContext();
   if (!ctx) {
@@ -66,6 +67,7 @@ export const playStoneSound = (enabled: boolean, volume: number = 0.6) => {
   const t = ctx.currentTime;
   const osc = ctx.createOscillator();
   const gainNode = ctx.createGain();
+  const safeVolume = Math.max(0.001, Math.min(1, volume));
 
   osc.connect(gainNode);
   gainNode.connect(ctx.destination);
@@ -76,7 +78,7 @@ export const playStoneSound = (enabled: boolean, volume: number = 0.6) => {
   osc.frequency.exponentialRampToValueAtTime(100, t + 0.05);
 
   // Rapidly decay volume to zero for a crisp "click"
-  gainNode.gain.setValueAtTime(volume, t);
+  gainNode.gain.setValueAtTime(safeVolume, t);
   gainNode.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
 
   osc.start(t);

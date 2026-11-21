@@ -72,7 +72,7 @@ interface OnlineState {
   setRoomInfo: (info: RoomInfo | null) => void;
   setNotification: (msg: string | null) => void;
   restoreSession: () => boolean;
-  reset: () => void;
+  reset: (delayDisconnectMs?: number) => void;
 }
 
 import { API_BASE_URL as API_BASE } from "@/shared/api/gameApi";
@@ -294,10 +294,10 @@ export const useOnlineStore = create<OnlineState>((set, get) => ({
     return true;
   },
 
-  reset: () => {
+  reset: (delayDisconnectMs = 0) => {
     clearPendingTimers();
     setOnlineRoomToken(null);
-    wsClient.disconnect();
+    wsClient.disconnect(delayDisconnectMs);
     clearSession();
     set(initialState);
   },

@@ -1,13 +1,11 @@
 import React, { useMemo, useCallback } from "react";
-import { useGameStore, getPathToNode } from "@/entities/match/model/store";
+import { useGameStore } from "@/entities/match/model/store";
 import {
   useOnlineStore,
   getOnlineMyColor,
 } from "@/entities/online/model/store";
-import { useQuery } from "@tanstack/react-query";
-import { fetchAIHint } from "@/shared/api/gameApi";
+import { useAIHintQuery } from "@/features/board/lib/useAIHintQuery";
 import { playStoneSound } from "@/shared/lib/sound";
-import { buildMoveHistory } from "@/shared/lib/goUtils";
 import { applyMove } from "@/entities/board/lib/goLogic";
 import { useShallow } from "zustand/react/shallow";
 
@@ -91,13 +89,8 @@ const BoardCore: React.FC = () => {
     soundEnabled,
     soundVolume,
     ignoredRecommendation,
-    aiDifficulty,
-    teacherVisits,
-    language,
-    handicap,
     deadStones,
     goToNextMove,
-    gameTree,
   } = useGameStore(
     useShallow((s) => ({
       boardSize: s.boardSize,
@@ -115,13 +108,8 @@ const BoardCore: React.FC = () => {
       soundEnabled: s.soundEnabled,
       soundVolume: s.soundVolume,
       ignoredRecommendation: s.ignoredRecommendation,
-      aiDifficulty: s.aiDifficulty,
-      teacherVisits: s.teacherVisits,
-      language: s.language,
-      handicap: s.handicap,
       deadStones: s.deadStones,
       goToNextMove: s.goToNextMove,
-      gameTree: s.gameTree,
     })),
   );
 
@@ -198,48 +186,23 @@ const BoardCore: React.FC = () => {
     ],
   );
 
-  const { data: aiData } = useQuery({
-    queryKey: [
-      "aiHint",
-      currentNode.id, // Only depend on ID
-      currentPlayer,
-      aiDifficulty,
-      teacherVisits,
-      language,
-      boardSize,
-      handicap,
-    ],
-    queryFn: async ({ signal }) => {
-      // refactor: reuse shared buildMoveHistory instead of inline logic
-      const path = getPathToNode(gameTree, currentNode.id) || [currentNode];
-      const moves = buildMoveHistory(path);
-
-      const hint = await fetchAIHint(
-        board,
-        currentPlayer,
-        aiDifficulty,
-        teacherVisits,
-        moves,
-        signal,
-        language,
-        boardSize,
-        handicap,
-      );
-      // Include nodeId so TeacherAdviceWidget can match cached hints to the active node
-      return { ...hint, nodeId: currentNode.id };
-    },
-    enabled:
-      isTeacherMode &&
-      !isGameOver &&
-      gameMode !== "Online" &&
-      (gameMode === "PvP" || currentPlayer === humanPlayerColor),
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-  });
+  // Share one TanStack Query hook with TeacherAdviceWidget for consistent cache schema
+  const { data: aiData } = useAIHintQuery();
 
   const isFinalMove = currentNode.children.length === 0;
   const shouldShowDeadStones =
     (isGameOver || isReviewMode) && showDeadStones && isFinalMove;
+
+  // Use a Set for O(1) dead-stone coordinate lookup during board rendering
+  const deadStoneSet = useMemo(() => {
+    const set = new Set<string>();
+    if (shouldShowDeadStones && deadStones) {
+      for (const ds of deadStones) {
+        set.add(`${ds.x},${ds.y}`);
+      }
+    }
+    return set;
+  }, [shouldShowDeadStones, deadStones]);
 
   // Memoized Renderers for CPU optimization
   const gridLines = useMemo(() => {
@@ -282,9 +245,7 @@ const BoardCore: React.FC = () => {
       row.map((stone, x) => {
         if (!stone) return null;
         const isLastMove = currentNode.x === x && currentNode.y === y;
-        const isDead =
-          shouldShowDeadStones &&
-          deadStones?.some((ds) => ds.x === x && ds.y === y);
+        const isDead = deadStoneSet.has(`${x},${y}`);
 
         return (
           <Stone
@@ -295,20 +256,12 @@ const BoardCore: React.FC = () => {
             MARGIN={MARGIN}
             CELL_SIZE={CELL_SIZE}
             isLastMove={isLastMove}
-            isDead={!!isDead}
+            isDead={isDead}
           />
         );
       }),
     );
-  }, [
-    board,
-    MARGIN,
-    CELL_SIZE,
-    currentNode.x,
-    currentNode.y,
-    shouldShowDeadStones,
-    deadStones,
-  ]);
+  }, [board, MARGIN, CELL_SIZE, currentNode.x, currentNode.y, deadStoneSet]);
 
   return (
     <svg

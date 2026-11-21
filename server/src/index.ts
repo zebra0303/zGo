@@ -1,7 +1,9 @@
-// 1. Load environment variables immediately and synchronously
+// 1. Load environment variables synchronously before static imports read process.env
+/* eslint-disable @typescript-eslint/no-require-imports */
 const path = require("path");
 const fs = require("fs");
 const dotenv = require("dotenv");
+/* eslint-enable @typescript-eslint/no-require-imports */
 
 const envPaths = [
   path.resolve(__dirname, "../../.env"),

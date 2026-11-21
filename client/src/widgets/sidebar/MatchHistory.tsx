@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { PlayerColor } from "@/shared/types/board";
 import { getMatchById, deleteMatch } from "@/shared/api/gameApi";
@@ -63,6 +63,7 @@ const MatchHistory = ({
           if (match.mode !== "PvAI" || !match.aiDifficulty) return acc;
           const lv = String(match.aiDifficulty);
           if (!acc[lv]) acc[lv] = { wins: 0, losses: 0 };
+          if (match.winner === "DRAW" || !match.winner) return acc;
           if (match.humanColor === match.winner) acc[lv].wins += 1;
           else acc[lv].losses += 1;
           return acc;
@@ -70,6 +71,53 @@ const MatchHistory = ({
         {},
       ) || {},
     [matches],
+  );
+
+  // Deduplicated match-open handler with safe JSON parsing against corrupted SGF records
+  const handleOpenMatch = useCallback(
+    async (match: MatchRecord) => {
+      try {
+        const f = await getMatchById(match.id);
+        const parsedData = JSON.parse(f.match.sgfData);
+        const resultText = formatGameResultText(parsedData.resultText, t) || "";
+
+        let winnerColor: PlayerColor | "DRAW" | null = null;
+        if (parsedData.resultWinner || match.winner) {
+          winnerColor =
+            parsedData.resultWinner || (match.winner as PlayerColor);
+        }
+
+        const reviewChat =
+          parsedData.chat && parsedData.chat.length > 0
+            ? {
+                chat: parsedData.chat,
+                hostNickname: parsedData.hostNickname,
+                hostCharacter: parsedData.hostCharacter,
+                guestNickname: parsedData.guestNickname,
+                guestCharacter: parsedData.guestCharacter,
+              }
+            : null;
+
+        onLoadMatch(
+          parsedData.moves,
+          parsedData.winRates,
+          resultText,
+          parsedData.boardSize,
+          parsedData.handicap,
+          winnerColor,
+          reviewChat,
+        );
+        onStartReviewAnalysis();
+        onSetActiveTab("game");
+      } catch (err) {
+        console.error("Failed to load match:", err);
+        onShowAlert(
+          t("loadMatchFailed", { defaultValue: "Failed to load match data." }),
+          t("error"),
+        );
+      }
+    },
+    [onLoadMatch, onStartReviewAnalysis, onSetActiveTab, onShowAlert, t],
   );
 
   return (
@@ -111,78 +159,11 @@ const MatchHistory = ({
               tabIndex={0}
               aria-label={t("reviewGo")}
               className="flex-1 cursor-pointer outline-none"
-              onClick={async () => {
-                const f = await getMatchById(match.id);
-                const parsedData = JSON.parse(f.match.sgfData);
-                const resultText =
-                  formatGameResultText(parsedData.resultText, t) || "";
-
-                let winnerColor: PlayerColor | "DRAW" | null = null;
-                if (parsedData.resultWinner || match.winner) {
-                  winnerColor =
-                    parsedData.resultWinner || (match.winner as PlayerColor);
-                }
-
-                // Build reviewChat from saved online match data
-                const reviewChat =
-                  parsedData.chat && parsedData.chat.length > 0
-                    ? {
-                        chat: parsedData.chat,
-                        hostNickname: parsedData.hostNickname,
-                        hostCharacter: parsedData.hostCharacter,
-                        guestNickname: parsedData.guestNickname,
-                        guestCharacter: parsedData.guestCharacter,
-                      }
-                    : null;
-
-                onLoadMatch(
-                  parsedData.moves,
-                  parsedData.winRates,
-                  resultText,
-                  parsedData.boardSize,
-                  parsedData.handicap,
-                  winnerColor,
-                  reviewChat,
-                );
-                onStartReviewAnalysis();
-                onSetActiveTab("game");
-              }}
-              onKeyDown={async (e) => {
+              onClick={() => handleOpenMatch(match)}
+              onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  const f = await getMatchById(match.id);
-                  const parsedData = JSON.parse(f.match.sgfData);
-                  const resultText =
-                    formatGameResultText(parsedData.resultText, t) || "";
-
-                  let winnerColor: PlayerColor | "DRAW" | null = null;
-                  if (parsedData.resultWinner || match.winner) {
-                    winnerColor =
-                      parsedData.resultWinner || (match.winner as PlayerColor);
-                  }
-
-                  const reviewChat =
-                    parsedData.chat && parsedData.chat.length > 0
-                      ? {
-                          chat: parsedData.chat,
-                          hostNickname: parsedData.hostNickname,
-                          hostCharacter: parsedData.hostCharacter,
-                          guestNickname: parsedData.guestNickname,
-                          guestCharacter: parsedData.guestCharacter,
-                        }
-                      : null;
-
-                  onLoadMatch(
-                    parsedData.moves,
-                    parsedData.winRates,
-                    resultText,
-                    parsedData.boardSize,
-                    parsedData.handicap,
-                    winnerColor,
-                    reviewChat,
-                  );
-                  onStartReviewAnalysis();
-                  onSetActiveTab("game");
+                  handleOpenMatch(match);
                 }
               }}
             >
@@ -196,22 +177,26 @@ const MatchHistory = ({
                 </span>
                 <span
                   className={`text-[10px] font-bold ${
-                    match.mode === "PvAI" || match.mode === "Online"
-                      ? match.humanColor === match.winner
-                        ? "text-accent"
-                        : "text-red-500 dark:text-red-400"
-                      : match.winner === "BLACK"
-                        ? "text-gray-800 dark:text-gray-200"
-                        : "text-gray-400 dark:text-gray-500"
+                    !match.winner || match.winner === "DRAW"
+                      ? "text-gray-500 dark:text-gray-400"
+                      : match.mode === "PvAI" || match.mode === "Online"
+                        ? match.humanColor === match.winner
+                          ? "text-accent"
+                          : "text-red-500 dark:text-red-400"
+                        : match.winner === "BLACK"
+                          ? "text-gray-800 dark:text-gray-200"
+                          : "text-gray-400 dark:text-gray-500"
                   }`}
                 >
-                  {match.mode === "PvAI" || match.mode === "Online"
-                    ? match.humanColor === match.winner
-                      ? t("win")
-                      : t("lose")
-                    : match.winner === "BLACK"
-                      ? t("blackWins")
-                      : t("whiteWins")}
+                  {!match.winner || match.winner === "DRAW"
+                    ? t("draw")
+                    : match.mode === "PvAI" || match.mode === "Online"
+                      ? match.humanColor === match.winner
+                        ? t("win")
+                        : t("lose")
+                      : match.winner === "BLACK"
+                        ? t("blackWins")
+                        : t("whiteWins")}
                 </span>
               </div>
               <div className="text-[10px] text-gray-500 dark:text-gray-400 flex justify-between">

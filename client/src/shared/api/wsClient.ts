@@ -38,21 +38,41 @@ export function connect(roomId: string, roomToken: string): void {
   doConnect();
 }
 
+function detachSocket(socket: WebSocket): void {
+  socket.onopen = null;
+  socket.onmessage = null;
+  socket.onclose = null;
+  socket.onerror = null;
+}
+
 function doConnect(): void {
   if (!currentUrl || !currentToken) return;
 
-  statusHandler?.("connecting");
-  ws = new WebSocket(currentUrl);
+  // Clean up any previous socket handlers before creating a new socket
+  if (ws) {
+    detachSocket(ws);
+    if (
+      ws.readyState === WebSocket.OPEN ||
+      ws.readyState === WebSocket.CONNECTING
+    ) {
+      ws.close();
+    }
+    ws = null;
+  }
 
-  ws.onopen = () => {
+  statusHandler?.("connecting");
+  const socket = new WebSocket(currentUrl);
+  ws = socket;
+
+  socket.onopen = () => {
     reconnectAttempts = 0;
     // Send auth immediately
-    ws?.send(
+    socket.send(
       JSON.stringify({ type: "auth", payload: { roomToken: currentToken } }),
     );
   };
 
-  ws.onmessage = (event) => {
+  socket.onmessage = (event) => {
     try {
       const msg = JSON.parse(event.data);
 
@@ -67,12 +87,17 @@ function doConnect(): void {
     }
   };
 
-  ws.onclose = () => {
+  socket.onclose = (event) => {
     statusHandler?.("disconnected");
+    // Do not retry on application-level fatal close codes (4xxx)
+    if (event && event.code >= 4000 && event.code < 5000) {
+      reconnectAttempts = MAX_RECONNECT_ATTEMPTS;
+      return;
+    }
     attemptReconnect();
   };
 
-  ws.onerror = () => {
+  socket.onerror = () => {
     // onclose will fire after this
   };
 }
@@ -89,7 +114,7 @@ function attemptReconnect(): void {
   }, delay);
 }
 
-export function disconnect(): void {
+export function disconnect(delayCloseMs = 0): void {
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
@@ -99,9 +124,19 @@ export function disconnect(): void {
   reconnectAttempts = MAX_RECONNECT_ATTEMPTS; // Prevent reconnect
 
   if (ws) {
-    ws.onclose = null; // Prevent reconnect trigger
-    ws.close();
+    const oldSocket = ws;
     ws = null;
+    detachSocket(oldSocket);
+    // Optional brief delay lets an outbound "leave" frame flush cleanly before closing
+    if (delayCloseMs > 0 && oldSocket.readyState === WebSocket.OPEN) {
+      setTimeout(() => {
+        if (oldSocket.readyState === WebSocket.OPEN) {
+          oldSocket.close();
+        }
+      }, delayCloseMs);
+    } else {
+      oldSocket.close();
+    }
   }
   statusHandler?.("disconnected");
 }

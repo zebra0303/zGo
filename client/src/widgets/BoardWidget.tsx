@@ -106,7 +106,7 @@ import { useAITurn } from "@/features/board/lib/useAITurn";
 import { useGameScoring } from "@/features/board/lib/useGameScoring";
 import { restartEngine } from "@/shared/api/gameApi";
 import { RefreshCcw } from "lucide-react";
-import GameControls from "@/shared/ui/GameControls";
+import GameControls from "@/features/board/ui/GameControls";
 import { useShallow } from "zustand/react/shallow";
 
 interface BoardWidgetProps {

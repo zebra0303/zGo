@@ -74,8 +74,13 @@ const AuthPage = ({ isSetup, onAuthenticated }: AuthPageProps) => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <label htmlFor="auth-password" className="sr-only">
+            {t("auth.password")}
+          </label>
           <input
+            id="auth-password"
             type="password"
+            autoComplete={showLoginMode ? "current-password" : "new-password"}
             placeholder={t("auth.password")}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -85,6 +90,7 @@ const AuthPage = ({ isSetup, onAuthenticated }: AuthPageProps) => {
           />
           {error && (
             <p
+              role="alert"
               className={`text-sm ${
                 error === t("auth.setupComplete")
                   ? "text-green-600 dark:text-green-400"

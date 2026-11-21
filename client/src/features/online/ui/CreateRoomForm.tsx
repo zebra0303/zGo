@@ -66,10 +66,14 @@ const CreateRoomForm = () => {
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Nickname */}
       <div>
-        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+        <label
+          htmlFor="online-create-nickname"
+          className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5"
+        >
           {t("online.nickname", { defaultValue: "Nickname" })}
         </label>
         <input
+          id="online-create-nickname"
           type="text"
           value={nickname}
           onChange={(e) => setNickname(e.target.value)}
@@ -93,15 +97,23 @@ const CreateRoomForm = () => {
       {/* Game Settings */}
       <div className="space-y-3 pt-3 border-t border-gray-100 dark:border-gray-700">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+          <label
+            htmlFor="online-board-size"
+            className="text-sm font-medium text-gray-600 dark:text-gray-300"
+          >
             {t("boardSize")}
-          </span>
+          </label>
           <select
+            id="online-board-size"
             value={boardSize}
             onChange={(e) => {
               const size = Number(e.target.value);
               setBoardSize(size);
-              if (size <= 9) setHandicap(0);
+              // Clamp handicap to valid maximum for the newly selected board size
+              const maxHandicap = size <= 9 ? 0 : Math.min(9, size - 9);
+              if (handicap > maxHandicap) {
+                setHandicap(maxHandicap);
+              }
             }}
             className={selectClass}
           >
@@ -112,10 +124,14 @@ const CreateRoomForm = () => {
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+          <label
+            htmlFor="online-handicap"
+            className="text-sm font-medium text-gray-600 dark:text-gray-300"
+          >
             {t("handicap")}
-          </span>
+          </label>
           <select
+            id="online-handicap"
             value={handicap}
             onChange={(e) => setHandicap(Number(e.target.value))}
             className={selectClass}
@@ -135,10 +151,14 @@ const CreateRoomForm = () => {
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+          <label
+            htmlFor="online-host-color"
+            className="text-sm font-medium text-gray-600 dark:text-gray-300"
+          >
             {t("online.myColor", { defaultValue: "My Color" })}
-          </span>
+          </label>
           <select
+            id="online-host-color"
             value={hostColor}
             onChange={(e) => setHostColor(e.target.value as "BLACK" | "WHITE")}
             className={selectClass}
@@ -150,7 +170,9 @@ const CreateRoomForm = () => {
       </div>
 
       {error && (
-        <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
+        <p role="alert" className="text-sm text-red-500 dark:text-red-400">
+          {error}
+        </p>
       )}
 
       <div className="space-y-2 pt-2">

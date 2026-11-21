@@ -42,6 +42,14 @@ const ReviewPanelWidget = () => {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (!isReviewMode) return;
+      // Ignore keyboard shortcuts while typing in inputs/chat or interacting with native form controls
+      if (
+        e.target instanceof HTMLElement &&
+        (["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName) ||
+          e.target.isContentEditable)
+      ) {
+        return;
+      }
       if (e.key === "ArrowLeft") {
         e.preventDefault();
         goToPreviousMove();
@@ -120,8 +128,13 @@ const ReviewPanelWidget = () => {
             onKeyDown={(e) => {
               let newIndex = currentIndexInPath;
               if (e.key === "ArrowLeft") {
+                // Stop propagation so global window keydown does not double-step
+                e.preventDefault();
+                e.stopPropagation();
                 newIndex = Math.max(0, currentIndexInPath - 1);
               } else if (e.key === "ArrowRight") {
+                e.preventDefault();
+                e.stopPropagation();
                 newIndex = Math.min(
                   fullPath.length - 1,
                   currentIndexInPath + 1,
@@ -234,7 +247,7 @@ const ReviewPanelWidget = () => {
           className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all border shadow-sm shrink-0 ${
             showDeadStones
               ? "bg-red-500 text-white border-red-600"
-              : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+              : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
           } disabled:opacity-30 disabled:grayscale`}
           title={t(
             "toggleDeadStonesTitle",
@@ -283,7 +296,7 @@ const BranchPointChips = React.memo(
     }, [currentNodeId]);
 
     return (
-      <div className="mt-2 pt-2 border-t border-gray-100">
+      <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin">
           <span className="text-[10px] text-gray-400 font-medium shrink-0">
             {t("branchPoints", "갈림길")}
@@ -298,8 +311,8 @@ const BranchPointChips = React.memo(
                 onClick={() => onNavigate(bp.nodeId)}
                 className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono border transition-colors shrink-0 cursor-pointer ${
                   isActive
-                    ? "ring-2 ring-blue-400 bg-blue-50 border-blue-200"
-                    : "bg-white border-gray-200 hover:bg-gray-50"
+                    ? "ring-2 ring-blue-400 bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700"
+                    : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
                 }`}
                 aria-label={t("branchChipAriaLabel", {
                   move: bp.moveIndex,
@@ -308,12 +321,14 @@ const BranchPointChips = React.memo(
                   defaultValue: `${bp.moveIndex}수, ${bp.variationCount}개 중 ${bp.activeChildLabel} 변화`,
                 })}
               >
-                <span className="text-gray-500">#{bp.moveIndex}</span>
+                <span className="text-gray-500 dark:text-gray-300">
+                  #{bp.moveIndex}
+                </span>
                 <span
                   className={`w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center ${
                     isOnBranch
                       ? "bg-blue-500 text-white"
-                      : "bg-gray-200 text-gray-600"
+                      : "bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-200"
                   }`}
                 >
                   {bp.activeChildLabel}

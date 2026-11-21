@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useGameStore, getPathToNode } from "@/entities/match/model/store";
 import { HistoryNode } from "@/entities/match/model/types";
-import { useQuery } from "@tanstack/react-query";
-import { fetchAIHint, API_BASE_URL, fetchWithAuth } from "@/shared/api/gameApi";
+import { useAIHintQuery } from "@/features/board/lib/useAIHintQuery";
+import { API_BASE_URL, fetchWithAuth } from "@/shared/api/gameApi";
 import { getPlayerForMove } from "@/shared/lib/goUtils";
 import { useShallow } from "zustand/react/shallow";
 
@@ -19,7 +19,6 @@ const TeacherAdviceWidget = ({
 
   // perf: useShallow prevents re-renders when unrelated store fields change
   const {
-    board,
     currentPlayer,
     isTeacherMode,
     currentNode,
@@ -27,7 +26,6 @@ const TeacherAdviceWidget = ({
     aiDifficulty,
     humanPlayerColor,
     isGameOver,
-    isReviewMode,
     teacherVisits,
     ignoredRecommendation,
     teacherCritique,
@@ -35,10 +33,8 @@ const TeacherAdviceWidget = ({
     language,
     boardSize,
     handicap,
-    gameTree,
   } = useGameStore(
     useShallow((s) => ({
-      board: s.board,
       currentPlayer: s.currentPlayer,
       isTeacherMode: s.isTeacherMode,
       currentNode: s.currentNode,
@@ -46,7 +42,6 @@ const TeacherAdviceWidget = ({
       aiDifficulty: s.aiDifficulty,
       humanPlayerColor: s.humanPlayerColor,
       isGameOver: s.isGameOver,
-      isReviewMode: s.isReviewMode,
       teacherVisits: s.teacherVisits,
       ignoredRecommendation: s.ignoredRecommendation,
       teacherCritique: s.teacherCritique,
@@ -54,7 +49,6 @@ const TeacherAdviceWidget = ({
       language: s.language,
       boardSize: s.boardSize,
       handicap: s.handicap,
-      gameTree: s.gameTree,
     })),
   );
 
@@ -76,50 +70,8 @@ const TeacherAdviceWidget = ({
   >({});
   const fetchingCritiqueForNodeId = useRef<string | null>(null);
 
-  // API 호출을 통한 힌트 요청
-  const { data: aiData, isFetching: isFetchingHint } = useQuery({
-    queryKey: [
-      "aiHint",
-      currentNode.id,
-      currentPlayer,
-      aiDifficulty,
-      teacherVisits,
-      language,
-      boardSize,
-      handicap,
-    ],
-    queryFn: async ({ signal }) => {
-      const path = getPathToNode(gameTree, currentNode.id) || [currentNode];
-      const moves: ({ x: number; y: number } | null)[] = [];
-      for (let i = 1; i < path.length; i++) {
-        const node = path[i];
-        moves.push(
-          node.x !== null && node.y !== null ? { x: node.x, y: node.y } : null,
-        );
-      }
-
-      const data = await fetchAIHint(
-        board,
-        currentPlayer,
-        aiDifficulty,
-        teacherVisits,
-        moves,
-        signal,
-        language,
-        boardSize,
-        handicap,
-      );
-      return { ...data, nodeId: currentNode.id };
-    },
-    enabled:
-      isTeacherMode &&
-      !isGameOver &&
-      (gameMode === "PvP" ||
-        isReviewMode ||
-        currentPlayer === humanPlayerColor),
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-  });
+  // Reuse shared hint query hook with BoardCore to guarantee identical queryKey & payload shape
+  const { data: aiData, isFetching: isFetchingHint } = useAIHintQuery();
 
   // Update win rate in store when AI data is received
   useEffect(() => {

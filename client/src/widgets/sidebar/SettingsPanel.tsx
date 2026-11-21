@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useGameStore } from "@/entities/match/model/store";
 import { navigateTo } from "@/shared/lib/router";
 import { playNewGameSound } from "@/shared/lib/sound";
-import GameControls from "@/shared/ui/GameControls";
+import GameControls from "@/features/board/ui/GameControls";
 import { useShallow } from "zustand/react/shallow";
 import { Select, ToggleSwitch } from "@zebra/core/client";
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
 import { useGameStore, getPathToNode } from "@/entities/match/model/store";
 import { fetchAIMove } from "@/shared/api/gameApi";
 import { playStoneSound, playPassSound } from "@/shared/lib/sound";
@@ -14,6 +15,7 @@ import { buildMoveHistory } from "@/shared/lib/goUtils";
  */
 export const useAITurn = () => {
   const { t } = useTranslation();
+  // Select only required fields with useShallow to avoid unnecessary re-renders
   const {
     board,
     currentPlayer,
@@ -34,7 +36,29 @@ export const useAITurn = () => {
     updateWinRate,
     gameTree,
     aiForceTurnCounter,
-  } = useGameStore();
+  } = useGameStore(
+    useShallow((s) => ({
+      board: s.board,
+      currentPlayer: s.currentPlayer,
+      currentNode: s.currentNode,
+      gameMode: s.gameMode,
+      aiDifficulty: s.aiDifficulty,
+      humanPlayerColor: s.humanPlayerColor,
+      placeStone: s.placeStone,
+      passTurn: s.passTurn,
+      resignGame: s.resignGame,
+      isGameOver: s.isGameOver,
+      isReviewMode: s.isReviewMode,
+      soundEnabled: s.soundEnabled,
+      soundVolume: s.soundVolume,
+      language: s.language,
+      boardSize: s.boardSize,
+      handicap: s.handicap,
+      updateWinRate: s.updateWinRate,
+      gameTree: s.gameTree,
+      aiForceTurnCounter: s.aiForceTurnCounter,
+    })),
+  );
 
   const getMoveHistory = useCallback(() => {
     const path = getPathToNode(gameTree, currentNode.id) || [currentNode];
@@ -87,7 +111,8 @@ export const useAITurn = () => {
           );
           if (!isActive) return;
 
-          if (response.winRate) {
+          // Check numeric type explicitly so a 0% winRate is not skipped as falsy
+          if (typeof response.winRate === "number") {
             const blackWinRate =
               currentPlayer === "BLACK"
                 ? response.winRate

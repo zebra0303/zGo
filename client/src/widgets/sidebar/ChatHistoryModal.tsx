@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { Modal } from "@zebra/core/client";
 import { CHARACTERS } from "@/entities/online/model/types";
 
 interface ChatMessage {
@@ -24,6 +25,7 @@ const getCharacterEmoji = (id: string | undefined): string => {
   return CHARACTERS.find((c) => c.id === id)?.emoji || "👤";
 };
 
+// Reuses @zebra/core Modal for native dialog focus trapping, backdrop click, and Escape handling
 const ChatHistoryModal = ({
   chat,
   hostNickname,
@@ -33,15 +35,12 @@ const ChatHistoryModal = ({
   onClose,
 }: ChatHistoryModalProps) => {
   const { t } = useTranslation();
-  const backdropRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Lazy loading: start from the latest messages
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const totalCount = chat.length;
 
-  // Messages displayed in chronological order (oldest first)
-  // We slice from the end to show the latest PAGE_SIZE messages initially
   const startIndex = Math.max(0, totalCount - visibleCount);
   const visibleMessages = chat.slice(startIndex);
   const hasMore = startIndex > 0;
@@ -50,7 +49,6 @@ const ChatHistoryModal = ({
 
   const loadMore = useCallback(() => {
     if (!hasMore) return;
-    // Save scroll position before loading more
     if (scrollContainerRef.current) {
       prevScrollHeightRef.current = scrollContainerRef.current.scrollHeight;
     }
@@ -75,7 +73,6 @@ const ChatHistoryModal = ({
     }
   }, []);
 
-  // Handle scroll to top for lazy loading
   const handleScroll = useCallback(() => {
     if (!scrollContainerRef.current || !hasMore) return;
     if (scrollContainerRef.current.scrollTop < 40) {
@@ -83,72 +80,16 @@ const ChatHistoryModal = ({
     }
   }, [hasMore, loadMore]);
 
-  // Close on backdrop click
-  const handleBackdropClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (e.target === backdropRef.current) onClose();
-    },
-    [onClose],
-  );
-
-  // Close on Escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-
   return (
-    <div
-      ref={backdropRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={handleBackdropClick}
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title={`${t("online.chatHistory")} (${totalCount})`}
+      className="max-w-md"
     >
-      <div className="w-full max-w-md mx-4 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl flex flex-col max-h-[80vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 shrink-0">
-          <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-accent"
-            >
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-            {t("online.chatHistory")}
-            <span className="text-[10px] font-normal text-gray-400 dark:text-gray-500">
-              ({totalCount})
-            </span>
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-            aria-label="Close"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            >
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
+      <div className="flex flex-col max-h-[65vh] -mx-2">
         {/* Player info bar */}
-        <div className="flex items-center justify-center gap-6 px-4 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 shrink-0">
+        <div className="flex items-center justify-center gap-6 px-4 py-2 mb-2 rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 shrink-0">
           <div className="flex items-center gap-1.5">
             <span>{getCharacterEmoji(hostCharacter)}</span>
             <span className="text-xs font-bold text-gray-700 dark:text-gray-200">
@@ -168,11 +109,11 @@ const ChatHistoryModal = ({
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto px-4 py-3 space-y-3 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700"
+          className="flex-1 overflow-y-auto px-2 py-2 space-y-3 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700"
         >
-          {/* Load more indicator */}
           {hasMore && (
             <button
+              type="button"
               onClick={loadMore}
               className="w-full text-center text-[10px] text-accent font-bold py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
             >
@@ -215,7 +156,7 @@ const ChatHistoryModal = ({
           )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

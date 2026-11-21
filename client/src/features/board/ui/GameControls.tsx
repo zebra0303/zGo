@@ -9,6 +9,7 @@ interface GameControlsProps {
   onActionComplete?: () => void;
 }
 
+// Moved from shared/ui to features/board/ui to enforce FSD layer boundaries (no shared -> entities import)
 const GameControls = ({
   layout = "grid",
   className = "",
