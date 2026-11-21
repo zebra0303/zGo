@@ -1,17 +1,17 @@
 import { WebSocket } from "ws";
-import jwt from "jsonwebtoken";
 import db from "../db";
+import { verifyRoomToken } from "../middleware/auth";
 import {
   getRoom,
   setConnection,
+  setPendingUndo,
+  markRoomExplicitlyClosed,
   removeConnection,
   sendToOpponent,
   sendToRoom,
   sendTo,
 } from "./roomManager";
 import { applyMove, replayMoves, PlayerColor } from "../lib/goLogic";
-
-const JWT_SECRET = process.env.JWT_SECRET || "dev_only_secret";
 
 interface RoomRow {
   id: string;
@@ -31,10 +31,19 @@ interface WsMessage {
   payload?: Record<string, unknown>;
 }
 
+const CHAT_RATE_WINDOW_MS = 10_000;
+const CHAT_RATE_MAX = 15;
+
 export function handleOnlineConnection(ws: WebSocket): void {
   let authenticated = false;
   let roomId: string | null = null;
   let role: "host" | "guest" | null = null;
+  let chatTimestamps: number[] = [];
+
+  // Prevent unhandled socket error events from crashing the Node process
+  ws.on("error", (err) => {
+    console.warn("WebSocket error:", err.message);
+  });
 
   // Auto-close if not authenticated within 10s
   const authTimeout = setTimeout(() => {
@@ -43,77 +52,105 @@ export function handleOnlineConnection(ws: WebSocket): void {
         type: "error",
         payload: { message: "Authentication timeout" },
       });
-      ws.close();
+      ws.close(4001, "Authentication timeout");
     }
   }, 10000);
 
   ws.on("message", (data) => {
-    let msg: WsMessage;
     try {
-      msg = JSON.parse(data.toString());
-    } catch {
-      return sendTo(ws, {
-        type: "error",
-        payload: { message: "Invalid JSON" },
-      });
-    }
-
-    if (!authenticated) {
-      if (msg.type === "auth") {
-        handleAuth(ws, msg, (r, ro) => {
-          clearTimeout(authTimeout);
-          authenticated = true;
-          roomId = r;
-          role = ro;
-        });
-      } else {
-        sendTo(ws, {
+      let msg: WsMessage;
+      try {
+        msg = JSON.parse(data.toString());
+      } catch {
+        return sendTo(ws, {
           type: "error",
-          payload: { message: "Not authenticated" },
+          payload: { message: "Invalid JSON" },
         });
       }
-      return;
-    }
 
-    if (!roomId || !role) return;
-
-    switch (msg.type) {
-      case "move":
-        handleMove(ws, roomId, role, msg);
-        break;
-      case "pass":
-        handlePass(ws, roomId, role);
-        break;
-      case "resign":
-        handleResign(roomId, role);
-        break;
-      case "chat":
-        handleChat(roomId, role, msg);
-        break;
-      case "undo_request":
-        handleUndoRequest(roomId, role);
-        break;
-      case "undo_response":
-        handleUndoResponse(roomId, role, msg);
-        break;
-      case "leave":
-        handleLeave(roomId, role);
-        break;
-      default:
-        sendTo(ws, {
+      if (!msg || typeof msg !== "object" || typeof msg.type !== "string") {
+        return sendTo(ws, {
           type: "error",
-          payload: { message: `Unknown type: ${msg.type}` },
+          payload: { message: "Invalid message format" },
         });
+      }
+
+      if (!authenticated) {
+        if (msg.type === "auth") {
+          handleAuth(ws, msg, (r, ro) => {
+            clearTimeout(authTimeout);
+            authenticated = true;
+            roomId = r;
+            role = ro;
+          });
+        } else {
+          sendTo(ws, {
+            type: "error",
+            payload: { message: "Not authenticated" },
+          });
+        }
+        return;
+      }
+
+      if (!roomId || !role) return;
+
+      switch (msg.type) {
+        case "move":
+          handleMove(ws, roomId, role, msg);
+          break;
+        case "pass":
+          handlePass(ws, roomId, role);
+          break;
+        case "resign":
+          handleResign(roomId, role);
+          break;
+        case "chat": {
+          const now = Date.now();
+          chatTimestamps = chatTimestamps.filter(
+            (ts) => now - ts < CHAT_RATE_WINDOW_MS,
+          );
+          if (chatTimestamps.length >= CHAT_RATE_MAX) {
+            sendTo(ws, {
+              type: "error",
+              payload: { message: "Chat rate limit exceeded" },
+            });
+            break;
+          }
+          chatTimestamps.push(now);
+          handleChat(roomId, role, msg);
+          break;
+        }
+        case "undo_request":
+          handleUndoRequest(roomId, role);
+          break;
+        case "undo_response":
+          handleUndoResponse(roomId, role, msg);
+          break;
+        case "leave":
+          handleLeave(roomId, role);
+          break;
+        default:
+          sendTo(ws, {
+            type: "error",
+            payload: { message: `Unknown type: ${msg.type}` },
+          });
+      }
+    } catch (err) {
+      // Catch unexpected errors inside message handler so malformed payloads never crash the server
+      console.error("WS message dispatch error:", err);
+      sendTo(ws, {
+        type: "error",
+        payload: { message: "Internal message processing error" },
+      });
     }
   });
 
   ws.on("close", () => {
     clearTimeout(authTimeout);
     if (roomId && role) {
-      // Only process if this WS is still the registered connection for this role
-      // (prevents stale connections from removing active ones after reconnect)
       const currentRoom = getRoom(roomId);
       if (currentRoom && currentRoom[role] !== ws) return;
+      const wasExplicitlyClosed = currentRoom?.explicitlyClosed ?? false;
 
       const room = db
         .prepare(`SELECT status FROM online_rooms WHERE id = ?`)
@@ -121,14 +158,8 @@ export function handleOnlineConnection(ws: WebSocket): void {
 
       removeConnection(roomId, role);
 
-      if (room?.status === "finished") {
-        // Room was closed (via leave/resign) — tell opponent to exit
-        sendToOpponent(roomId, role, {
-          type: "room_closed",
-          payload: { by: role },
-        });
-      } else {
-        // Temporary disconnect — opponent may reconnect
+      // Avoid emitting duplicate room_closed after handleLeave or during post-game review
+      if (!wasExplicitlyClosed && room?.status !== "finished") {
         sendToOpponent(roomId, role, { type: "opponent_disconnected" });
       }
     }
@@ -140,8 +171,8 @@ function handleAuth(
   msg: WsMessage,
   onSuccess: (roomId: string, role: "host" | "guest") => void,
 ): void {
-  const token = msg.payload?.roomToken as string | undefined;
-  if (!token) {
+  const token = msg.payload?.roomToken;
+  if (typeof token !== "string" || !token) {
     return sendTo(ws, {
       type: "error",
       payload: { message: "Missing roomToken" },
@@ -149,28 +180,27 @@ function handleAuth(
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as {
-      roomId: string;
-      role: "host" | "guest";
-    };
+    const decoded = verifyRoomToken(token);
     const room = db
       .prepare(`SELECT * FROM online_rooms WHERE id = ?`)
       .get(decoded.roomId) as RoomRow | undefined;
 
     if (!room) {
-      return sendTo(ws, {
+      sendTo(ws, {
         type: "error",
         payload: { message: "Room not found" },
       });
+      ws.close(4004, "Room not found");
+      return;
     }
 
     setConnection(decoded.roomId, decoded.role, ws);
     onSuccess(decoded.roomId, decoded.role);
 
-    // Send current room state
+    // Alias created_at to createdAt so client displays valid timestamps on reconnect
     const chatRows = db
       .prepare(
-        `SELECT sender, message, created_at FROM online_chat WHERE room_id = ? ORDER BY id`,
+        `SELECT sender, message, created_at AS createdAt FROM online_chat WHERE room_id = ? ORDER BY id`,
       )
       .all(decoded.roomId);
 
@@ -187,13 +217,12 @@ function handleAuth(
       },
     });
 
-    // Notify opponent of reconnection
     sendToOpponent(decoded.roomId, decoded.role, {
       type: "opponent_reconnected",
     });
   } catch {
     sendTo(ws, { type: "error", payload: { message: "Invalid token" } });
-    ws.close();
+    ws.close(4001, "Invalid token");
   }
 }
 
@@ -214,7 +243,6 @@ function handleMove(
     });
   }
 
-  // Determine player color from role
   const myColor: PlayerColor =
     role === "host"
       ? (room.host_color as PlayerColor)
@@ -226,16 +254,25 @@ function handleMove(
     return sendTo(ws, { type: "error", payload: { message: "Not your turn" } });
   }
 
-  const x = msg.payload?.x as number;
-  const y = msg.payload?.y as number;
-  if (typeof x !== "number" || typeof y !== "number") {
+  // Strictly validate integer bounds so fractional/NaN coordinates cannot crash goLogic
+  const x = msg.payload?.x;
+  const y = msg.payload?.y;
+  if (
+    typeof x !== "number" ||
+    typeof y !== "number" ||
+    !Number.isInteger(x) ||
+    !Number.isInteger(y) ||
+    x < 0 ||
+    x >= room.board_size ||
+    y < 0 ||
+    y >= room.board_size
+  ) {
     return sendTo(ws, {
       type: "error",
       payload: { message: "Invalid coordinates" },
     });
   }
 
-  // Replay moves to get current board state
   const moves: ({ x: number; y: number } | null)[] = JSON.parse(room.moves);
   const { board, previousBoard } = replayMoves(
     moves,
@@ -243,7 +280,6 @@ function handleMove(
     room.handicap,
   );
 
-  // Validate move
   const result = applyMove(board, x, y, myColor, previousBoard);
   if (!result.isValid) {
     return sendTo(ws, {
@@ -252,7 +288,9 @@ function handleMove(
     });
   }
 
-  // Update DB
+  // Clear any stale pending undo when gameplay advances
+  setPendingUndo(roomId, null);
+
   moves.push({ x, y });
   const nextPlayer: PlayerColor = myColor === "BLACK" ? "WHITE" : "BLACK";
   const now = new Date().toISOString();
@@ -261,7 +299,6 @@ function handleMove(
     `UPDATE online_rooms SET moves = ?, current_player = ?, updated_at = ? WHERE id = ?`,
   ).run(JSON.stringify(moves), nextPlayer, now, roomId);
 
-  // Broadcast to both players
   sendToRoom(roomId, {
     type: "move",
     payload: { x, y, color: myColor, captured: result.captured },
@@ -295,9 +332,9 @@ function handlePass(
     return sendTo(ws, { type: "error", payload: { message: "Not your turn" } });
   }
 
-  const moves: ({ x: number; y: number } | null)[] = JSON.parse(room.moves);
+  setPendingUndo(roomId, null);
 
-  // Check for consecutive passes (game end)
+  const moves: ({ x: number; y: number } | null)[] = JSON.parse(room.moves);
   const lastMove = moves.length > 0 ? moves[moves.length - 1] : undefined;
   const isConsecutivePass = lastMove === null;
 
@@ -306,7 +343,6 @@ function handlePass(
   const now = new Date().toISOString();
 
   if (isConsecutivePass) {
-    // Two consecutive passes — game ends, needs scoring
     db.prepare(
       `UPDATE online_rooms SET moves = ?, current_player = ?, status = 'finished', updated_at = ? WHERE id = ?`,
     ).run(JSON.stringify(moves), nextPlayer, now, roomId);
@@ -338,6 +374,8 @@ function handleResign(roomId: string, role: "host" | "guest"): void {
 
   if (!room || room.status !== "playing") return;
 
+  setPendingUndo(roomId, null);
+
   const myColor: PlayerColor =
     role === "host"
       ? (room.host_color as PlayerColor)
@@ -363,11 +401,10 @@ function handleChat(
   role: "host" | "guest",
   msg: WsMessage,
 ): void {
-  const message = msg.payload?.message as string;
-  if (!message || typeof message !== "string" || message.trim().length === 0)
-    return;
+  const message = msg.payload?.message;
+  if (typeof message !== "string" || message.trim().length === 0) return;
 
-  const trimmed = message.trim().slice(0, 200); // Limit message length
+  const trimmed = message.trim().slice(0, 200);
   const now = new Date().toISOString();
 
   db.prepare(
@@ -387,11 +424,11 @@ function handleUndoRequest(roomId: string, role: "host" | "guest"): void {
 
   if (!room || room.status !== "playing") return;
 
-  // Check if already used
   const used = role === "host" ? room.undo_host_used : room.undo_guest_used;
-  if (used) {
-    return; // Already used undo
-  }
+  if (used) return;
+
+  // Record requester in room state so handleUndoResponse can verify legitimacy
+  setPendingUndo(roomId, role);
 
   sendToOpponent(roomId, role, {
     type: "undo_request",
@@ -404,8 +441,15 @@ function handleUndoResponse(
   role: "host" | "guest",
   msg: WsMessage,
 ): void {
-  const accepted = msg.payload?.accepted as boolean;
+  const accepted = msg.payload?.accepted === true;
   const requesterRole = role === "host" ? "guest" : "host";
+
+  // Verify an actual pending undo request exists from the opponent (prevents arbitrary forced undos)
+  const memRoom = getRoom(roomId);
+  if (!memRoom || memRoom.pendingUndoBy !== requesterRole) {
+    return;
+  }
+  setPendingUndo(roomId, null);
 
   if (!accepted) {
     sendToOpponent(roomId, role, { type: "undo_rejected" });
@@ -418,19 +462,18 @@ function handleUndoResponse(
 
   if (!room || room.status !== "playing") return;
 
-  const moves: ({ x: number; y: number } | null)[] = JSON.parse(room.moves);
+  const alreadyUsed =
+    requesterRole === "host" ? room.undo_host_used : room.undo_guest_used;
+  if (alreadyUsed) return;
 
-  // Remove last 2 moves (requester's move + opponent's response, or just last move if it was requester's turn)
+  const moves: ({ x: number; y: number } | null)[] = JSON.parse(room.moves);
   if (moves.length < 1) return;
 
-  // Remove last 2 moves to undo one full round
   const removeCount = moves.length >= 2 ? 2 : 1;
   moves.splice(moves.length - removeCount, removeCount);
 
-  // Recalculate current player
   const { currentPlayer } = replayMoves(moves, room.board_size, room.handicap);
 
-  // Mark undo as used for the requester
   const undoColumn =
     requesterRole === "host" ? "undo_host_used" : "undo_guest_used";
   const now = new Date().toISOString();
@@ -448,12 +491,12 @@ function handleUndoResponse(
 function handleLeave(roomId: string, role: "host" | "guest"): void {
   const now = new Date().toISOString();
 
-  // Mark room as finished
+  markRoomExplicitlyClosed(roomId);
+
   db.prepare(
     `UPDATE online_rooms SET status = 'finished', updated_at = ? WHERE id = ?`,
   ).run(now, roomId);
 
-  // Notify both players to leave
   sendToRoom(roomId, {
     type: "room_closed",
     payload: { by: role },

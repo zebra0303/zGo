@@ -4,6 +4,13 @@ import { ApiError as AppError, createMaskedError } from "@zebra/core";
 // Use pure environment variables for API URL (no hardcoded fallback logic)
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
+// Track active online room token so guest players can call authorized scoring/analysis endpoints
+let onlineRoomToken: string | null = null;
+
+export const setOnlineRoomToken = (token: string | null): void => {
+  onlineRoomToken = token;
+};
+
 // Custom fetch wrapper to always include cookies
 export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   return fetch(url, {
@@ -12,15 +19,47 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   });
 };
 
-const handleApiResponse = async (response: Response) => {
-  if (!response.ok) {
-    let errorData = "Unknown Server Error";
+const getAiAuthHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (onlineRoomToken) {
+    headers.Authorization = `Bearer ${onlineRoomToken}`;
+  }
+  return headers;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const handleApiResponse = async (response: Response): Promise<any> => {
+  // Read body once to avoid TypeError from consuming the stream twice
+  const rawText = await response.text();
+  let parsed: unknown = null;
+  if (rawText) {
     try {
-      const data = await response.json();
-      errorData = data.error || data.message || errorData;
+      parsed = JSON.parse(rawText);
     } catch {
-      // Not JSON
-      errorData = await response.text();
+      parsed = null;
+    }
+  }
+
+  if (!response.ok) {
+    let errorData = rawText || "Unknown Server Error";
+    if (parsed && typeof parsed === "object") {
+      const obj = parsed as {
+        error?: string | { message?: string };
+        message?: string;
+      };
+      if (typeof obj.error === "string" && obj.error) {
+        errorData = obj.error;
+      } else if (
+        obj.error &&
+        typeof obj.error === "object" &&
+        typeof obj.error.message === "string"
+      ) {
+        errorData = obj.error.message;
+      } else if (typeof obj.message === "string" && obj.message) {
+        errorData = obj.message;
+      }
     }
 
     // Mask sensitive 5xx errors from the server
@@ -35,8 +74,7 @@ const handleApiResponse = async (response: Response) => {
     throw new AppError(errorData, response.status, { code: "API_ERROR" });
   }
 
-  const text = await response.text();
-  return text ? JSON.parse(text) : {};
+  return parsed ?? {};
 };
 
 export const fetchAIHint = async (
@@ -114,7 +152,7 @@ export const fetchAIScore = async (
   try {
     const response = await fetchWithAuth(`${API_BASE_URL}/ai/score`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAiAuthHeaders(),
       body: JSON.stringify({ moves, boardSize, handicap }),
       signal,
     });
@@ -166,7 +204,7 @@ export const analyzeGame = async (
   try {
     response = await fetchWithAuth(`${API_BASE_URL}/ai/analyze-game`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAiAuthHeaders(),
       body: JSON.stringify({ moves, boardSize, handicap }),
       signal,
     });
@@ -239,6 +277,10 @@ export const analyzeGame = async (
     }
   } catch (error) {
     throw createMaskedError(error, "Analysis stream interrupted.");
+  } finally {
+    // Always cancel and release stream reader to prevent dangling SSE connections
+    reader.cancel().catch(() => {});
+    reader.releaseLock();
   }
 };
 

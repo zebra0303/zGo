@@ -8,23 +8,24 @@ import { flattenTree, reconstructTree } from "@/entities/match/lib/treeUtils";
 import { analyzeGame } from "@/shared/api/gameApi";
 import { getPlayerForMove } from "@/shared/lib/goUtils";
 import { HistoryNode, GameState } from "./types";
-import {
-  createEmptyBoard,
-  createInitialNode,
-  getNode,
-  getPathToNode,
-} from "../lib/boardUtils";
+import { createInitialNode, getNode, getPathToNode } from "../lib/boardUtils";
 
 export { getPathToNode, getNode };
+
+// Share a single root node instance so gameTree and currentNode stay referentially aligned
+const initialRoot = createInitialNode(19, 0);
+
+// Module-level abort controller for active game analysis stream
+let analysisAbort: AbortController | null = null;
 
 export const useGameStore = create<GameState>()(
   persist(
     (set, get) => ({
-      board: createEmptyBoard(19),
+      board: initialRoot.board,
       currentPlayer: "BLACK",
       isTeacherMode: false,
-      gameTree: createInitialNode(19, 0),
-      currentNode: createInitialNode(19, 0),
+      gameTree: initialRoot,
+      currentNode: initialRoot,
 
       gameMode: "PvP",
       aiDifficulty: 5,
@@ -407,7 +408,8 @@ export const useGameStore = create<GameState>()(
         moves.slice(1).forEach((move, i) => {
           // refactor: i is 0-based forEach index; maps to getPlayerForMove(i, handicap)
           const color = getPlayerForMove(i, handicap);
-          const prevBoard = i > 0 ? current.board : null;
+          // Compare against the grandparent board for Ko validation rather than current.board
+          const prevBoard = current.parent ? current.parent.board : null;
 
           let newBoard = current.board;
           let captured = 0;
@@ -486,6 +488,9 @@ export const useGameStore = create<GameState>()(
         set({ ignoredRecommendation: coords }),
 
       resetGame: () => {
+        // Cancel any in-flight SSE analysis stream so stale chunks cannot mutate the new game
+        analysisAbort?.abort();
+        analysisAbort = null;
         queryClient.removeQueries({ queryKey: ["aiHint"] });
 
         const { boardSize, handicap } = get();
@@ -561,20 +566,26 @@ export const useGameStore = create<GameState>()(
         if (!savedTreeData || !savedTreeData.flatTree)
           return { ...currentState, ...persistedState };
 
-        const { root, current } = reconstructTree(
-          savedTreeData.flatTree,
-          savedTreeData.currentNodeId,
-          persistedState.boardSize ?? currentState.boardSize,
-          persistedState.handicap ?? currentState.handicap,
-        );
+        try {
+          const { root, current } = reconstructTree(
+            savedTreeData.flatTree,
+            savedTreeData.currentNodeId,
+            persistedState.boardSize ?? currentState.boardSize,
+            persistedState.handicap ?? currentState.handicap,
+          );
 
-        return {
-          ...currentState,
-          ...persistedState,
-          gameTree: root,
-          currentNode: current,
-          board: current.board,
-        };
+          return {
+            ...currentState,
+            ...persistedState,
+            gameTree: root,
+            currentNode: current,
+            board: current.board,
+          };
+        } catch (e) {
+          // Recover cleanly if persisted game tree is corrupted
+          console.error("Failed to reconstruct saved game tree", e);
+          return { ...currentState, ...persistedState };
+        }
       },
     },
   ),
@@ -627,9 +638,6 @@ if (typeof window !== "undefined") {
     }
   });
 }
-
-// Module-level abort controller for analysis
-let analysisAbort: AbortController | null = null;
 
 /**
  * Start win rate analysis for the current game tree.

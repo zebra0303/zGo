@@ -1,7 +1,11 @@
 import { Router, Request, Response } from "express";
 import db from "../db";
+import { requireAdmin } from "../middleware/auth";
 
 const router = Router();
+
+// Require admin authentication on all saved match CRUD endpoints
+router.use(requireAdmin);
 
 interface MatchBody {
   mode: string;
@@ -11,10 +15,13 @@ interface MatchBody {
   sgfData: string;
 }
 
-// refactor: migrated from sqlite3 callbacks to better-sqlite3 sync API
 router.post("/", (req: Request, res: Response) => {
-  const { mode, aiDifficulty, humanColor, winner, sgfData } =
-    req.body as MatchBody;
+  const { mode, aiDifficulty, humanColor, winner, sgfData } = (req.body ??
+    {}) as MatchBody;
+  if (typeof mode !== "string" || typeof sgfData !== "string") {
+    return res.status(400).json({ error: "mode and sgfData are required" });
+  }
+
   try {
     const result = db
       .prepare(
@@ -32,8 +39,8 @@ router.post("/", (req: Request, res: Response) => {
       id: result.lastInsertRowid,
       message: "Match saved successfully",
     });
-  } catch (err: unknown) {
-    res.status(500).json({ error: (err as Error).message });
+  } catch {
+    res.status(500).json({ error: "Failed to save match" });
   }
 });
 
@@ -45,8 +52,8 @@ router.get("/", (_req: Request, res: Response) => {
       )
       .all();
     res.json({ matches: rows });
-  } catch (err: unknown) {
-    res.status(500).json({ error: (err as Error).message });
+  } catch {
+    res.status(500).json({ error: "Failed to fetch matches" });
   }
 });
 
@@ -57,8 +64,8 @@ router.get("/:id", (req: Request, res: Response) => {
       .get(req.params.id);
     if (!row) return res.status(404).json({ error: "Match not found" });
     res.json({ match: row });
-  } catch (err: unknown) {
-    res.status(500).json({ error: (err as Error).message });
+  } catch {
+    res.status(500).json({ error: "Failed to fetch match" });
   }
 });
 
@@ -70,8 +77,8 @@ router.delete("/:id", (req: Request, res: Response) => {
     if (result.changes === 0)
       return res.status(404).json({ error: "Match not found" });
     res.json({ message: "Match deleted successfully" });
-  } catch (err: unknown) {
-    res.status(500).json({ error: (err as Error).message });
+  } catch {
+    res.status(500).json({ error: "Failed to delete match" });
   }
 });
 

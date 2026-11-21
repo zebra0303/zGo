@@ -10,8 +10,9 @@ if (!fs.existsSync(dbDir)) {
 const dbPath = path.join(dbDir, "zgo.db");
 const db: InstanceType<typeof Database> = new Database(dbPath);
 
-// perf: WAL mode for concurrent reads
+// perf: WAL mode and busy_timeout for concurrent reads/writes
 db.pragma("journal_mode = WAL");
+db.pragma("busy_timeout = 5000");
 db.pragma("foreign_keys = ON");
 
 db.exec(`CREATE TABLE IF NOT EXISTS matches (
@@ -57,8 +58,12 @@ db.exec(`CREATE TABLE IF NOT EXISTS online_chat (
   sender TEXT NOT NULL,
   message TEXT NOT NULL,
   created_at TEXT NOT NULL,
-  FOREIGN KEY (room_id) REFERENCES online_rooms(id)
+  FOREIGN KEY (room_id) REFERENCES online_rooms(id) ON DELETE CASCADE
 )`);
+
+db.exec(
+  `CREATE INDEX IF NOT EXISTS idx_online_chat_room_id ON online_chat(room_id)`,
+);
 
 console.log("Connected to the SQLite database at", dbPath);
 

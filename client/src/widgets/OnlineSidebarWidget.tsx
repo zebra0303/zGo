@@ -684,7 +684,11 @@ const OnlineSidebarWidget = () => {
           dialog.title || (dialog.type === "alert" ? t("alert") : t("confirm"))
         }
         message={dialog.message}
-        onConfirm={dialog.onConfirm}
+        // Always close local modal after confirmation to stay compatible with @zebra/core ConfirmModal
+        onConfirm={() => {
+          dialog.onConfirm();
+          setDialog((prev) => ({ ...prev, isOpen: false }));
+        }}
         onCancel={
           dialog.onCancel ||
           (() => setDialog((prev) => ({ ...prev, isOpen: false })))

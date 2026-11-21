@@ -17,6 +17,8 @@ interface MoveRecommendation {
 // KataGo engine state
 let katagoProcess: ChildProcessWithoutNullStreams | null = null;
 let isKatagoReady = false;
+let isShuttingDown = false;
+let restartTimer: ReturnType<typeof setTimeout> | null = null;
 let commandQueue: CommandTask[] = [];
 let isProcessingQueue = false;
 let responseBuffer = "";
@@ -32,6 +34,7 @@ const apiRequestQueue: { execute: () => Promise<void> }[] = [];
 let isProcessingApiQueue = false;
 let processedApiCount = 0;
 const MAX_API_CALLS_BEFORE_RESTART = 500;
+const MAX_API_QUEUE_SIZE = 50;
 
 export const getEngineState = () => ({
   get isReady() {
@@ -72,6 +75,14 @@ export const getEngineState = () => ({
   },
 });
 
+const rejectAllPendingCommands = (reason: string) => {
+  const pending = commandQueue.splice(0, commandQueue.length);
+  isProcessingQueue = false;
+  for (const task of pending) {
+    task.reject(new Error(reason));
+  }
+};
+
 const processNextCommand = () => {
   if (
     commandQueue.length === 0 ||
@@ -84,53 +95,94 @@ const processNextCommand = () => {
   if (task.pending) return;
   isProcessingQueue = true;
   task.pending = true;
-  katagoProcess.stdin.write(`${task.command}\n`);
+  try {
+    katagoProcess.stdin.write(`${task.command}\n`);
+  } catch (err) {
+    commandQueue.shift();
+    isProcessingQueue = false;
+    task.reject(
+      err instanceof Error ? err : new Error("Failed writing to KataGo stdin"),
+    );
+    processNextCommand();
+  }
 };
 
 export const stopKataGo = () => {
+  isShuttingDown = true;
+  if (restartTimer) {
+    clearTimeout(restartTimer);
+    restartTimer = null;
+  }
+  rejectAllPendingCommands("KataGo Engine stopped.");
   if (katagoProcess) {
-    console.log("Stopping KataGo Engine...");
-    katagoProcess.kill("SIGTERM");
+    const proc = katagoProcess;
     katagoProcess = null;
     isKatagoReady = false;
+    console.log("Stopping KataGo Engine...");
+    proc.kill("SIGTERM");
+    // Escalate to SIGKILL if KataGo hangs during shutdown
+    setTimeout(() => {
+      if (proc.exitCode === null && proc.signalCode === null) {
+        try {
+          proc.kill("SIGKILL");
+        } catch {
+          /* ignore */
+        }
+      }
+    }, 3000).unref();
   }
 };
 
 export const startKataGo = () => {
-  if (katagoProcess) {
-    katagoProcess.kill();
-    isKatagoReady = false;
+  isShuttingDown = false;
+  if (restartTimer) {
+    clearTimeout(restartTimer);
+    restartTimer = null;
   }
 
-  // Reject all pending commands so the API queue doesn't hang forever
-  commandQueue.forEach((task) => {
-    task.reject(
-      new Error("KataGo Engine restarted manually. Command aborted."),
-    );
-  });
+  if (katagoProcess) {
+    const oldProc = katagoProcess;
+    katagoProcess = null;
+    isKatagoReady = false;
+    oldProc.kill("SIGTERM");
+  }
 
-  // __dirname = src/katago/ (dev) or dist/katago/ (prod), so ../../katago/ = server/katago/
+  rejectAllPendingCommands("KataGo Engine restarted. Command aborted.");
+
   const modelPath = path.join(__dirname, "../../katago/katago-model.bin.gz");
   const configPath = path.join(__dirname, "../../katago/gtp_config.cfg");
 
   console.log("Starting KataGo Engine...");
-  katagoProcess = spawn("katago", [
+  const proc = spawn("katago", [
     "gtp",
     "-model",
     modelPath,
     "-config",
     configPath,
   ]);
+  katagoProcess = proc;
 
   responseBuffer = "";
-  commandQueue = [];
-  isProcessingQueue = false;
   currentMaxVisits = null;
   currentBoardSize = null;
   currentHandicap = null;
   currentMoves = [];
 
-  katagoProcess.stdout.on("data", (data: Buffer) => {
+  // Guard every handler against stale process instances so old exit events never clobber new engine
+  proc.on("error", (err) => {
+    if (proc !== katagoProcess) return;
+    console.error("KataGo process spawn/runtime error:", err.message);
+    isKatagoReady = false;
+    rejectAllPendingCommands(`KataGo process error: ${err.message}`);
+  });
+
+  proc.stdin.on("error", (err) => {
+    if (proc !== katagoProcess) return;
+    console.warn("KataGo stdin error:", err.message);
+  });
+
+  proc.stdout.on("data", (data: Buffer) => {
+    if (proc !== katagoProcess) return;
     responseBuffer += data.toString();
     let doubleNewlineIndex = responseBuffer.search(/\n\s*\n/);
     while (doubleNewlineIndex !== -1) {
@@ -151,7 +203,8 @@ export const startKataGo = () => {
   });
 
   let stderrBuffer = "";
-  katagoProcess.stderr.on("data", (data: Buffer) => {
+  proc.stderr.on("data", (data: Buffer) => {
+    if (proc !== katagoProcess) return;
     stderrBuffer += data.toString();
     const lines = stderrBuffer.split("\n");
     stderrBuffer = lines.pop() || "";
@@ -163,7 +216,12 @@ export const startKataGo = () => {
         processNextCommand();
       }
       const winrateMatch = output.match(/winrate\s*[:=]?\s*([0-9.]+)/i);
-      if (winrateMatch) latestWinRate = parseFloat(winrateMatch[1]) * 100;
+      if (winrateMatch) {
+        const raw = parseFloat(winrateMatch[1]);
+        // Normalize both 0..1 and 0..100 formats and clamp safely
+        const pct = raw <= 1 ? raw * 100 : raw;
+        latestWinRate = Math.min(Math.max(pct, 0), 100);
+      }
 
       const rootTreeMatch = output.match(
         /^:\s*T\s+[-+0-9.a-z]+\s+W\s+([-+]?[0-9.]+)([c]?)/i,
@@ -200,28 +258,31 @@ export const startKataGo = () => {
     }
   });
 
-  katagoProcess.on("exit", (code, signal) => {
+  proc.on("exit", (code, signal) => {
+    if (proc !== katagoProcess) return;
+    katagoProcess = null;
     isKatagoReady = false;
     console.log(`KataGo Process exited with code ${code} and signal ${signal}`);
     if (stderrBuffer) {
       console.log("KataGo stderr before exit:", stderrBuffer);
+    }
+    rejectAllPendingCommands("KataGo process exited unexpectedly.");
+
+    // Auto-recover from unexpected crashes unless shutting down intentionally
+    if (!isShuttingDown) {
+      restartTimer = setTimeout(() => {
+        restartTimer = null;
+        if (!isShuttingDown && !katagoProcess) {
+          startKataGo();
+        }
+      }, 3000);
     }
   });
 };
 
 export const sendCommand = (command: string): Promise<string> => {
   return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      const index = commandQueue.findIndex((t) => t.command === command);
-      if (index !== -1) {
-        commandQueue.splice(index, 1);
-        isProcessingQueue = false;
-        console.error(`GTP command timeout: ${command}. Restarting engine...`);
-        startKataGo();
-        reject(new Error(`GTP command timeout: ${command}`));
-      }
-    }, 60000);
-    commandQueue.push({
+    const task: CommandTask = {
       command,
       resolve: (val) => {
         clearTimeout(timeout);
@@ -232,14 +293,32 @@ export const sendCommand = (command: string): Promise<string> => {
         reject(err);
       },
       pending: false,
-    });
+    };
+
+    // Match by task object identity rather than command string to avoid removing duplicates
+    const timeout = setTimeout(() => {
+      const index = commandQueue.indexOf(task);
+      if (index !== -1) {
+        commandQueue.splice(index, 1);
+        isProcessingQueue = false;
+        console.error(`GTP command timeout: ${command}. Restarting engine...`);
+        startKataGo();
+        reject(new Error(`GTP command timeout: ${command}`));
+      }
+    }, 60000);
+
+    commandQueue.push(task);
     if (!isProcessingQueue) processNextCommand();
   });
 };
 
-export const enqueueApiTask = (execute: () => Promise<void>) => {
+export const enqueueApiTask = (execute: () => Promise<void>): boolean => {
+  if (apiRequestQueue.length >= MAX_API_QUEUE_SIZE) {
+    return false;
+  }
   apiRequestQueue.push({ execute });
-  processApiQueue();
+  void processApiQueue();
+  return true;
 };
 
 const processApiQueue = async () => {
@@ -263,16 +342,3 @@ const processApiQueue = async () => {
     startKataGo();
   }
 };
-
-// Expose for analyze-game endpoint which needs direct queue control
-export const getApiQueueState = () => ({
-  get isProcessing() {
-    return isProcessingApiQueue;
-  },
-  set isProcessing(v: boolean) {
-    isProcessingApiQueue = v;
-  },
-  triggerProcess() {
-    processApiQueue();
-  },
-});

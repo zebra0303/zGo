@@ -3,6 +3,7 @@ import { useGameStore } from "@/entities/match/model/store";
 import { useTranslation } from "react-i18next";
 import { API_BASE_URL, fetchWithAuth } from "@/shared/api/gameApi";
 import { useShallow } from "zustand/react/shallow";
+import { ErrorBoundary } from "@zebra/core/client";
 import {
   applyPrimaryColor,
   applyFontFamily,
@@ -75,19 +76,31 @@ function App() {
   // Reactive theme application
   useEffect(() => {
     applyThemeMode(theme);
-    localStorage.setItem("theme", theme);
+    try {
+      localStorage.setItem("theme", theme);
+    } catch {
+      // Ignore storage quota or private mode errors
+    }
   }, [theme]);
 
   // Reactive color application
   useEffect(() => {
     applyPrimaryColor(primaryColor);
-    localStorage.setItem("primary_color", primaryColor);
+    try {
+      localStorage.setItem("primary_color", primaryColor);
+    } catch {
+      // Ignore storage quota or private mode errors
+    }
   }, [primaryColor]);
 
   // Reactive font application
   useEffect(() => {
     applyFontFamily(fontFamily);
-    localStorage.setItem("font_family", fontFamily);
+    try {
+      localStorage.setItem("font_family", fontFamily);
+    } catch {
+      // Ignore storage quota or private mode errors
+    }
   }, [fontFamily]);
 
   // Auth gate: check status + try token refresh + apply server config
@@ -105,6 +118,9 @@ function App() {
             signal: abortController.signal,
           },
         );
+        if (!statusRes.ok) {
+          throw new Error(`Status check failed with HTTP ${statusRes.status}`);
+        }
         const statusData = await statusRes.json();
         if (abortController.signal.aborted) return;
         const isSetup = statusData.isSetup;
@@ -148,8 +164,60 @@ function App() {
     setAuthState("authenticated");
   }, [i18n]);
 
-  // Online pages bypass auth gate (anyone with the URL can access)
-  if (route.page === "online-room" || route.page === "online-farewell") {
+  const renderContent = () => {
+    // Online pages bypass auth gate (anyone with the URL can access)
+    if (route.page === "online-room" || route.page === "online-farewell") {
+      return (
+        <div className="min-h-screen bg-gray-100 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-100">
+          <Suspense
+            fallback={
+              <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-pulse text-gray-400">Loading...</div>
+              </div>
+            }
+          >
+            <OnlinePage />
+          </Suspense>
+        </div>
+      );
+    }
+
+    if (authState === "loading") {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+          <div className="animate-pulse text-gray-400 text-sm">Loading...</div>
+        </div>
+      );
+    }
+
+    if (authState === "setup" || authState === "login") {
+      return (
+        <Suspense fallback={null}>
+          <AuthPage
+            isSetup={authState === "login"}
+            onAuthenticated={handleAuthenticated}
+          />
+        </Suspense>
+      );
+    }
+
+    // Authenticated — show main page or online create page
+    if (route.page === "online-create") {
+      return (
+        <div className="min-h-screen bg-gray-100 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-100">
+          <Suspense
+            fallback={
+              <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-pulse text-gray-400">Loading...</div>
+              </div>
+            }
+          >
+            <OnlinePage />
+          </Suspense>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-100">
         <Suspense
@@ -159,61 +227,14 @@ function App() {
             </div>
           }
         >
-          <OnlinePage />
+          <MainPage />
         </Suspense>
       </div>
     );
-  }
+  };
 
-  if (authState === "loading") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
-        <div className="animate-pulse text-gray-400 text-sm">Loading...</div>
-      </div>
-    );
-  }
-
-  if (authState === "setup" || authState === "login") {
-    return (
-      <Suspense fallback={null}>
-        <AuthPage
-          isSetup={authState === "login"}
-          onAuthenticated={handleAuthenticated}
-        />
-      </Suspense>
-    );
-  }
-
-  // Authenticated — show main page or online create page
-  if (route.page === "online-create") {
-    return (
-      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-100">
-        <Suspense
-          fallback={
-            <div className="min-h-screen flex items-center justify-center">
-              <div className="animate-pulse text-gray-400">Loading...</div>
-            </div>
-          }
-        >
-          <OnlinePage />
-        </Suspense>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-100">
-      <Suspense
-        fallback={
-          <div className="min-h-screen flex items-center justify-center">
-            <div className="animate-pulse text-gray-400">Loading...</div>
-          </div>
-        }
-      >
-        <MainPage />
-      </Suspense>
-    </div>
-  );
+  // Wrap root app in ErrorBoundary to prevent unhandled render errors from blanking the UI
+  return <ErrorBoundary>{renderContent()}</ErrorBoundary>;
 }
 
 export default App;

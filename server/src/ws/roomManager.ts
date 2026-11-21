@@ -1,11 +1,14 @@
 import { WebSocket } from "ws";
 
-interface RoomConnections {
+export interface RoomConnections {
   host: WebSocket | null;
   guest: WebSocket | null;
+  // Track pending undo request author so forged undo_response messages cannot undo arbitrarily
+  pendingUndoBy: "host" | "guest" | null;
+  // Distinguish explicit leave from post-game review disconnect
+  explicitlyClosed: boolean;
 }
 
-// In-memory map of active WebSocket connections per room
 const rooms = new Map<string, RoomConnections>();
 
 export function getRoom(roomId: string): RoomConnections | undefined {
@@ -19,17 +22,47 @@ export function setConnection(
 ): void {
   let room = rooms.get(roomId);
   if (!room) {
-    room = { host: null, guest: null };
+    room = {
+      host: null,
+      guest: null,
+      pendingUndoBy: null,
+      explicitlyClosed: false,
+    };
     rooms.set(roomId, room);
   }
+  // Close superseded socket on reconnect to prevent resource leaks
+  const previous = room[role];
+  if (previous && previous !== ws && previous.readyState === WebSocket.OPEN) {
+    previous.close(4000, "Superseded by newer connection");
+  }
   room[role] = ws;
+}
+
+export function setPendingUndo(
+  roomId: string,
+  role: "host" | "guest" | null,
+): void {
+  const room = rooms.get(roomId);
+  if (room) {
+    room.pendingUndoBy = role;
+  }
+}
+
+export function markRoomExplicitlyClosed(roomId: string): void {
+  const room = rooms.get(roomId);
+  if (room) {
+    room.explicitlyClosed = true;
+    room.pendingUndoBy = null;
+  }
 }
 
 export function removeConnection(roomId: string, role: "host" | "guest"): void {
   const room = rooms.get(roomId);
   if (!room) return;
   room[role] = null;
-  // Clean up if both disconnected
+  if (room.pendingUndoBy === role) {
+    room.pendingUndoBy = null;
+  }
   if (!room.host && !room.guest) {
     rooms.delete(roomId);
   }

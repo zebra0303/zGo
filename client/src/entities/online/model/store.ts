@@ -18,7 +18,12 @@ import {
   playChatSendSound,
   playChatReceiveSound,
 } from "@/shared/lib/sound";
-import { saveMatch, fetchAIScore, fetchWithAuth } from "@/shared/api/gameApi";
+import {
+  saveMatch,
+  fetchAIScore,
+  fetchWithAuth,
+  setOnlineRoomToken,
+} from "@/shared/api/gameApi";
 import { PlayerColor } from "@/shared/types/board";
 
 interface OnlineState {
@@ -106,7 +111,36 @@ function loadSession(): SessionData | null {
 }
 
 function clearSession(): void {
-  sessionStorage.removeItem(SESSION_KEY);
+  try {
+    sessionStorage.removeItem(SESSION_KEY);
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+// Track pending timers so reset/disconnect never leaks stale review or notification callbacks
+let reviewTimerId: ReturnType<typeof setTimeout> | null = null;
+let notificationTimerId: ReturnType<typeof setTimeout> | null = null;
+
+function clearPendingTimers(): void {
+  if (reviewTimerId) {
+    clearTimeout(reviewTimerId);
+    reviewTimerId = null;
+  }
+  if (notificationTimerId) {
+    clearTimeout(notificationTimerId);
+    notificationTimerId = null;
+  }
+}
+
+function scheduleNotificationClear(ms = 3000): void {
+  if (notificationTimerId) {
+    clearTimeout(notificationTimerId);
+  }
+  notificationTimerId = setTimeout(() => {
+    notificationTimerId = null;
+    useOnlineStore.getState().setNotification(null);
+  }, ms);
 }
 
 const initialState = {
@@ -143,6 +177,7 @@ export const useOnlineStore = create<OnlineState>((set, get) => ({
     }
     const { roomId, roomToken } = await res.json();
 
+    setOnlineRoomToken(roomToken);
     set({
       roomId,
       roomToken,
@@ -173,6 +208,7 @@ export const useOnlineStore = create<OnlineState>((set, get) => ({
     }
     const { roomToken } = await res.json();
 
+    setOnlineRoomToken(roomToken);
     set({
       roomId,
       roomToken,
@@ -205,6 +241,7 @@ export const useOnlineStore = create<OnlineState>((set, get) => ({
   },
 
   disconnectWs: () => {
+    clearPendingTimers();
     wsClient.disconnect();
     set({ connectionStatus: "disconnected" });
   },
@@ -246,6 +283,7 @@ export const useOnlineStore = create<OnlineState>((set, get) => ({
   restoreSession: () => {
     const session = loadSession();
     if (!session) return false;
+    setOnlineRoomToken(session.roomToken);
     set({
       roomId: session.roomId,
       roomToken: session.roomToken,
@@ -257,6 +295,8 @@ export const useOnlineStore = create<OnlineState>((set, get) => ({
   },
 
   reset: () => {
+    clearPendingTimers();
+    setOnlineRoomToken(null);
     wsClient.disconnect();
     clearSession();
     set(initialState);
@@ -279,7 +319,9 @@ function getMovesFromTree(): ({ x: number; y: number } | null)[] {
 
 // Helper: enter review mode with current game state and auto-analyze
 function enterReviewMode(winner?: PlayerColor): void {
-  setTimeout(() => {
+  if (reviewTimerId) clearTimeout(reviewTimerId);
+  reviewTimerId = setTimeout(() => {
+    reviewTimerId = null;
     const gs = useGameStore.getState();
     const os = useOnlineStore.getState();
     const moves = getMovesFromTree();
@@ -363,7 +405,27 @@ function handleWsMessage(
       if (p.chat) {
         set({ chatMessages: p.chat as ChatMessage[] });
       }
-      // Sync undo flags from server on reconnect
+      // Reconcile server moves on reconnect so moves played while disconnected are not dropped
+      if (Array.isArray(p.moves)) {
+        const serverMoves = p.moves as ({ x: number; y: number } | null)[];
+        const localMoves = getMovesFromTree();
+        if (serverMoves.length !== localMoves.length) {
+          const boardSize =
+            typeof p.boardSize === "number" ? p.boardSize : gameStore.boardSize;
+          const handicap =
+            typeof p.handicap === "number" ? p.handicap : gameStore.handicap;
+          gameStore.setGameConfig({ boardSize, handicap });
+          gameStore.resetGame();
+          for (const move of serverMoves) {
+            if (move === null) {
+              gameStore.passTurn();
+            } else {
+              gameStore.placeStone(move.x, move.y);
+            }
+          }
+        }
+      }
+      // Sync undo flags and status from server on reconnect
       const currentState = useOnlineStore.getState();
       if (currentState.roomInfo) {
         const updatedInfo = { ...currentState.roomInfo };
@@ -371,6 +433,10 @@ function handleWsMessage(
           updatedInfo.undoHostUsed = p.undoHostUsed;
         if (typeof p.undoGuestUsed === "boolean")
           updatedInfo.undoGuestUsed = p.undoGuestUsed;
+        if (typeof p.status === "string")
+          updatedInfo.status = p.status as RoomInfo["status"];
+        if (Array.isArray(p.moves))
+          updatedInfo.moves = p.moves as ({ x: number; y: number } | null)[];
         set({ roomInfo: updatedInfo });
       }
       break;
@@ -415,7 +481,7 @@ function handleWsMessage(
 
         // Notify that opponent passed (key-based for i18n in widget)
         set({ notification: "opponent_passed" });
-        setTimeout(() => useOnlineStore.getState().setNotification(null), 3000);
+        scheduleNotificationClear(3000);
       }
       break;
     }
@@ -593,7 +659,7 @@ function handleWsMessage(
 
     case "undo_rejected": {
       set({ pendingUndoRequest: null, notification: "undo_rejected" });
-      setTimeout(() => useOnlineStore.getState().setNotification(null), 3000);
+      scheduleNotificationClear(3000);
       break;
     }
 

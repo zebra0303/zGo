@@ -18,12 +18,15 @@ for (const envPath of envPaths) {
 }
 
 // 2. Import other modules
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
+import helmet from "helmet";
 import http from "http";
 import { WebSocketServer } from "ws";
 import cookieParser from "cookie-parser";
+import { AppError } from "@zebra/core/server";
 
+import db from "./db";
 import { startKataGo, stopKataGo } from "./katago/engine";
 import aiRouter from "./routes/ai";
 import matchesRouter from "./routes/matches";
@@ -35,14 +38,43 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.set("trust proxy", 1);
-app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
+
+// Add security headers (CSP relaxed for inline styles/fonts/PWA assets)
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+  }),
+);
+
+// Restrict CORS origins via allowlist instead of reflecting arbitrary origins with credentials
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
+  : [
+      `http://localhost:${process.env.VITE_PORT || 5550}`,
+      `http://localhost:${PORT}`,
+      `http://127.0.0.1:${process.env.VITE_PORT || 5550}`,
+      `http://127.0.0.1:${PORT}`,
+    ];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      callback(new AppError("Not allowed by CORS", 403, "CORS_FORBIDDEN"));
+    },
+    credentials: true,
+  }),
+);
+
+app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
 
 app.use(
   express.static(path.join(__dirname, "../../client/dist"), {
     setHeaders: (res, filePath) => {
-      // .html, .webmanifest, and unhashed service worker scripts should not be cached
       if (
         filePath.endsWith(".html") ||
         filePath.endsWith(".webmanifest") ||
@@ -51,7 +83,6 @@ app.use(
       ) {
         res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
       } else {
-        // Hashed assets (CSS, JS, images) can be cached safely for a year
         res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
       }
     },
@@ -63,16 +94,21 @@ app.use("/api/matches", matchesRouter);
 app.use("/api/settings", settingsRouter);
 app.use("/api/online", onlineRouter);
 
-// SPA fallback: Use a pure regex literal to avoid path-to-regexp string parsing issues in Express 5
-// This matches everything except paths starting with /api
-app.get(/^(?!\/api).+/, (req, res, next) => {
+app.get(/^(?!\/api).+/, (req, res) => {
   if (req.path.includes(".")) {
-    // If it's a missing asset file (e.g. .css, .js, .png that wasn't found by express.static),
-    // return a proper 404 response instead of falling through to default Express HTML 404.
     return res.status(404).type("text/plain").send("Not Found");
   }
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.sendFile(path.join(__dirname, "../../client/dist/index.html"));
+});
+
+// Global Express 5 error handler prevents stack trace leaks
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof AppError) {
+    return res.status(err.statusCode).json({ error: err.message });
+  }
+  console.error("[Server Error]", err);
+  return res.status(500).json({ error: "Internal server error" });
 });
 
 try {
@@ -82,7 +118,8 @@ try {
 }
 
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
+// Bound WebSocket payload size to prevent memory exhaustion DoS
+const wss = new WebSocketServer({ server, maxPayload: 64 * 1024 });
 wss.on("connection", (ws) => {
   handleOnlineConnection(ws);
 });
@@ -91,9 +128,20 @@ server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-process.on("SIGTERM", () => {
+// Trap both SIGINT and SIGTERM so KataGo, WS, and SQLite WAL shut down cleanly
+function shutdown(signal: string) {
+  console.log(`Received ${signal}, shutting down zGo server...`);
   stopKataGo();
+  wss.close();
   server.close(() => {
+    try {
+      db.close();
+    } catch {
+      /* ignore close errors */
+    }
     process.exit(0);
   });
-});
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));

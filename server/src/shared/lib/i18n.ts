@@ -1,18 +1,25 @@
 import path from "path";
 import fs from "fs";
 
-type Translations = Record<string, any>;
+type Translations = Record<string, unknown>;
 
-const translations: Record<string, Translations> = {};
+// Strictly allowlist supported locales to prevent path traversal via req.body.language
+const SUPPORTED_LANGS = new Set(["ko", "en"]);
+const translations = new Map<string, Translations>();
+
+function normalizeLang(lang: string): string {
+  return SUPPORTED_LANGS.has(lang) ? lang : "ko";
+}
 
 /**
- * Loads translation file for a specific language if not already loaded
+ * Loads translation file for a specific allowlisted language if not already loaded.
  */
-const loadLocale = (lang: string): Translations => {
-  if (translations[lang]) return translations[lang];
+const loadLocale = (rawLang: string): Translations => {
+  const lang = normalizeLang(rawLang);
+  const cached = translations.get(lang);
+  if (cached) return cached;
 
   try {
-    // Look for locales in both src (dev) and dist (prod) locations relative to the current file
     const possiblePaths = [
       path.join(__dirname, `../config/locales/${lang}/translation.json`),
       path.join(
@@ -35,8 +42,9 @@ const loadLocale = (lang: string): Translations => {
 
     if (filePath) {
       const content = fs.readFileSync(filePath, "utf-8");
-      translations[lang] = JSON.parse(content);
-      return translations[lang];
+      const parsed = JSON.parse(content) as Translations;
+      translations.set(lang, parsed);
+      return parsed;
     } else {
       console.error(
         `Locale file not found for: ${lang}. Checked paths:`,
@@ -47,37 +55,46 @@ const loadLocale = (lang: string): Translations => {
     console.error(`Failed to load locale: ${lang}`, err);
   }
 
-  // Fallback to empty object
   return {};
 };
 
+function resolveKey(obj: Translations, keys: string[]): unknown {
+  let current: unknown = obj;
+  for (const k of keys) {
+    if (
+      typeof current !== "object" ||
+      current === null ||
+      !Object.prototype.hasOwnProperty.call(current, k)
+    ) {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[k];
+  }
+  return current;
+}
+
 /**
- * Simple t function to get translated text by dot-notated key
+ * Simple t function to get translated text by dot-notated key.
  */
 export const t = (
   lang: string,
   key: string,
   params?: Record<string, string>,
 ): string => {
-  const locale = loadLocale(lang);
-  const fallbackLocale = lang !== "ko" ? loadLocale("ko") : {};
+  const safeLang = normalizeLang(lang);
+  const locale = loadLocale(safeLang);
+  const fallbackLocale = safeLang !== "ko" ? loadLocale("ko") : {};
 
   const keys = key.split(".");
-  let result: any = locale;
-  let fallbackResult: any = fallbackLocale;
-
-  for (const k of keys) {
-    result = result?.[k];
-    fallbackResult = fallbackResult?.[k];
-  }
+  const result = resolveKey(locale, keys);
+  const fallbackResult = resolveKey(fallbackLocale, keys);
 
   let text = typeof result === "string" ? result : fallbackResult;
   if (typeof text !== "string") return key;
 
-  // Replace parameters {{param}}
   if (params) {
     Object.entries(params).forEach(([k, v]) => {
-      text = (text as string).replace(new RegExp(`{{${k}}}`, "g"), v);
+      text = (text as string).replaceAll(`{{${k}}}`, v);
     });
   }
 

@@ -41,7 +41,13 @@ export default defineConfig(({ mode }) => {
           ],
           runtimeCaching: [
             {
+              // Never cache authentication, settings, or live AI responses in the service worker
+              urlPattern: /^\/api\/(settings|ai)\//,
+              handler: "NetworkOnly",
+            },
+            {
               urlPattern: /^\/api\//,
+              method: "GET",
               handler: "NetworkFirst",
               options: {
                 cacheName: "api-cache",

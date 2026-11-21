@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchAIHint } from "@/shared/api/gameApi";
 import { playStoneSound } from "@/shared/lib/sound";
 import { buildMoveHistory } from "@/shared/lib/goUtils";
+import { applyMove } from "@/entities/board/lib/goLogic";
 import { useShallow } from "zustand/react/shallow";
 
 const BASE_CELL_SIZE = 30; // 픽셀 단위 격자 크기
@@ -157,6 +158,20 @@ const BoardCore: React.FC = () => {
       const y = Math.round(yPixel / CELL_SIZE);
 
       if (x >= 0 && x < boardSize && y >= 0 && y < boardSize) {
+        if (isGameOver && !isReviewMode) return;
+        // Validate move locally before broadcasting to WebSocket or playing sound
+        const previousBoard = currentNode.parent
+          ? currentNode.parent.board
+          : null;
+        const { isValid } = applyMove(
+          board,
+          x,
+          y,
+          currentPlayer,
+          previousBoard,
+        );
+        if (!isValid) return;
+
         // In online mode, send move via WebSocket (server validates and broadcasts)
         if (gameMode === "Online" && !isReviewMode) {
           useOnlineStore.getState().sendMove(x, y);
@@ -167,9 +182,12 @@ const BoardCore: React.FC = () => {
     },
     [
       isReviewMode,
+      isGameOver,
       gameMode,
       currentPlayer,
       humanPlayerColor,
+      board,
+      currentNode.parent,
       MARGIN,
       CELL_SIZE,
       BOARD_PIXEL_SIZE,
@@ -191,12 +209,12 @@ const BoardCore: React.FC = () => {
       boardSize,
       handicap,
     ],
-    queryFn: ({ signal }) => {
+    queryFn: async ({ signal }) => {
       // refactor: reuse shared buildMoveHistory instead of inline logic
       const path = getPathToNode(gameTree, currentNode.id) || [currentNode];
       const moves = buildMoveHistory(path);
 
-      return fetchAIHint(
+      const hint = await fetchAIHint(
         board,
         currentPlayer,
         aiDifficulty,
@@ -207,6 +225,8 @@ const BoardCore: React.FC = () => {
         boardSize,
         handicap,
       );
+      // Include nodeId so TeacherAdviceWidget can match cached hints to the active node
+      return { ...hint, nodeId: currentNode.id };
     },
     enabled:
       isTeacherMode &&
@@ -315,6 +335,8 @@ const BoardCore: React.FC = () => {
           return (
             <g
               key={`var-${child.id}`}
+              // Stop pointerdown from bubbling to the board SVG and placing a stone
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
                 goToNextMove(idx);

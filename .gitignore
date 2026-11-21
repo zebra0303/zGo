@@ -10,6 +10,10 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+coverage
+gtp_logs/
+server/gtp_logs/
+server/logs/
 *.local
 
 # Editor directories and files

@@ -15,7 +15,13 @@ const ADVICE_WIDTH = 288; // w-72 = 18rem
 const LAYOUT_GAP = 48;
 
 const useCanShowAdviceSide = (sidebarCollapsed: boolean) => {
-  const { boardSize, boardScale } = useGameStore();
+  // perf: subscribe only to boardSize and boardScale to avoid unrelated re-renders
+  const { boardSize, boardScale } = useGameStore(
+    useShallow((s) => ({
+      boardSize: s.boardSize,
+      boardScale: s.boardScale,
+    })),
+  );
   const boardPixelSize =
     30 * boardScale * (boardSize - 1) + 20 * boardScale * 2;
   const sidebarWidth = sidebarCollapsed
@@ -54,11 +60,19 @@ export const GameLayout = () => {
   const isOnline = gameMode === "Online";
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    return sessionStorage.getItem("sidebarCollapsed") === "true";
+    try {
+      return sessionStorage.getItem("sidebarCollapsed") === "true";
+    } catch {
+      return false;
+    }
   });
   const toggleSidebar = useCallback((collapsed: boolean) => {
     setSidebarCollapsed(collapsed);
-    sessionStorage.setItem("sidebarCollapsed", String(collapsed));
+    try {
+      sessionStorage.setItem("sidebarCollapsed", String(collapsed));
+    } catch {
+      // Ignore storage quota or private mode errors
+    }
   }, []);
   const canShowAdviceSide = useCanShowAdviceSide(sidebarCollapsed);
 
@@ -185,7 +199,11 @@ export const GameLayout = () => {
           (confirmDialog.type === "alert" ? t("alert") : t("confirm"))
         }
         message={confirmDialog.message}
-        onConfirm={confirmDialog.onConfirm}
+        // Explicitly close dialog after confirm because ConfirmModal no longer invokes onCancel
+        onConfirm={() => {
+          confirmDialog.onConfirm();
+          closeConfirm();
+        }}
         onCancel={closeConfirm}
         variant={confirmDialog.type === "alert" ? "info" : "warning"}
         showCancel={confirmDialog.type === "confirm"}

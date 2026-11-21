@@ -116,6 +116,27 @@ const RoomPage = ({ roomId }: { roomId: string }) => {
     };
   }, [disconnectWs]);
 
+  // Declare startGame before effects that invoke it
+  const startGame = useCallback((info: RoomInfo) => {
+    const gameStore = useGameStore.getState();
+    // Configure game for online mode
+    gameStore.setGameConfig({
+      gameMode: "Online",
+      boardSize: info.boardSize,
+      handicap: info.handicap,
+    });
+    gameStore.resetGame();
+
+    // Replay existing moves if any
+    for (const move of info.moves) {
+      if (move === null) {
+        gameStore.passTurn();
+      } else {
+        gameStore.placeStone(move.x, move.y);
+      }
+    }
+  }, []);
+
   // Fetch room info on mount (restore session if needed)
   useEffect(() => {
     const abortController = new AbortController();
@@ -176,26 +197,6 @@ const RoomPage = ({ roomId }: { roomId: string }) => {
     return () => abortController.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
-
-  const startGame = useCallback((info: RoomInfo) => {
-    const gameStore = useGameStore.getState();
-    // Configure game for online mode
-    gameStore.setGameConfig({
-      gameMode: "Online",
-      boardSize: info.boardSize,
-      handicap: info.handicap,
-    });
-    gameStore.resetGame();
-
-    // Replay existing moves if any
-    for (const move of info.moves) {
-      if (move === null) {
-        gameStore.passTurn();
-      } else {
-        gameStore.placeStone(move.x, move.y);
-      }
-    }
-  }, []);
 
   const handleJoined = useCallback(() => {
     // After joining, fetch room info and start

@@ -1,82 +1,65 @@
 # ==========================================
-# Stage 1: Build Client (React/Vite)
+# Stage 1: Build Client & Server (npm workspaces)
 # ==========================================
-FROM node:24-bookworm-slim AS client-builder
-WORKDIR /app/client
+FROM node:24-bookworm-slim AS builder
+WORKDIR /app
 
-# Copy package files
-COPY client/package*.json ./
-# For workspaces or monorepos, copy root package.json if needed
-COPY package*.json /app/
+# Install git and native build tools for @zebra/core git dependency and better-sqlite3/bcrypt
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    python3 \
+    make \
+    g++ \
+    ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
-RUN npm install
+COPY package.json package-lock.json ./
+COPY client/package.json ./client/
+COPY server/package.json ./server/
 
-# Copy source code and build
-COPY client/ ./
-RUN npm run build
+RUN npm ci --allow-git=all --ignore-scripts && npm rebuild better-sqlite3 bcrypt
 
-# ==========================================
-# Stage 2: Build Server (Node/Express)
-# ==========================================
-FROM node:24-bookworm-slim AS server-builder
-WORKDIR /app/server
+COPY client/ ./client/
+COPY server/ ./server/
 
-# Copy package files
-COPY server/package*.json ./
-COPY package*.json /app/
-
-# Install dependencies
-RUN npm install
-
-# Copy source code and build
-COPY server/ ./
-RUN npm run build
+RUN npm run build && npm prune --omit=dev
 
 # ==========================================
-# Stage 3: Production Image
+# Stage 2: Production Image
 # ==========================================
 FROM node:24-bookworm-slim AS production
 
-# Install OS dependencies for KataGo and general utilities
-RUN apt-get update && apt-get install -y \
+# Install OS dependencies for KataGo over HTTPS only
+RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     unzip \
+    ca-certificates \
     libzip4 \
     libssl-dev && \
-    wget http://nz.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb && \
-    dpkg -i libssl1.1_1.1.1f-1ubuntu2_amd64.deb && \
-    rm libssl1.1_1.1.1f-1ubuntu2_amd64.deb && \
-    ln -s /usr/lib/x86_64-linux-gnu/libzip.so.4 /usr/lib/x86_64-linux-gnu/libzip.so.5 && \
+    ln -sf /usr/lib/x86_64-linux-gnu/libzip.so.4 /usr/lib/x86_64-linux-gnu/libzip.so.5 && \
     rm -rf /var/lib/apt/lists/*
 
-
-# Download and install KataGo (Eigen Linux version - CPU only, universally compatible)
-# We place the executable in /usr/local/bin so it's available in PATH
 WORKDIR /tmp
-RUN wget https://github.com/lightvector/KataGo/releases/download/v1.15.3/katago-v1.15.3-eigen-linux-x64.zip && \
+RUN wget -q https://github.com/lightvector/KataGo/releases/download/v1.15.3/katago-v1.15.3-eigen-linux-x64.zip && \
     unzip katago-v1.15.3-eigen-linux-x64.zip -d /usr/local/bin/ && \
     chmod +x /usr/local/bin/katago && \
     rm katago-v1.15.3-eigen-linux-x64.zip
 
-# Set up the application directory
 WORKDIR /app
 
-# Copy built client
-COPY --from=client-builder /app/client/dist ./client/dist
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/client/dist ./client/dist
+COPY --from=builder /app/server/package.json ./server/package.json
+COPY --from=builder /app/server/dist ./server/dist
+COPY server/katago/gtp_config.cfg ./server/katago/gtp_config.cfg
 
-# Copy built server and node_modules
-# We copy package.json and node_modules to run the production server
+RUN mkdir -p /app/server/database /app/server/katago && \
+    chown -R node:node /app
+
+USER node
 WORKDIR /app/server
-COPY --from=server-builder /app/server/package*.json ./
-COPY --from=server-builder /app/server/node_modules ./node_modules
-COPY --from=server-builder /app/server/dist ./dist
 
-# Create directories that will be mounted to ensure proper permissions
-RUN mkdir -p /app/server/database /app/server/katago
-
-# Expose the server port
 EXPOSE 3001
 
-# Command to run the server. Downloads the model if it doesn't exist in the mounted volume.
-CMD ["sh", "-c", "if [ ! -f /app/server/katago/katago-model.bin.gz ]; then wget https://katagoarchive.org/g170/neuralnets/g170e-b10c128-s1141046784-d204142634.bin.gz -O /app/server/katago/katago-model.bin.gz; fi && npm start"]
+CMD ["sh", "-c", "if [ ! -f /app/server/katago/katago-model.bin.gz ]; then wget -q https://katagoarchive.org/g170/neuralnets/g170e-b10c128-s1141046784-d204142634.bin.gz -O /app/server/katago/katago-model.bin.gz; fi && node dist/index.js"]

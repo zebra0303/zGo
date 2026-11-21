@@ -48,11 +48,14 @@ export const useAITurn = () => {
     updateWinRate,
     currentNodeId: currentNode.id,
   });
-  stableRef.current = {
-    getMoveHistory,
-    updateWinRate,
-    currentNodeId: currentNode.id,
-  };
+  // Sync ref inside an effect to comply with React 19 hooks rules
+  useEffect(() => {
+    stableRef.current = {
+      getMoveHistory,
+      updateWinRate,
+      currentNodeId: currentNode.id,
+    };
+  });
 
   useEffect(() => {
     let isActive = true;
