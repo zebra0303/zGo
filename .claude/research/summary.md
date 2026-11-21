@@ -1,8 +1,14 @@
 # zGo Project Research Summary
 
-> Last updated: 2026-03-23
+> Last updated: 2026-11-21
 
-> **2026-03-25 Architecture Update:** To unify the ecosystem (zGo, zlog, BigStone), common UI components, foundational utilities (error handling, masking), shared types, and data obfuscation logic have been extracted to the **@zebra/core** library. The project now seamlessly imports these shared elements via npm dependencies.
+> **2026-11-21 Architecture & Security Update:**
+>
+> - Upgraded to **@zebra/core@0.2.0** (`resolveJwtSecret`, `ErrorBoundary`, `Modal`, `ConfirmModal`, `ToggleSwitch`, `Select`, `Button`, error masking, obfuscation) and migrated `zGo` to an **npm workspaces** monorepo (`client` + `server`) with `.npmrc` for npm 12 Git dependency compatibility.
+> - Enforced privilege separation between `requireAdmin` (admin-only routes) and `requireAdminOrRoomToken` (online match/AI endpoints), preventing `roomToken` JWTs from accessing admin endpoints.
+> - Added per-request same-origin CORS delegate (`server/src/middleware/cors.ts`) and server ESLint config (`server/eslint.config.mjs`).
+> - Updated `client/tailwind.config.js` to scan hoisted `../node_modules/@zebra/core/dist/**/*.{js,cjs,mjs}` so `@zebra/core` modal/form classes are not purged in production builds.
+> - Fixed WebSocket 4xxx fatal close reconnection loop (`wsClient.ts`), zero-volume sound playback guard (`sound.ts`), review/scoring bugs, and migrated `ChatHistoryModal` to `@zebra/core` `Modal`.
 
 ## 1. 프로젝트 개요
 
@@ -27,7 +33,7 @@ zGo는 KataGo AI 엔진을 기반으로 한 웹 바둑 애플리케이션이다.
 
 | 영역 | 기술 |
 |------|------|
-| **Frontend** | React 18, TypeScript, Vite 5, Tailwind CSS 3.4 |
+| **Frontend** | React 18, TypeScript, Vite 6, Tailwind CSS 3.4 |
 | **State** | Zustand 5 + Immer 11 (persist middleware, sessionStorage/localStorage) |
 | **Data Fetching** | TanStack React Query 5 |
 | **i18n** | i18next + react-i18next |
@@ -35,11 +41,12 @@ zGo는 KataGo AI 엔진을 기반으로 한 웹 바둑 애플리케이션이다.
 | **Database** | better-sqlite3 (WAL mode), SQLite |
 | **AI Engine** | KataGo (GTP protocol, child_process.spawn) |
 | **Realtime** | WebSocket (ws 8.19) + JWT room tokens (24h) |
-| **Auth** | bcrypt 6 + jsonwebtoken 9 (HttpOnly), express-rate-limit |
+| **Auth & Security** | bcrypt 6 + jsonwebtoken 9 (HttpOnly, `requireAdmin` / `requireAdminOrRoomToken`), `resolveJwtSecret`, same-origin CORS delegate, express-rate-limit |
+| **Shared Lib** | `@zebra/core@0.2.0` (UI, `ErrorBoundary`, `resolveJwtSecret`, error masking, obfuscation) |
 | **PWA** | vite-plugin-pwa (Workbox) |
-| **Build** | Vite (client), tsc (server), Concurrently (dev) |
-| **Testing** | Vitest (client 88 + server 40 = 128 tests) |
-| **Code Quality** | ESLint, Prettier, Husky + lint-staged |
+| **Build** | npm workspaces (`client` + `server`), Vite 6, tsc, Concurrently |
+| **Testing** | Vitest (**14 files / 140 tests**: client 91 + server 49) |
+| **Code Quality** | ESLint (client + server `eslint.config.mjs`), Prettier, Husky + lint-staged |
 
 ---
 
@@ -57,10 +64,10 @@ zGo/
 │   │   └── assets/sounds/           # mp3 효과음 (put, pass, win, lose, chat 등)
 │   ├── index.html                   # PWA 메타 태그, 웹폰트 로드
 │   ├── vite.config.ts               # Vite + PWA + 코드 분할
-│   ├── tailwind.config.js           # darkMode: "class", CSS 변수 테마
+│   ├── tailwind.config.js           # darkMode: "class", CSS 변수 테마, 호이스트된 ../node_modules/@zebra/core/dist 스캔
 │   └── src/
 │       ├── app/
-│       │   ├── App.tsx              # 인증 게이트 + 테마/언어 동기화 + 라우팅
+│       │   ├── App.tsx              # 인증 게이트 + ErrorBoundary + 테마/언어 동기화 + 라우팅
 │       │   └── main.tsx             # 엔트리 (QueryClientProvider + StrictMode)
 │       ├── pages/
 │       │   ├── MainPage.tsx         # 2-column 레이아웃 (보드 + 사이드바)
@@ -72,21 +79,25 @@ zGo/
 │       │   ├── OnlineSidebarWidget.tsx  # 온라인 사이드바 (채팅, 플레이어 정보)
 │       │   ├── TeacherAdviceWidget.tsx  # AI 추천 수 + 비판 표시
 │       │   ├── ReviewPanelWidget.tsx    # 승률 그래프 + 복기 컨트롤 + 분기 칩
+│       │   ├── online/
+│       │   │   └── OnlineChatPanel.tsx  # 온라인 대국 채팅 패널 위젯
 │       │   └── sidebar/
 │       │       ├── GameStatusPanel.tsx    # 턴 표시 / 결과 / 복기 상태
 │       │       ├── SettingsPanel.tsx      # 게임 설정 (모드, 크기, AI 등)
 │       │       ├── MatchHistory.tsx       # 전적 리스트 + AI 통계
 │       │       ├── AdminPanel.tsx         # 관리자 패널 (테마, 언어, 비번)
-│       │       └── ChatHistoryModal.tsx   # 채팅 기록 모달 (30개 레이지 로딩)
+│       │       └── ChatHistoryModal.tsx   # 채팅 기록 모달 (@zebra/core Modal, 30개 레이지 로딩)
 │       ├── features/
 │       │   ├── board/
-│       │   │   ├── ui/BoardCore.tsx       # SVG 바둑판 렌더러
+│       │   │   ├── ui/
+│       │   │   │   ├── BoardCore.tsx       # SVG 바둑판 렌더러
+│       │   │   │   └── GameControls.tsx    # 착수/무르기/패스/기권/재시작 컨트롤
 │       │   │   └── lib/
-│       │   │       ├── useAITurn.ts       # AI 자동 착수 훅
-│       │   │       └── useGameScoring.ts  # 계가/사운드 훅
+│       │   │       ├── useAITurn.ts        # AI 자동 착수 훅
+│       │   │       ├── useAIHintQuery.ts   # 선생님 모드 AI 힌트 쿼리 훅
+│       │   │       └── useGameScoring.ts   # 계가/사운드 훅
 │       │   └── online/
-│       │       ├── ui/                    # CreateRoomForm, JoinRoomForm, WaitingRoom
-│       │       └── lib/wsClient.ts        # WebSocket 클라이언트 (재연결 지원)
+│       │       └── ui/                    # CreateRoomForm, JoinRoomForm, WaitingRoom
 │       ├── entities/
 │       │   ├── board/lib/goLogic.ts       # 바둑 룰 (착수, 따냄, 자충수, 패)
 │       │   ├── match/
@@ -101,6 +112,7 @@ zGo/
 │       └── shared/
 │           ├── api/
 │           │   ├── gameApi.ts             # REST + SSE 클라이언트
+│           │   ├── wsClient.ts            # WebSocket 클라이언트 (4xxx 치명 종료 시 재연결 차단)
 │           │   └── queryClient.ts         # React Query 인스턴스
 │           ├── config/
 │           │   ├── i18n.ts                # i18next 설정 (ko 기본)
@@ -108,10 +120,9 @@ zGo/
 │           ├── lib/
 │           │   ├── goUtils.ts             # getPlayerForMove, buildMoveHistory
 │           │   ├── formatUtils.ts         # 게임 결과 텍스트 포맷
-│           │   ├── sound.ts               # 효과음 재생 (오디오 풀)
+│           │   ├── sound.ts               # 효과음 재생 (오디오 풀 + 볼륨 0 가드)
 │           │   ├── themeUtils.ts          # 테마/폰트/색상 CSS 변수 적용
 │           │   ├── router.ts              # 해시 기반 라우팅
-│           │   ├── useRenderProfile.ts    # 개발용 성능 프로파일링 (>16ms 감지)
 │           │   ├── errors/AppError.ts     # 커스텀 에러 클래스 (Error Masking)
 │           │   └── cryptoUtils.ts         # 세션 데이터 난독화 유틸리티
 │           ├── types/board.ts             # BoardState, PlayerColor 타입
@@ -120,7 +131,9 @@ zGo/
 │   ├── src/
 │   │   ├── index.ts               # Express 서버 + WebSocket 업그레이드 + SPA 폴백 + Graceful Shutdown
 │   │   ├── db.ts                  # better-sqlite3 (matches, system_settings, online_rooms, online_chat)
-│   │   ├── middleware/auth.ts     # HttpOnly Cookie 기반 JWT 검증 미들웨어
+│   │   ├── middleware/
+│   │   │   ├── auth.ts            # requireAdmin / requireAdminOrRoomToken 권한 분리 + resolveJwtSecret
+│   │   │   └── cors.ts            # 요청별 동일 출처 + 허용 목록 CORS 위임 미들웨어
 │   │   ├── routes/
 │   │   │   ├── ai.ts             # AI 착수/분석/계가 (KataGo GTP)
 │   │   │   ├── matches.ts        # 기보 CRUD
@@ -134,12 +147,14 @@ zGo/
 │   │   │   ├── coords.ts         # 좌표 변환 (GTP ↔ xy)
 │   │   │   └── tactics.ts        # 수 분류 (capture/saving/atari/cut 등) + 다국어 해설
 │   │   └── lib/goLogic.ts        # 서버측 착수 검증 + 보드 재생
+│   ├── eslint.config.mjs         # 서버 ESLint 설정
 │   ├── katago/
 │   │   ├── gtp_config.cfg        # KataGo 설정 (6스레드, 100 visits 기본)
 │   │   └── katago-model.bin.gz   # AI 모델 (git 미포함)
-│   └── __tests__/logic.test.ts   # 좌표 변환, 접바둑, 전술 테스트 (40개)
-├── package.json                   # 루트 모노레포 (concurrently, husky, lint-staged)
-└── .env                           # PORT=3330, VITE_PORT=5550, JWT_SECRET
+│   └── __tests__/                # 서버 테스트 (49개: logic, auth, cors 등)
+├── .npmrc                        # npm 12 @zebra/core Git 의존성 정책
+├── package.json                  # 루트 npm workspaces 모노레포 (concurrently, husky, lint-staged)
+└── .env                          # PORT=3330, VITE_PORT=5550, JWT_SECRET
 ```
 
 ---
@@ -371,17 +386,19 @@ sessionStorage에 `roomToken`과 사용자 닉네임 등의 PII(Personal Identif
 - **CPU 렌더링 최적화**: 바둑판(`BoardCore.tsx`), 돌(`Stone`) 단위에 철저한 `React.memo` 적용.
 - **보안 (Session Storage)**: `roomToken` 등 PII/토큰 데이터의 sessionStorage 평문 보관을 피하기 위해 난독화(`cryptoUtils.ts`) 적용 완료.
 - **보안 (Error Masking)**: API 호출 및 로그인 폼 등에서 발생하는 서버 에러와 스택 트레이스가 UI에 노출되지 않도록 `createMaskedError`를 통해 규격화.
-- **보안 (Auth)**: 어드민 인증 토큰은 평문이 아닌 `HttpOnly` 속성을 가진 쿠키 기반으로 안전하게 설계됨.
-- **안정성 (Graceful Shutdown)**: Node.js 서버 재시작/종료 시 자식 `katago` 프로세스의 즉각 종료(Zombie 방지) 구현.
+- **보안 (Auth & 권한 분리)**: 어드민 인증 토큰은 `HttpOnly` 쿠키 기반이며 `resolveJwtSecret`으로 프로덕션 시크릿을 강제합니다. `requireAdmin`(관리자 전용)과 `requireAdminOrRoomToken`(온라인 대국 허용)을 분리해 `roomToken`의 관리자 API 접근을 차단합니다.
+- **보안 (CORS)**: `server/src/middleware/cors.ts` 요청별 위임 미들웨어로 허용 목록(`CORS_ORIGIN`)과 동일 출처(same-origin, 리버스 프록시 `X-Forwarded-Proto`/`Host` 포함) 요청만 허용하고 외부 오리진 요청을 차단합니다.
+- **안정성 (Graceful Shutdown & WebSocket)**: Node.js 서버 재시작/종료 시 자식 `katago` 프로세스의 즉각 종료(Zombie 방지)를 구현했고, `wsClient.ts`는 4xxx 치명 종료 코드 시 무한 재연결을 중단합니다.
+- **빌드 안정성 (Tailwind 호이스팅)**: npm workspaces 루트에 호이스트된 `../node_modules/@zebra/core/dist/**/*.{js,cjs,mjs}`를 `client/tailwind.config.js`에 포함해 `@zebra/core` 모달(`ConfirmModal` `inset-0` 등) 및 폼 컴포넌트 스타일 유실을 방지합니다.
 
 ---
 
 ## 7. 테스트 현황
 
-### Client (Vitest, 88 tests)
-- 스토어 로직, 게임 트리 변환, 패 규칙/자충수, 무르기, 사운드 등 **접바둑 배치**, **유틸리티(goUtils)** 의 엣지 케이스까지 100% 커버.
-### Server (Vitest, 40 tests)
-- 좌표 변환 (GTP ↔ xy), 접바둑 룰, 전술 감지, 다국어 해설 매핑 및 **다중 돌 그룹 활로 평가** 테스트까지 완벽히 커버.
+### Client (Vitest, 91 tests)
+- 스토어 로직, 게임 트리 변환, 패 규칙/자충수, 무르기, 사운드(볼륨 0 가드 포함), WebSocket 4xxx 종료 처리, **접바둑 배치**, **유틸리티(goUtils)** 의 엣지 케이스까지 커버.
+### Server (Vitest, 49 tests)
+- 좌표 변환 (GTP ↔ xy), 접바둑 룰, 전술 감지, 다국어 해설 매핑, **다중 돌 그룹 활로 평가**, `requireAdmin` vs `requireAdminOrRoomToken` 권한 분리, 동일 출처 CORS 위임 미들웨어(`cors.test.ts`) 테스트까지 커버.
 
 ---
 

@@ -135,17 +135,17 @@ Docker가 설치되어 있다면, Node.js나 환경 설정을 수동으로 할 �
 
 ### 기술 스택
 
-| 계층                | 기술                                                                        |
-| ------------------- | --------------------------------------------------------------------------- |
-| **프론트엔드**      | React 18, TypeScript, Tailwind CSS, Zustand (+ Immer), TanStack Query, Vite |
-| **백엔드**          | Node.js, Express 5, TypeScript                                              |
-| **AI 엔진**         | KataGo (GTP 프로토콜, child_process 통신)                                   |
-| **데이터베이스**    | better-sqlite3 (WAL 모드)                                                   |
-| **실시간 통신**     | WebSocket (ws)                                                              |
-| **인증**            | bcrypt + jsonwebtoken (HttpOnly 쿠키), express-rate-limit                   |
-| **PWA**             | vite-plugin-pwa (Workbox)                                                   |
-| **공유 라이브러리** | @zebra/core (공통 UI 컴포넌트, 유틸리티, 타입, 에러 핸들링)                 |
-| **테스트**          | Vitest (128개 테스트)                                                       |
+| 계층                | 기술                                                                          |
+| ------------------- | ----------------------------------------------------------------------------- |
+| **프론트엔드**      | React 18, TypeScript, Tailwind CSS, Zustand (+ Immer), TanStack Query, Vite 6 |
+| **백엔드**          | Node.js, Express 5, TypeScript                                                |
+| **AI 엔진**         | KataGo (GTP 프로토콜, child_process 통신)                                     |
+| **데이터베이스**    | better-sqlite3 (WAL 모드)                                                     |
+| **실시간 통신**     | WebSocket (ws)                                                                |
+| **인증**            | bcrypt + jsonwebtoken (HttpOnly 쿠키, 권한 분리 미들웨어), express-rate-limit |
+| **PWA**             | vite-plugin-pwa (Workbox)                                                     |
+| **공유 라이브러리** | @zebra/core (공통 UI 컴포넌트, 유틸리티, JWT 시크릿 검증, 에러 핸들링)        |
+| **테스트**          | Vitest (14 스위트, 140개 테스트: client 91 + server 49)                       |
 
 ### 프로젝트 구조
 
@@ -153,45 +153,52 @@ Docker가 설치되어 있다면, Node.js나 환경 설정을 수동으로 할 �
 zGo/
 ├── client/                         # React 프론트엔드 (FSD 아키텍처)
 │   ├── src/
-│   │   ├── app/                    # 앱 설정 (프로바이더, i18n, 인증 게이트)
+│   │   ├── app/                    # 앱 설정 (프로바이더, i18n, 인증 게이트, ErrorBoundary)
 │   │   ├── pages/                  # MainPage, OnlinePage, AuthPage
 │   │   ├── widgets/                # 복합 UI 블록
 │   │   │   ├── sidebar/            # AdminPanel, SettingsPanel, GameStatusPanel,
-│   │   │   │                       # MatchHistory, ChatHistoryModal
+│   │   │   │                       # MatchHistory, ChatHistoryModal (@zebra/core Modal)
+│   │   │   ├── online/             # OnlineChatPanel
 │   │   │   ├── BoardWidget.tsx
 │   │   │   ├── SidebarWidget.tsx
 │   │   │   ├── OnlineSidebarWidget.tsx
 │   │   │   ├── GameLayout.tsx      # 공통 게임 레이아웃 (공유 위젯)
 │   │   │   ├── ReviewPanelWidget.tsx
 │   │   │   └── TeacherAdviceWidget.tsx
-│   │   ├── features/               # 바둑판 인터랙션, 온라인 UI (방, 채팅)
+│   │   ├── features/               # 바둑판 인터랙션 (BoardCore, GameControls, useAIHintQuery),
+│   │   │                           # 온라인 UI (방, 채팅)
 │   │   ├── entities/               # 매치 & 온라인 스토어, 바둑 로직, 트리 타입
-│   │   ├── shared/                 # 공용 UI (GameControls, CustomDialog),
-│   │   │                           # API 클라이언트 (fetchWithAuth), 타입, i18n, 라우터
-│   │   └── __tests__/              # Vitest 단위 테스트 (85개 이상)
-│   └── vite.config.ts              # Vite + PWA 플러그인 설정
+│   │   ├── shared/                 # 공용 UI (@zebra/core 재노출), API 클라이언트,
+│   │   │                           # wsClient, 타입, i18n, 라우터
+│   │   └── __tests__/              # Vitest 단위 테스트 (91개)
+│   ├── tailwind.config.js          # 로컬 src + 호이스트된 ../node_modules/@zebra/core/dist 스캔
+│   └── vite.config.ts              # Vite 6 + PWA 플러그인 설정
 ├── server/                         # Express 백엔드 (TypeScript)
 │   ├── src/
 │   │   ├── index.ts                # 진입점, Cache-Control, SPA 폴백 설정
 │   │   ├── db.ts                   # SQLite (대국, 설정, 룸, 채팅)
-│   │   ├── middleware/auth.ts      # 쿠키 기반 requireAdmin 미들웨어
+│   │   ├── middleware/
+│   │   │   ├── auth.ts             # requireAdmin vs requireAdminOrRoomToken 권한 분리
+│   │   │   └── cors.ts             # 요청별 동일 출처 + 허용 목록 CORS 위임 미들웨어
 │   │   ├── lib/goLogic.ts          # 서버 측 착수 검증
 │   │   ├── katago/                 # KataGo 프로세스 관리 & GTP
 │   │   ├── routes/
-│   │   │   ├── ai.ts              # /api/ai/* (착수, 분석, 계가, 재시작)
-│   │   │   ├── matches.ts         # /api/matches CRUD
-│   │   │   ├── online.ts          # /api/online/* (방 생성, 참가, 매치)
-│   │   │   └── settings.ts        # /api/settings/* (인증, 설정)
+│   │   │   ├── ai.ts               # /api/ai/* (착수, 분석, 계가, 재시작)
+│   │   │   ├── matches.ts          # /api/matches CRUD
+│   │   │   ├── online.ts           # /api/online/* (방 생성, 참가, 매치)
+│   │   │   └── settings.ts         # /api/settings/* (인증, 설정)
 │   │   ├── ws/
-│   │   │   ├── onlineHandler.ts   # WebSocket 게임 로직
-│   │   │   └── roomManager.ts     # 룸 상태 관리
+│   │   │   ├── onlineHandler.ts    # WebSocket 게임 로직
+│   │   │   └── roomManager.ts      # 룸 상태 관리
 │   │   └── shared/                 # 서버 측 i18n 로케일 및 로직
-│   ├── __tests__/                  # 서버 측 테스트 (로직, i18n)
+│   ├── __tests__/                  # 서버 측 테스트 (49개: 로직, 인증, CORS, i18n)
+│   ├── eslint.config.mjs           # 서버 ESLint 설정
 │   └── katago/                     # KataGo 바이너리, 설정 & 모델
+├── .npmrc                          # npm 12 @zebra/core Git 의존성 정책
 ├── Dockerfile                      # 멀티 스테이지 운영 빌드 설정
 ├── docker-compose.yml              # 로컬 볼륨 마운트를 포함한 컨테이너 오케스트레이션
 ├── .env                            # 환경 변수 (JWT_SECRET, PORT)
-└── package.json                    # 빌드/테스트를 위한 루트 스크립트
+└── package.json                    # npm workspaces 루트 스크립트 (빌드/린트/테스트)
 ```
 
 ### 성능 최적화 요약

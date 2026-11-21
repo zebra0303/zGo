@@ -137,17 +137,17 @@ This project follows the **FSD (Feature-Sliced Design)** architecture.
 
 ### Tech Stack
 
-| Layer          | Technology                                                                  |
-| -------------- | --------------------------------------------------------------------------- |
-| **Frontend**   | React 18, TypeScript, Tailwind CSS, Zustand (+ Immer), TanStack Query, Vite |
-| **Backend**    | Node.js, Express 5, TypeScript                                              |
-| **AI Engine**  | KataGo (GTP protocol via child_process)                                     |
-| **Database**   | better-sqlite3 (WAL mode)                                                   |
-| **Realtime**   | WebSocket (ws)                                                              |
-| **Auth**       | bcrypt + jsonwebtoken (HttpOnly Cookies), express-rate-limit                |
-| **PWA**        | vite-plugin-pwa (Workbox)                                                   |
-| **Shared Lib** | @zebra/core (common UI components, utils, types, error handling)            |
-| **Testing**    | Vitest (128 tests)                                                          |
+| Layer          | Technology                                                                    |
+| -------------- | ----------------------------------------------------------------------------- |
+| **Frontend**   | React 18, TypeScript, Tailwind CSS, Zustand (+ Immer), TanStack Query, Vite 6 |
+| **Backend**    | Node.js, Express 5, TypeScript                                                |
+| **AI Engine**  | KataGo (GTP protocol via child_process)                                       |
+| **Database**   | better-sqlite3 (WAL mode)                                                     |
+| **Realtime**   | WebSocket (ws)                                                                |
+| **Auth**       | bcrypt + jsonwebtoken (HttpOnly Cookies, role-separated guards), rate limit   |
+| **PWA**        | vite-plugin-pwa (Workbox)                                                     |
+| **Shared Lib** | @zebra/core (common UI components, utils, JWT secret guard, error handling)   |
+| **Testing**    | Vitest (14 suites, 140 tests: client 91 + server 49)                          |
 
 ### Project Structure
 
@@ -155,45 +155,52 @@ This project follows the **FSD (Feature-Sliced Design)** architecture.
 zGo/
 ├── client/                         # React frontend (FSD architecture)
 │   ├── src/
-│   │   ├── app/                    # App setup (providers, i18n, auth gate)
+│   │   ├── app/                    # App setup (providers, i18n, auth gate, ErrorBoundary)
 │   │   ├── pages/                  # MainPage, OnlinePage, AuthPage
 │   │   ├── widgets/                # Composite UI blocks
 │   │   │   ├── sidebar/            # AdminPanel, SettingsPanel, GameStatusPanel,
-│   │   │   │                       # MatchHistory, ChatHistoryModal
+│   │   │   │                       # MatchHistory, ChatHistoryModal (@zebra/core Modal)
+│   │   │   ├── online/             # OnlineChatPanel
 │   │   │   ├── BoardWidget.tsx
 │   │   │   ├── SidebarWidget.tsx
 │   │   │   ├── OnlineSidebarWidget.tsx
 │   │   │   ├── GameLayout.tsx      # Shared layout for game pages
 │   │   │   ├── ReviewPanelWidget.tsx
 │   │   │   └── TeacherAdviceWidget.tsx
-│   │   ├── features/               # Board interaction, online UI (rooms, chat)
+│   │   ├── features/               # Board interaction (BoardCore, GameControls, useAIHintQuery),
+│   │   │                           # online UI (rooms, chat)
 │   │   ├── entities/               # Match & Online stores, Go logic, tree types
-│   │   ├── shared/                 # Reusable UI (GameControls, CustomDialog),
-│   │   │                           # API client (fetchWithAuth), types, i18n, router
-│   │   └── __tests__/              # Vitest unit tests (85+ tests)
-│   └── vite.config.ts              # Vite + PWA plugin config
+│   │   ├── shared/                 # Reusable UI (@zebra/core re-exports), API client,
+│   │   │                           # wsClient, types, i18n, router
+│   │   └── __tests__/              # Vitest unit tests (91 tests)
+│   ├── tailwind.config.js          # Scans local src + hoisted ../node_modules/@zebra/core/dist
+│   └── vite.config.ts              # Vite 6 + PWA plugin config
 ├── server/                         # Express backend (TypeScript)
 │   ├── src/
 │   │   ├── index.ts                # Entry point, Cache-Control, SPA fallback
 │   │   ├── db.ts                   # SQLite (matches, settings, rooms, chat)
-│   │   ├── middleware/auth.ts      # HttpOnly Cookie-based requireAdmin middleware
+│   │   ├── middleware/
+│   │   │   ├── auth.ts             # requireAdmin vs requireAdminOrRoomToken guards
+│   │   │   └── cors.ts             # Per-request same-origin + allowlist CORS delegate
 │   │   ├── lib/goLogic.ts          # Server-side move validation
 │   │   ├── katago/                 # KataGo process management & GTP
 │   │   ├── routes/
-│   │   │   ├── ai.ts              # /api/ai/* (move, analyze, score, restart)
-│   │   │   ├── matches.ts         # /api/matches CRUD
-│   │   │   ├── online.ts          # /api/online/* (rooms, join, match)
-│   │   │   └── settings.ts        # /api/settings/* (auth, config)
+│   │   │   ├── ai.ts               # /api/ai/* (move, analyze, score, restart)
+│   │   │   ├── matches.ts          # /api/matches CRUD
+│   │   │   ├── online.ts           # /api/online/* (rooms, join, match)
+│   │   │   └── settings.ts         # /api/settings/* (auth, config)
 │   │   ├── ws/
-│   │   │   ├── onlineHandler.ts   # WebSocket game logic
-│   │   │   └── roomManager.ts     # Room state management
+│   │   │   ├── onlineHandler.ts    # WebSocket game logic
+│   │   │   └── roomManager.ts      # Room state management
 │   │   └── shared/                 # Server-side i18n locales and logic
-│   ├── __tests__/                  # Server-side tests (logic, i18n)
+│   ├── __tests__/                  # Server-side tests (49 tests: logic, auth, cors, i18n)
+│   ├── eslint.config.mjs           # Server ESLint config
 │   └── katago/                     # KataGo binary, config & model
+├── .npmrc                          # npm 12 Git dependency policy for @zebra/core
 ├── Dockerfile                      # Multi-stage production build
 ├── docker-compose.yml              # Orchestration with local volume mounts
 ├── .env                            # Environment variables (JWT_SECRET, PORT)
-└── package.json                    # Root scripts for build/test
+└── package.json                    # npm workspaces root scripts for build/lint/test
 ```
 
 ### Performance Optimizations
